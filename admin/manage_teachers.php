@@ -1,22 +1,14 @@
 <?php
+include("../db.php");
 session_start();
-include("db.php");
 
 /* 🔐 ADMIN ACCESS ONLY */
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
-<<<<<<< HEAD
-    header("Location: login.php");
-    exit;
-}
-
-/* 📘 FETCH TEACHERS (NO CLASS JOIN – CORRECT AS PER DB) */
-=======
     header("Location: ../login.php");
     exit;
 }
 
-/* ✅ FETCH TEACHERS */
->>>>>>> a575b8dc2e3b479f9a5b967f91449caf94bda7e2
+/* ✅ FETCH TEACHERS (NO class_id used) */
 $teachers = mysqli_query(
     $conn,
     "SELECT 
@@ -34,7 +26,6 @@ $teachers = mysqli_query(
 <html>
 <head>
 <title>Manage Teachers</title>
-
 <style>
 body {
     font-family: Arial;
@@ -76,7 +67,7 @@ body {
     display:flex;
     align-items:center;
     justify-content:center;
-    font-size:20px;
+    font-size:18px;
 }
 .actions span {
     margin-left:8px;
@@ -111,7 +102,7 @@ body {
 
 <div class="container">
 
-<!-- SEARCH BAR -->
+<!-- SEARCH BAR (UI ONLY) -->
 <div class="search">
     <input type="text" placeholder="Search teachers...">
 </div>
@@ -128,11 +119,7 @@ body {
             <div class="avatar">👤</div>
             <div>
                 <strong><?= htmlspecialchars($row['full_name']) ?></strong><br>
-<<<<<<< HEAD
-                <small>Teacher</small>
-=======
                 <small>Not Assigned</small>
->>>>>>> a575b8dc2e3b479f9a5b967f91449caf94bda7e2
             </div>
         </div>
         <div class="actions">
@@ -156,7 +143,7 @@ body {
 
 </div>
 
-<!-- ADD TEACHER BUTTON -->
+<!-- FLOATING ADD BUTTON -->
 <a href="add_teacher.php" class="add-btn">+</a>
 
 <?php include("bottom_nav.php"); ?>

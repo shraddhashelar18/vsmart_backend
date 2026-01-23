@@ -88,8 +88,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     header("Location: parent/dashboard.php");
                     break;
                     case 'principal':
-    header("Location: principal/dashboard.php");
-    break;
+                        header("Location: principal/dashboard.php");
+                        break;
 
                 case 'hod':
                     header("Location: hod/dashboard.php");
