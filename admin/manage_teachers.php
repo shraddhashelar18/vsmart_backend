@@ -3,26 +3,23 @@ include("../db.php");
 session_start();
 
 /* 🔐 ADMIN ACCESS ONLY */
-if (!isset($_SESSION['role']) || $_SESSION['role'] != 'admin') {
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     header("Location: ../login.php");
     exit;
 }
 
-/* FETCH TEACHERS WITH CLASS NAME */
+/* ✅ FETCH TEACHERS */
 $teachers = mysqli_query(
     $conn,
     "SELECT 
         u.user_id,
-        t.full_name,
-        t.mobile_no,
         u.email,
-        c.class_name
+        t.full_name,
+        t.mobile_no
      FROM users u
      INNER JOIN teachers t ON u.user_id = t.user_id
-     LEFT JOIN classes c ON u.class_id = c.class_id
      WHERE u.role = 'teacher'"
 );
-
 ?>
 
 <!DOCTYPE html>
@@ -70,8 +67,7 @@ body {
     display:flex;
     align-items:center;
     justify-content:center;
-    color:#009846;
-    font-weight:bold;
+    font-size:20px;
 }
 .actions span {
     margin-left:8px;
@@ -114,6 +110,7 @@ body {
 <br>
 
 <!-- TEACHER LIST -->
+<?php if (mysqli_num_rows($teachers) > 0): ?>
 <?php while ($row = mysqli_fetch_assoc($teachers)) { ?>
 <div class="card">
 
@@ -121,8 +118,8 @@ body {
         <div style="display:flex;align-items:center;gap:12px;">
             <div class="avatar">👤</div>
             <div>
-                <strong><?= $row['full_name'] ?></strong><br>
-                <small><?= $row['class_name'] ?? 'Not Assigned' ?></small>
+                <strong><?= htmlspecialchars($row['full_name']) ?></strong><br>
+                <small>Not Assigned</small>
             </div>
         </div>
         <div class="actions">
@@ -134,12 +131,15 @@ body {
     <br>
 
     <div>
-        📧 <?= $row['email'] ?><br>
-        📞 <?= $row['phone'] ?>
+        📧 <?= htmlspecialchars($row['email']) ?><br>
+        📞 <?= htmlspecialchars($row['mobile_no']) ?>
     </div>
 
 </div>
 <?php } ?>
+<?php else: ?>
+    <p>No teachers registered yet.</p>
+<?php endif; ?>
 
 </div>
 
