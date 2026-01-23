@@ -2,29 +2,42 @@
 session_start();
 require_once "db.php";
 
-/* ✅ If already logged in, redirect ONCE */
-if (isset($_SESSION['user_id']) && isset($_SESSION['role'])) {
+/* Redirect if already logged in */
+if (!empty($_SESSION['user_id']) && !empty($_SESSION['role'])) {
+
     switch ($_SESSION['role']) {
+
         case 'admin':
             header("Location: admin/dashboard.php");
             break;
+
         case 'student':
             header("Location: student/dashboard.php");
             break;
+
         case 'teacher':
             header("Location: teacher/dashboard.php");
             break;
+
         case 'parent':
             header("Location: parent/dashboard.php");
             break;
+
         case 'hod':
             header("Location: hod/dashboard.php");
             break;
+
+        default:
+            session_destroy();
+            header("Location: login.php");
     }
-    exit();
+    exit;
 }
 
-/* ✅ Handle form submit */
+
+/* ===============================
+   Handle Login
+================================ */
 $error = "";
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -36,25 +49,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = "All fields are required";
     } else {
 
-        /* ✅ Secure query */
-        $stmt = mysqli_prepare($conn, "SELECT * FROM users WHERE email = ?");
+        $stmt = mysqli_prepare(
+            $conn,
+            "SELECT user_id, email, password, role, status 
+             FROM users 
+             WHERE email = ? 
+             LIMIT 1"
+        );
+
         mysqli_stmt_bind_param($stmt, "s", $email);
         mysqli_stmt_execute($stmt);
         $result = mysqli_stmt_get_result($stmt);
+        $user   = mysqli_fetch_assoc($result);
 
-        $user = mysqli_fetch_assoc($result);
-
-        if (!$user || !password_verify($password, $user['password'])) {
+        if (!$user) {
+            $error = "Invalid email or password";
+        } elseif (!password_verify($password, $user['password'])) {
             $error = "Invalid email or password";
         } elseif ($user['status'] !== 'approved') {
             $error = "Your account is pending admin approval";
         } else {
 
-            /* ✅ Login success */
+            // Login success
             $_SESSION['user_id'] = $user['user_id'];
             $_SESSION['role']    = $user['role'];
 
-            /* ✅ Role-based redirect */
             switch ($user['role']) {
                 case 'admin':
                     header("Location: admin/dashboard.php");
@@ -72,15 +91,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     header("Location: hod/dashboard.php");
                     break;
                 default:
-                    $error = "Invalid role assigned";
                     session_destroy();
+                    $error = "Invalid role assigned";
             }
-            exit();
+            exit;
         }
     }
 }
 ?>
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -90,11 +108,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <h2>Login</h2>
 
-<?php if ($error != ""): ?>
-    <p style="color:red;"><?php echo $error; ?></p>
+<?php if (!empty($error)): ?>
+    <p style="color:red;"><?php echo htmlspecialchars($error); ?></p>
 <?php endif; ?>
 
-<form method="post" action="">
+<form method="post">
     <label>Email</label><br>
     <input type="email" name="email" required><br><br>
 

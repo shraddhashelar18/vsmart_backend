@@ -5,23 +5,20 @@ $message = "";
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
-    // ---------- COMMON ----------
     $full_name = mysqli_real_escape_string($conn, $_POST['full_name'] ?? '');
     $email     = mysqli_real_escape_string($conn, $_POST['email'] ?? '');
     $password  = $_POST['password'] ?? '';
     $role      = $_POST['role'] ?? '';
 
-    if ($full_name == "" || $email == "" || $password == "" || $role == "") {
+    if ($full_name=="" || $email=="" || $password=="" || $role=="") {
         $message = "All fields are required";
     } else {
 
-        // ---------- VALID ROLES ----------
-        $valid_roles = ['student','teacher','parent','hod'];
+        $valid_roles = ['student','teacher','parent'];
         if (!in_array($role, $valid_roles)) {
             $message = "Invalid role selected";
         } else {
 
-            // ---------- EMAIL CHECK ----------
             $check = mysqli_query($conn,
                 "SELECT user_id FROM users WHERE email='$email'"
             );
@@ -30,12 +27,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 $message = "Email already registered";
             } else {
 
-                // ---------- INSERT INTO USERS ----------
                 $hashed = password_hash($password, PASSWORD_DEFAULT);
 
                 mysqli_query($conn,
-                "INSERT INTO users (email,password,role,status)
-                 VALUES ('$email','$hashed','$role','pending')");
+                    "INSERT INTO users (email,password,role,status)
+                     VALUES ('$email','$hashed','$role','pending')"
+                );
 
                 $user_id = mysqli_insert_id($conn);
 
@@ -51,29 +48,31 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         $message = "All student fields are required";
                     } else {
                         mysqli_query($conn,
-                        "INSERT INTO students
-                        (roll_no,user_id,full_name,class,mobile_no,parent_mobile_no)
-                        VALUES
-                        ('$roll_no',$user_id,'$full_name','$class','$mobile','$pmobile')");
-                        $message = "Registration successful. Waiting for admin approval";
+                            "INSERT INTO students
+                             (roll_no,user_id,full_name,class,mobile_no,parent_mobile_no)
+                             VALUES
+                             ('$roll_no',$user_id,'$full_name','$class','$mobile','$pmobile')"
+                        );
+                        $message = "Student registered successfully. Waiting for approval";
                     }
                 }
 
-                // ---------- TEACHER & HOD ----------
-                elseif ($role == "teacher" || $role == "hod") {
+                // ---------- TEACHER ----------
+                elseif ($role == "teacher") {
 
                     $emp_id = $_POST['employee_id'] ?? '';
                     $mobile = $_POST['mobile_no'] ?? '';
 
                     if ($emp_id=="" || $mobile=="") {
-                        $message = "All teacher/HOD fields are required";
+                        $message = "All teacher fields are required";
                     } else {
                         mysqli_query($conn,
-                        "INSERT INTO teachers
-                        (employee_id,user_id,full_name,mobile_no)
-                        VALUES
-                        ('$emp_id',$user_id,'$full_name','$mobile')");
-                        $message = "Registration successful. Waiting for admin approval";
+                            "INSERT INTO teachers
+                             (employee_id,user_id,full_name,mobile_no)
+                             VALUES
+                             ('$emp_id',$user_id,'$full_name','$mobile')"
+                        );
+                        $message = "Teacher registered successfully. Waiting for approval";
                     }
                 }
 
@@ -87,11 +86,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         $message = "All parent fields are required";
                     } else {
                         mysqli_query($conn,
-                        "INSERT INTO parents
-                        (enrollment_no,user_id,full_name,mobile_no)
-                        VALUES
-                        ('$enroll',$user_id,'$full_name','$mobile')");
-                        $message = "Registration successful. Waiting for admin approval";
+                            "INSERT INTO parents
+                             (enrollment_no,user_id,full_name,mobile_no)
+                             VALUES
+                             ('$enroll',$user_id,'$full_name','$mobile')"
+                        );
+                        $message = "Parent registered successfully. Waiting for approval";
                     }
                 }
             }
@@ -108,14 +108,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 body{font-family:Arial;background:#f5f5f5;}
 .box{width:420px;margin:40px auto;padding:25px;background:#fff;border-radius:8px;}
 input,select{width:100%;padding:10px;margin-top:10px;}
-button{margin-top:15px;width:100%;padding:10px;background:#009846;color:white;border:none;}
+button{margin-top:15px;width:100%;padding:10px;background:#009846;color:white;border:none;border-radius:5px;}
 .msg{margin-top:15px;color:green;text-align:center;}
 </style>
 </head>
 
 <body>
 <div class="box">
-<h2 text-align="center">Register</h2>
+<h2>Register</h2>
 
 <form method="POST">
 
@@ -125,10 +125,9 @@ button{margin-top:15px;width:100%;padding:10px;background:#009846;color:white;bo
 
 <select name="role" required onchange="this.form.submit()">
     <option value="">Select Role</option>
-    <option value="student">Student</option>
-    <option value="teacher">Teacher</option>
-    <option value="hod">HOD</option>
-    <option value="parent">Parent</option>
+    <option value="student" <?= (($_POST['role'] ?? '')=="student")?'selected':'' ?>>Student</option>
+    <option value="teacher" <?= (($_POST['role'] ?? '')=="teacher")?'selected':'' ?>>Teacher</option>
+    <option value="parent"  <?= (($_POST['role'] ?? '')=="parent")?'selected':'' ?>>Parent</option>
 </select>
 
 <?php if (($_POST['role'] ?? '') == "student"): ?>
@@ -138,7 +137,7 @@ button{margin-top:15px;width:100%;padding:10px;background:#009846;color:white;bo
     <input name="parent_mobile_no" placeholder="Parent Mobile No" required>
 <?php endif; ?>
 
-<?php if (($_POST['role'] ?? '') == "teacher" || ($_POST['role'] ?? '') == "hod"): ?>
+<?php if (($_POST['role'] ?? '') == "teacher"): ?>
     <input name="employee_id" placeholder="Employee ID" required>
     <input name="mobile_no" placeholder="Mobile No" required>
 <?php endif; ?>

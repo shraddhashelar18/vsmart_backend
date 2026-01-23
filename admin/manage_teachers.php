@@ -1,34 +1,32 @@
 <?php
-include("../db.php");
 session_start();
+include("db.php");
 
 /* 🔐 ADMIN ACCESS ONLY */
-if (!isset($_SESSION['role']) || $_SESSION['role'] != 'admin') {
-    header("Location: ../login.php");
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+    header("Location: login.php");
     exit;
 }
 
-/* FETCH TEACHERS WITH CLASS NAME */
+/* 📘 FETCH TEACHERS (NO CLASS JOIN – CORRECT AS PER DB) */
 $teachers = mysqli_query(
     $conn,
     "SELECT 
         u.user_id,
-        t.full_name,
-        t.mobile_no,
         u.email,
-        c.class_name
+        t.full_name,
+        t.mobile_no
      FROM users u
      INNER JOIN teachers t ON u.user_id = t.user_id
-     LEFT JOIN classes c ON u.class_id = c.class_id
      WHERE u.role = 'teacher'"
 );
-
 ?>
 
 <!DOCTYPE html>
 <html>
 <head>
 <title>Manage Teachers</title>
+
 <style>
 body {
     font-family: Arial;
@@ -106,7 +104,7 @@ body {
 
 <div class="container">
 
-<!-- SEARCH BAR (UI ONLY) -->
+<!-- SEARCH BAR -->
 <div class="search">
     <input type="text" placeholder="Search teachers...">
 </div>
@@ -121,8 +119,8 @@ body {
         <div style="display:flex;align-items:center;gap:12px;">
             <div class="avatar">👤</div>
             <div>
-                <strong><?= $row['full_name'] ?></strong><br>
-                <small><?= $row['class_name'] ?? 'Not Assigned' ?></small>
+                <strong><?= htmlspecialchars($row['full_name']) ?></strong><br>
+                <small>Teacher</small>
             </div>
         </div>
         <div class="actions">
@@ -134,8 +132,8 @@ body {
     <br>
 
     <div>
-        📧 <?= $row['email'] ?><br>
-        📞 <?= $row['phone'] ?>
+        📧 <?= htmlspecialchars($row['email']) ?><br>
+        📞 <?= htmlspecialchars($row['mobile_no']) ?>
     </div>
 
 </div>
@@ -143,7 +141,7 @@ body {
 
 </div>
 
-<!-- FLOATING ADD BUTTON -->
+<!-- ADD TEACHER BUTTON -->
 <a href="add_teacher.php" class="add-btn">+</a>
 
 <?php include("bottom_nav.php"); ?>

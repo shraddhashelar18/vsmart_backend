@@ -1,44 +1,41 @@
 <?php
-include("../db.php");
 session_start();
+include("../db.php");
 
 /* 🔐 ADMIN ACCESS ONLY */
-if (!isset($_SESSION['role']) || $_SESSION['role'] != 'admin') {
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
     header("Location: ../login.php");
     exit;
 }
 
-/* STATS */
+/* 📊 STATS */
 $totalStudents = mysqli_num_rows(
     mysqli_query($conn, "SELECT user_id FROM users WHERE role='student'")
 );
 
-/* Since parent linking is optional and not implemented */
+/* Parent linking not implemented yet */
 $withParents = 0;
 $withoutParents = $totalStudents;
 
-/* FETCH STUDENTS WITH CLASS NAME */
+/* 📘 FETCH STUDENTS (NO CLASS JOIN – CORRECT) */
 $students = mysqli_query(
     $conn,
     "SELECT 
         u.user_id,
-        s.full_name,
-        s.mobile_no,
         u.email,
-        c.class_name
+        s.full_name,
+        s.mobile_no
      FROM users u
      INNER JOIN students s ON u.user_id = s.user_id
-     LEFT JOIN classes c ON u.class_id = c.class_id
-     WHERE u.role='student'"
+     WHERE u.role = 'student'"
 );
-
-
 ?>
 
 <!DOCTYPE html>
 <html>
 <head>
 <title>Manage Students</title>
+
 <style>
 body { font-family: Arial; background:#f5f5f5; margin-bottom:80px; }
 .header {
@@ -144,7 +141,7 @@ body { font-family: Arial; background:#f5f5f5; margin-bottom:80px; }
 <?php while ($row = mysqli_fetch_assoc($students)) { ?>
 <div class="card">
     <div class="row">
-        <strong><?= $row['full_name'] ?></strong>
+        <strong><?= htmlspecialchars($row['full_name']) ?></strong>
         <div class="actions">
             <span>Edit</span>
             <span>Delete</span>
@@ -152,19 +149,19 @@ body { font-family: Arial; background:#f5f5f5; margin-bottom:80px; }
     </div>
 
     <p>
-        📧 <?= $row['email'] ?><br>
-        📞 <?= $row['mobile_no'] ?>
+        📧 <?= htmlspecialchars($row['email']) ?><br>
+        📞 <?= htmlspecialchars($row['mobile_no']) ?>
     </p>
 
     <small>
-        Class: <?= $row['class_name'] ?? 'Not Assigned' ?>
+        Class: Not Assigned
     </small>
 </div>
 <?php } ?>
 
 </div>
 
-<!-- FLOATING ADD BUTTON -->
+<!-- ADD STUDENT BUTTON -->
 <a href="add_student.php" class="add-btn">+</a>
 
 <?php include("bottom_nav.php"); ?>
