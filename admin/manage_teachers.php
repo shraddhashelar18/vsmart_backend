@@ -4,11 +4,19 @@ include("db.php");
 
 /* 🔐 ADMIN ACCESS ONLY */
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+<<<<<<< HEAD
     header("Location: login.php");
     exit;
 }
 
 /* 📘 FETCH TEACHERS (NO CLASS JOIN – CORRECT AS PER DB) */
+=======
+    header("Location: ../login.php");
+    exit;
+}
+
+/* ✅ FETCH TEACHERS */
+>>>>>>> a575b8dc2e3b479f9a5b967f91449caf94bda7e2
 $teachers = mysqli_query(
     $conn,
     "SELECT 
@@ -68,8 +76,7 @@ body {
     display:flex;
     align-items:center;
     justify-content:center;
-    color:#009846;
-    font-weight:bold;
+    font-size:20px;
 }
 .actions span {
     margin-left:8px;
@@ -112,6 +119,7 @@ body {
 <br>
 
 <!-- TEACHER LIST -->
+<?php if (mysqli_num_rows($teachers) > 0): ?>
 <?php while ($row = mysqli_fetch_assoc($teachers)) { ?>
 <div class="card">
 
@@ -120,7 +128,11 @@ body {
             <div class="avatar">👤</div>
             <div>
                 <strong><?= htmlspecialchars($row['full_name']) ?></strong><br>
+<<<<<<< HEAD
                 <small>Teacher</small>
+=======
+                <small>Not Assigned</small>
+>>>>>>> a575b8dc2e3b479f9a5b967f91449caf94bda7e2
             </div>
         </div>
         <div class="actions">
@@ -138,6 +150,9 @@ body {
 
 </div>
 <?php } ?>
+<?php else: ?>
+    <p>No teachers registered yet.</p>
+<?php endif; ?>
 
 </div>
 
