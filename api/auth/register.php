@@ -3,7 +3,18 @@ include("db.php");
 
 $message = "";
 
+/* ======================
+   API KEY VALIDATION
+====================== */
+$valid_api_key = "VSMART_API_2026";
+
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
+
+    $api_key = $_POST['api_key'] ?? '';
+
+    if ($api_key !== $valid_api_key) {
+        die("Invalid API Key");
+    }
 
     // ---------- COMMON ----------
     $full_name = trim($_POST['full_name'] ?? '');
@@ -144,6 +155,8 @@ button{margin-top:15px;width:100%;padding:10px;background:#009846;color:white;bo
 <h2>Register</h2>
 
 <form method="POST">
+
+<input type="hidden" name="api_key" value="VSMART_API_2026">
 
 <input name="full_name" placeholder="Full Name" required>
 <input type="email" name="email" placeholder="Email" required>
