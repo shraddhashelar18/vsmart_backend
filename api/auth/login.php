@@ -1,48 +1,77 @@
 <?php
-require_once __DIR__ . "/../db.php";
+require_once "../config.php";
 
-/* API KEY */
-$headers = getallheaders();
-$apiKey = $headers['x-api-key'] ?? '';
+header("Content-Type: application/json");
 
-if ($apiKey !== 'VSMART_API_2026') {
-    http_response_code(401);
-    echo "INVALID_API_KEY";
-    exit;
-}
+// 🔐 API KEY CHECK
+require_once "../api_guard.php";
 
-/* POST only */
+// POST ONLY
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
-    echo "METHOD_NOT_ALLOWED";
+    echo json_encode([
+        "status" => false,
+        "message" => "Method not allowed"
+    ]);
     exit;
 }
 
-$email    = trim($_POST['email'] ?? '');
+// INPUT
+$email = trim($_POST['email'] ?? '');
 $password = $_POST['password'] ?? '';
 
 if ($email === '' || $password === '') {
-    echo "INVALID";
+    echo json_encode([
+        "status" => false,
+        "message" => "Email and password are required"
+    ]);
     exit;
 }
 
-$stmt = mysqli_prepare(
-    $conn,
-    "SELECT user_id, password, role, status FROM users WHERE email = ? LIMIT 1"
+// FETCH USER
+$stmt = $conn->prepare(
+    "SELECT user_id, email, password, role, status FROM users WHERE email = ? LIMIT 1"
 );
-mysqli_stmt_bind_param($stmt, "s", $email);
-mysqli_stmt_execute($stmt);
-$result = mysqli_stmt_get_result($stmt);
-$user   = mysqli_fetch_assoc($result);
+$stmt->bind_param("s", $email);
+$stmt->execute();
+$result = $stmt->get_result();
 
-if (!$user || !password_verify($password, $user['password'])) {
-    echo "INVALID";
+if ($result->num_rows === 0) {
+    echo json_encode([
+        "status" => false,
+        "message" => "User not found"
+    ]);
     exit;
 }
 
+$user = $result->fetch_assoc();
+
+// PASSWORD VERIFY
+if (!password_verify($password, $user['password'])) {
+    echo json_encode([
+        "status" => false,
+        "message" => "Invalid password"
+    ]);
+    exit;
+}
+
+// STATUS CHECK
 if ($user['status'] !== 'approved') {
-    echo "PENDING";
+    echo json_encode([
+        "status" => false,
+        "message" => "Waiting for admin approval"
+    ]);
     exit;
 }
 
-echo "SUCCESS|{$user['user_id']}|{$user['role']}";
+// SUCCESS
+echo json_encode([
+    "status" => true,
+    "message" => "Login successful",
+    "data" => [
+        "user_id" => (int)$user['user_id'],
+        "email" => $user['email'],
+        "role" => $user['role'],
+        "status" => $user['status']
+    ]
+]);
