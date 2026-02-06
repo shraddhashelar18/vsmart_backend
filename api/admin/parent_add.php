@@ -4,13 +4,12 @@ require_once "../api_guard.php";
 
 header("Content-Type: application/json");
 
-// collect inputs
-$full_name     = trim($_POST['full_name'] ?? '');
-$email         = trim($_POST['email'] ?? '');
-$mobile        = trim($_POST['mobile_no'] ?? '');
-$enrollment_no = trim($_POST['enrollment_no'] ?? '');
+/* ---------- INPUTS ---------- */
+$full_name = trim($_POST['full_name'] ?? '');
+$email     = trim($_POST['email'] ?? '');
+$mobile    = trim($_POST['mobile_no'] ?? '');
 
-// validation
+/* ---------- VALIDATION ---------- */
 if ($full_name === '' || $email === '' || $mobile === '') {
     echo json_encode([
         "status" => false,
@@ -27,7 +26,7 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     exit;
 }
 
-// check duplicate email
+/* ---------- CHECK EMAIL DUPLICATE ---------- */
 $check = $conn->prepare("SELECT user_id FROM users WHERE email = ?");
 $check->bind_param("s", $email);
 $check->execute();
@@ -41,11 +40,12 @@ if ($check->num_rows > 0) {
     exit;
 }
 
-// START TRANSACTION
+/* ---------- TRANSACTION START ---------- */
 $conn->begin_transaction();
 
 try {
-    // insert into users (NO password)
+
+    /* ---------- INSERT INTO USERS ---------- */
     $stmt = $conn->prepare(
         "INSERT INTO users (email, password, role, status, first_login)
          VALUES (?, NULL, 'parent', 'approved', 1)"
@@ -55,21 +55,20 @@ try {
 
     $user_id = $stmt->insert_id;
 
-    // insert into parents (USING full_name)
+    /* ---------- INSERT INTO PARENTS ---------- */
     $stmt = $conn->prepare(
-        "INSERT INTO parents (user_id, full_name, mobile_no, enrollment_no)
-         VALUES (?, ?, ?, ?)"
+        "INSERT INTO parents (user_id, full_name, mobile_no)
+         VALUES (?, ?, ?)"
     );
     $stmt->bind_param(
-        "isss",
+        "iss",
         $user_id,
         $full_name,
-        $mobile,
-        $enrollment_no
+        $mobile
     );
     $stmt->execute();
 
-    // commit if both succeed
+    /* ---------- COMMIT ---------- */
     $conn->commit();
 
     echo json_encode([
@@ -79,7 +78,7 @@ try {
 
 } catch (Exception $e) {
 
-    // rollback on error
+    /* ---------- ROLLBACK ---------- */
     $conn->rollback();
 
     echo json_encode([

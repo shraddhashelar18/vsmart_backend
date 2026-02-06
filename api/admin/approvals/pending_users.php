@@ -6,14 +6,16 @@ header("Content-Type: application/json");
 
 $sql = "
 SELECT 
-    user_id,
-    email,
-    role,
-    status,
-    created_at
-FROM users
-WHERE status = 'pending'
-ORDER BY created_at DESC
+    u.user_id,
+    u.email,
+    u.role,
+    u.status,
+    t.full_name,
+    t.mobile_no
+FROM users u
+LEFT JOIN teachers t ON t.user_id = u.user_id
+WHERE u.status='pending'
+ORDER BY u.user_id DESC
 ";
 
 $res = $conn->query($sql);

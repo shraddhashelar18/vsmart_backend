@@ -4,52 +4,59 @@ require_once "../../api_guard.php";
 
 header("Content-Type: application/json");
 
-$user_id = $_POST['user_id'] ?? $_GET['user_id'] ?? '';
-
-if ($user_id === '') {
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
     echo json_encode([
         "status" => false,
-        "message" => "User ID is required"
+        "message" => "Method not allowed"
     ]);
     exit;
 }
 
-// Check user exists & pending
-$check = $conn->prepare(
-    "SELECT role, status FROM users WHERE user_id = ?"
+$user_id = $_POST['user_id'] ?? '';
+$role    = $_POST['role'] ?? '';
+
+if ($user_id === '' || $role === '') {
+    echo json_encode([
+        "status" => false,
+        "message" => "user_id and role are required"
+    ]);
+    exit;
+}
+
+/* ---------- TEACHER EXTRA DATA BEFORE APPROVAL ---------- */
+if ($role === 'teacher') {
+
+    $department = $_POST['department'] ?? '';
+    $class      = $_POST['class'] ?? '';
+
+    if ($department === '' || $class === '') {
+        echo json_encode([
+            "status" => false,
+            "message" => "Department and class are required for teacher approval"
+        ]);
+        exit;
+    }
+
+    $stmt = $conn->prepare(
+        "UPDATE teachers
+         SET department = ?, class = ?
+         WHERE user_id = ?"
+    );
+    $stmt->bind_param("ssi", $department, $class, $user_id);
+    $stmt->execute();
+}
+
+/* ---------- APPROVE USER ---------- */
+$stmt = $conn->prepare(
+    "UPDATE users
+     SET status = 'approved'
+     WHERE user_id = ?"
 );
-$check->bind_param("i", $user_id);
-$check->execute();
-$res = $check->get_result();
-
-if ($res->num_rows === 0) {
-    echo json_encode([
-        "status" => false,
-        "message" => "User not found"
-    ]);
-    exit;
-}
-
-$user = $res->fetch_assoc();
-
-if ($user['status'] === 'approved') {
-    echo json_encode([
-        "status" => false,
-        "message" => "User already approved"
-    ]);
-    exit;
-}
-
-// Approve user
-$update = $conn->prepare(
-    "UPDATE users SET status = 'approved' WHERE user_id = ?"
-);
-$update->bind_param("i", $user_id);
-$update->execute();
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
 
 echo json_encode([
     "status" => true,
-    "message" => "User approved successfully",
-    "user_id" => $user_id,
-    "role" => $user['role']
+    "message" => ucfirst($role) . " approved successfully"
 ]);
