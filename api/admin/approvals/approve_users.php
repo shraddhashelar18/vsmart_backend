@@ -4,15 +4,7 @@ require_once "../../api_guard.php";
 
 header("Content-Type: application/json");
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    echo json_encode([
-        "status" => false,
-        "message" => "Method not allowed"
-    ]);
-    exit;
-}
-
+/* ---------------- INPUT ---------------- */
 $user_id = $_POST['user_id'] ?? '';
 $role    = $_POST['role'] ?? '';
 
@@ -24,39 +16,79 @@ if ($user_id === '' || $role === '') {
     exit;
 }
 
-/* ---------- TEACHER EXTRA DATA BEFORE APPROVAL ---------- */
-if ($role === 'teacher') {
+/* ---------------- CHECK USER ---------------- */
+$check = $conn->prepare("
+    SELECT status FROM users WHERE user_id = ?
+");
+$check->bind_param("i", $user_id);
+$check->execute();
+$user = $check->get_result()->fetch_assoc();
 
-    $department = $_POST['department'] ?? '';
-    $class      = $_POST['class'] ?? '';
-
-    if ($department === '' || $class === '') {
-        echo json_encode([
-            "status" => false,
-            "message" => "Department and class are required for teacher approval"
-        ]);
-        exit;
-    }
-
-    $stmt = $conn->prepare(
-        "UPDATE teachers
-         SET department = ?, class = ?
-         WHERE user_id = ?"
-    );
-    $stmt->bind_param("ssi", $department, $class, $user_id);
-    $stmt->execute();
+if (!$user) {
+    echo json_encode([
+        "status" => false,
+        "message" => "User not found"
+    ]);
+    exit;
 }
 
-/* ---------- APPROVE USER ---------- */
-$stmt = $conn->prepare(
-    "UPDATE users
-     SET status = 'approved'
-     WHERE user_id = ?"
-);
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
+if ($user['status'] !== 'pending') {
+    echo json_encode([
+        "status" => false,
+        "message" => "User is not pending approval"
+    ]);
+    exit;
+}
 
-echo json_encode([
-    "status" => true,
-    "message" => ucfirst($role) . " approved successfully"
-]);
+/* ---------------- TRANSACTION ---------------- */
+$conn->begin_transaction();
+
+try {
+
+    /* ================= TEACHER ASSIGNMENT ================= */
+    if ($role === 'teacher') {
+
+        $department = trim($_POST['department_code'] ?? '');
+        $class      = trim($_POST['class'] ?? '');
+        $subject    = trim($_POST['subject'] ?? '');
+
+        if ($department === '' || $class === '' || $subject === '') {
+            throw new Exception("Department, class and subject are required for teacher approval");
+        }
+
+        // insert assignment using ONLY user_id
+        $stmt = $conn->prepare("
+            INSERT INTO teacher_assignments
+            (user_id, department_code, class, subject, status)
+            VALUES (?, ?, ?, ?, 'active')
+        ");
+        $stmt->bind_param("isss", $user_id, $department, $class, $subject);
+        $stmt->execute();
+    }
+
+    /* ---------------- APPROVE USER ---------------- */
+    $stmt = $conn->prepare("
+        UPDATE users
+        SET status = 'approved'
+        WHERE user_id = ?
+    ");
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+
+    $conn->commit();
+
+    echo json_encode([
+        "status" => true,
+        "message" => ucfirst($role) . " approved successfully"
+    ]);
+
+} catch (Exception $e) {
+
+    $conn->rollback();
+
+    echo json_encode([
+        "status" => false,
+        "message" => "Approval failed",
+        "error" => $e->getMessage()
+    ]);
+}
