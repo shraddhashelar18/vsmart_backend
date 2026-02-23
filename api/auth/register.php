@@ -27,13 +27,21 @@ if (!in_array($role, $allowed_roles)) {
     exit;
 }
 
-/* ---------- ROLE-SPECIFIC VALIDATION FIRST ---------- */
+/* ---------- ROLE-SPECIFIC VALIDATION ---------- */
 if ($role === "student") {
+
+    $roll_no           = trim($_POST['roll_no'] ?? '');
+    $class             = trim($_POST['class'] ?? '');
+    $department        = trim($_POST['department'] ?? '');
+    $mobile_no         = trim($_POST['mobile_no'] ?? '');
+    $parent_mobile_no  = trim($_POST['parent_mobile_no'] ?? '');
+
     if (
-        empty($_POST['roll_no']) ||
-        empty($_POST['class']) ||
-        empty($_POST['mobile_no']) ||
-        empty($_POST['parent_mobile_no'])
+        $roll_no === '' ||
+        $class === '' ||
+        $department === '' ||
+        $mobile_no === '' ||
+        $parent_mobile_no === ''
     ) {
         echo json_encode(["status"=>false,"message"=>"All student fields are required"]);
         exit;
@@ -41,20 +49,22 @@ if ($role === "student") {
 }
 
 if ($role === "teacher") {
-    if (
-        empty($_POST['employee_id']) ||
-        empty($_POST['mobile_no'])
-    ) {
+
+    $employee_id = trim($_POST['employee_id'] ?? '');
+    $mobile_no   = trim($_POST['mobile_no'] ?? '');
+
+    if ($employee_id === '' || $mobile_no === '') {
         echo json_encode(["status"=>false,"message"=>"All teacher fields are required"]);
         exit;
     }
 }
 
 if ($role === "parent") {
-    if (
-        empty($_POST['enrollment_no']) ||
-        empty($_POST['mobile_no'])
-    ) {
+
+    $enrollment_no = trim($_POST['enrollment_no'] ?? '');
+    $mobile_no     = trim($_POST['mobile_no'] ?? '');
+
+    if ($enrollment_no === '' || $mobile_no === '') {
         echo json_encode(["status"=>false,"message"=>"All parent fields are required"]);
         exit;
     }
@@ -88,55 +98,65 @@ try {
 
     $user_id = $stmt->insert_id;
 
-    /* ---------- ROLE TABLE INSERT ---------- */
+    /* ---------- INSERT ROLE DATA ---------- */
 
     if ($role === "student") {
+
         $stmt = $conn->prepare(
             "INSERT INTO students
-            (roll_no,user_id,full_name,class,mobile_no,parent_mobile_no)
-            VALUES (?,?,?,?,?,?)"
+            (roll_no,user_id,full_name,class,mobile_no,parent_mobile_no,department)
+            VALUES (?,?,?,?,?,?,?)"
         );
+
         $stmt->bind_param(
-            "sissss",
-            $_POST['roll_no'],
+            "sisssss",
+            $roll_no,
             $user_id,
             $full_name,
-            $_POST['class'],
-            $_POST['mobile_no'],
-            $_POST['parent_mobile_no']
+            $class,
+            $mobile_no,
+            $parent_mobile_no,
+            $department
         );
+
         $stmt->execute();
     }
 
     if ($role === "teacher") {
+
         $stmt = $conn->prepare(
             "INSERT INTO teachers
             (employee_id,user_id,full_name,mobile_no)
             VALUES (?,?,?,?)"
         );
+
         $stmt->bind_param(
             "siss",
-            $_POST['employee_id'],
+            $employee_id,
             $user_id,
             $full_name,
-            $_POST['mobile_no']
+            $mobile_no
         );
+
         $stmt->execute();
     }
 
     if ($role === "parent") {
+
         $stmt = $conn->prepare(
             "INSERT INTO parents
             (enrollment_no,user_id,full_name,mobile_no)
             VALUES (?,?,?,?)"
         );
+
         $stmt->bind_param(
             "siss",
-            $_POST['enrollment_no'],
+            $enrollment_no,
             $user_id,
             $full_name,
-            $_POST['mobile_no']
+            $mobile_no
         );
+
         $stmt->execute();
     }
 
@@ -150,7 +170,6 @@ try {
 
 } catch (Exception $e) {
 
-    /* ---------- ROLLBACK ---------- */
     $conn->rollback();
 
     echo json_encode([

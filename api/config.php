@@ -1,9 +1,16 @@
 <?php
-// DATABASE
-$conn = new mysqli("localhost", "root", "", "vsmart");
-if ($conn->connect_error) {
-    die("DB Connection Failed");
-}
 
-// API KEY
-define("API_KEY", "VSMART_API_2026");
+$host = "localhost";
+$user = "root";
+$pass = "";
+$db   = "vsmart";
+
+$conn = new mysqli($host, $user, $pass, $db);
+
+if ($conn->connect_error) {
+    die(json_encode([
+        "status" => false,
+        "message" => "Database connection failed"
+    ]));
+}
+?> 

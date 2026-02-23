@@ -6,17 +6,17 @@ header("Content-Type: application/json");
 
 $data = json_decode(file_get_contents("php://input"), true);
 
-$class = $data['class'] ?? '';
-$subject = $data['subject'] ?? '';
-$message = trim($data['message'] ?? '');
-$teacher_user_id = $data['teacher_user_id'] ?? '';
-$students = $data['students'] ?? [];
+$class           = $data['class'] ?? '';
+$subject_name         = $data['subject_name'] ?? '';
+$message         = trim($data['message'] ?? '');
+$teacher_user_id = intval($data['teacher_user_id'] ?? 0);
+$students        = $data['students_id'] ?? [];   // ✅ FIXED
 
 if (
     $class === '' ||
-    $subject === '' ||
+    $subject_name === '' ||
     $message === '' ||
-    $teacher_user_id === '' ||
+    $teacher_user_id <= 0 ||
     empty($students)
 ) {
     echo json_encode([
@@ -26,28 +26,28 @@ if (
     exit;
 }
 
-// Insert notification
+/* Insert notification */
 $stmt = $conn->prepare(
-    "INSERT INTO notifications (teacher_user_id, class, subject, message)
+    "INSERT INTO notifications (teacher_user_id, class, subject_name, message)
      VALUES (?, ?, ?, ?)"
 );
-$stmt->bind_param("isss", $teacher_user_id, $class, $subject, $message);
+$stmt->bind_param("isss", $teacher_user_id, $class, $subject_name, $message);
 $stmt->execute();
 
 $notification_id = $stmt->insert_id;
 
-// Link selected students
+/* Insert receivers */
 $stmt2 = $conn->prepare(
-    "INSERT INTO notification_receivers (notification_id, student_user_id)
+    "INSERT INTO notification_receivers (notification_id, student_id)
      VALUES (?, ?)"
 );
 
-foreach ($students as $student_user_id) {
-    $stmt2->bind_param("ii", $notification_id, $student_user_id);
+foreach ($students as $student_id) {
+    $stmt2->bind_param("ii", $notification_id, $student_id);
     $stmt2->execute();
 }
 
 echo json_encode([
     "status" => true,
-    "message" => "Notification sent to selected students"
+    "message" => "Notification sent successfully"
 ]);

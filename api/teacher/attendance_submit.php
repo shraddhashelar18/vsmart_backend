@@ -7,7 +7,7 @@ $data = json_decode(file_get_contents("php://input"), true);
 
 $stmt = $conn->prepare("
     INSERT INTO attendance
-    (student_id, teacher_user_id, class, subject, date, status)
+    (student_id, teacher_user_id, class, subject_name, date, status)
     VALUES (?, ?, ?, ?, ?, ?)
 ");
 

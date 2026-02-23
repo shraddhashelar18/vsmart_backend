@@ -1,52 +1,84 @@
 <?php
-require_once "../config.php";
-require_once "../api_guard.php";
+
+/* =====================================
+   IMPORT REQUIRED FILES
+===================================== */
+
+require_once("../config.php");
+require_once("../api_guard.php");
+
+/* =====================================
+   SET RESPONSE TYPE
+===================================== */
 
 header("Content-Type: application/json");
 
-$user_id = intval($_POST['user_id'] ?? 0);
+/* =====================================
+   GET JSON BODY
+===================================== */
 
-if ($user_id <= 0) {
+$data = json_decode(file_get_contents("php://input"), true);
+
+$id = intval($data['id'] ?? 0);
+
+/* =====================================
+   VALIDATION
+===================================== */
+
+if ($id <= 0) {
     echo json_encode([
         "status" => false,
-        "message" => "Invalid user_id"
+        "message" => "Teacher ID required"
     ]);
     exit;
 }
 
-/*
- STEP 1: Check user exists & is teacher
-*/
-$check = $conn->prepare(
-    "SELECT user_id FROM users WHERE user_id=? AND role='teacher'"
-);
-$check->bind_param("i", $user_id);
-$check->execute();
-$check->store_result();
+/* =====================================
+   START TRANSACTION
+===================================== */
 
-if ($check->num_rows === 0) {
+$conn->begin_transaction();
+
+try {
+
+    /* 1️⃣ DELETE FROM teacher_assignments */
+    $stmt1 = $conn->prepare("
+        DELETE FROM teacher_assignments
+        WHERE id = ?
+    ");
+    $stmt1->bind_param("i", $id);
+    $stmt1->execute();
+
+    /* 2️⃣ DELETE FROM teachers */
+    $stmt2 = $conn->prepare("
+        DELETE FROM teachers
+        WHERE user_id = ?
+    ");
+    $stmt2->bind_param("i", $id);
+    $stmt2->execute();
+
+    /* 3️⃣ DELETE FROM users (IMPORTANT) */
+    $stmt3 = $conn->prepare("
+        DELETE FROM users
+        WHERE user_id = ?
+    ");
+    $stmt3->bind_param("i", $id);
+    $stmt3->execute();
+
+    /* COMMIT */
+    $conn->commit();
+
+    echo json_encode([
+        "status" => true,
+        "message" => "Teacher deleted successfully"
+    ]);
+
+} catch (Exception $e) {
+
+    $conn->rollback();
+
     echo json_encode([
         "status" => false,
-        "message" => "Teacher not found"
+        "message" => "Delete failed"
     ]);
-    exit;
 }
-
-/*
- STEP 2: Delete from teachers table
-*/
-$stmt = $conn->prepare("DELETE FROM teachers WHERE user_id=?");
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
-
-/*
- STEP 3: Delete from users table
-*/
-$stmt = $conn->prepare("DELETE FROM users WHERE user_id=?");
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
-
-echo json_encode([
-    "status" => true,
-    "message" => "Teacher deleted from system"
-]);
