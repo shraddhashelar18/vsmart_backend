@@ -5,7 +5,11 @@ require_once("../api_guard.php");
 header("Content-Type: application/json");
 
 /* ========================= */
+<<<<<<< HEAD
 /* GET JSON BODY */
+=======
+/* READ JSON BODY */
+>>>>>>> 3aba2f6ad2bf1196518bbd07f85dbfb78f698994
 /* ========================= */
 
 $data = json_decode(file_get_contents("php://input"), true);
@@ -24,7 +28,11 @@ if ($user_id <= 0) {
 /* GET HOD DEPARTMENT */
 /* ========================= */
 
+<<<<<<< HEAD
 $stmt = $conn->prepare("SELECT department FROM hods WHERE user_id=?");
+=======
+$stmt = $conn->prepare("SELECT department FROM hod WHERE user_id = ?");
+>>>>>>> 3aba2f6ad2bf1196518bbd07f85dbfb78f698994
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
 $result = $stmt->get_result();
@@ -41,12 +49,15 @@ $hod = $result->fetch_assoc();
 $department = $hod['department'];
 
 /* ========================= */
+<<<<<<< HEAD
 /* PREFIX FIX (IMPORTANT) */
 /* ========================= */
 
 $prefix = ($department == 'IT') ? 'IF' : $department;
 
 /* ========================= */
+=======
+>>>>>>> 3aba2f6ad2bf1196518bbd07f85dbfb78f698994
 /* GET TEACHERS FROM ASSIGNMENTS */
 /* ========================= */
 
@@ -59,8 +70,13 @@ $stmt2 = $conn->prepare("
         ta.class,
         ta.subject
     FROM teacher_assignments ta
+<<<<<<< HEAD
     JOIN teachers t ON t.user_id = ta.user_id
     JOIN users u ON u.user_id = t.user_id
+=======
+    INNER JOIN teachers t ON t.user_id = ta.user_id
+    INNER JOIN users u ON u.user_id = t.user_id
+>>>>>>> 3aba2f6ad2bf1196518bbd07f85dbfb78f698994
     WHERE ta.department_code = ?
     AND ta.status = 'active'
 ");
@@ -76,7 +92,11 @@ while ($row = $teachers_result->fetch_assoc()) {
 }
 
 /* ========================= */
+<<<<<<< HEAD
 /* RESPONSE */
+=======
+/* FINAL RESPONSE */
+>>>>>>> 3aba2f6ad2bf1196518bbd07f85dbfb78f698994
 /* ========================= */
 
 echo json_encode([

@@ -18,12 +18,20 @@ if ($student_id === '') {
 
 $sql = "
     SELECT 
+<<<<<<< HEAD
         subject_name,
+=======
+        subject,
+>>>>>>> 3aba2f6ad2bf1196518bbd07f85dbfb78f698994
         SUM(obtained_marks) AS obtained,
         SUM(total_marks) AS total
     FROM marks
     WHERE student_id = ?
+<<<<<<< HEAD
     GROUP BY subject_name
+=======
+    GROUP BY subject
+>>>>>>> 3aba2f6ad2bf1196518bbd07f85dbfb78f698994
 ";
 
 $stmt = $conn->prepare($sql);
@@ -52,7 +60,11 @@ while ($row = $result->fetch_assoc()) {
     }
 
     $data[] = [
+<<<<<<< HEAD
         "subject"     => $row['subject_name'],
+=======
+        "subject"     => $row['subject'],
+>>>>>>> 3aba2f6ad2bf1196518bbd07f85dbfb78f698994
         "marks"       => $row['obtained'] . "/" . $row['total'],
         "percentage"  => round($percentage, 2),
         "grade"       => $grade
@@ -62,4 +74,8 @@ while ($row = $result->fetch_assoc()) {
 echo json_encode([
     "status" => true,
     "subjects" => $data
+<<<<<<< HEAD
 ]);
+=======
+]);
+>>>>>>> 3aba2f6ad2bf1196518bbd07f85dbfb78f698994

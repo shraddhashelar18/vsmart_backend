@@ -23,7 +23,11 @@ if($user_id == ''){
 /* STEP 1: GET HOD DEPARTMENT */
 /* ============================= */
 
+<<<<<<< HEAD
 $stmt = $conn->prepare("SELECT department FROM hods WHERE user_id=?");
+=======
+$stmt = $conn->prepare("SELECT department FROM hod WHERE user_id=?");
+>>>>>>> 3aba2f6ad2bf1196518bbd07f85dbfb78f698994
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
 $result = $stmt->get_result();
@@ -60,13 +64,22 @@ $total_students = $stmt1->get_result()->fetch_assoc()['total'] ?? 0;
 
 /* ============================= */
 /* TOTAL TEACHERS */
+<<<<<<< HEAD
+=======
+/* ============================= */
+
+>>>>>>> 3aba2f6ad2bf1196518bbd07f85dbfb78f698994
 $stmt2 = $conn->prepare("
     SELECT COUNT(DISTINCT user_id) as total
     FROM teacher_assignments
     WHERE department_code = ?
     AND status = 'active'
 ");
+<<<<<<< HEAD
 $stmt2->bind_param("s", $department);
+=======
+$stmt2->bind_param("s", $prefix);
+>>>>>>> 3aba2f6ad2bf1196518bbd07f85dbfb78f698994
 $stmt2->execute();
 $total_teachers = $stmt2->get_result()->fetch_assoc()['total'] ?? 0;
 

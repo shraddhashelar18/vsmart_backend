@@ -82,4 +82,8 @@ echo json_encode([
         "percentage"=>$percentage
     ]
 ]);
+<<<<<<< HEAD
 ?>
+=======
+?>
+>>>>>>> 3aba2f6ad2bf1196518bbd07f85dbfb78f698994

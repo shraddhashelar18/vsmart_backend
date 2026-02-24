@@ -35,4 +35,8 @@ while($r=$res->fetch_assoc()){
 echo json_encode([
     "status"=>true,
     "classes"=>$classes
+<<<<<<< HEAD
 ]);
+=======
+]);
+>>>>>>> 3aba2f6ad2bf1196518bbd07f85dbfb78f698994
