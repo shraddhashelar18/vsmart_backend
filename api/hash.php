@@ -1,5 +1,5 @@
 <?php
-$password = "vijaypatil@vsmart";
+$password = "ashishukidve@vsmart";
 
 $hash = password_hash($password, PASSWORD_BCRYPT);
 
