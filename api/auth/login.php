@@ -95,7 +95,11 @@ if ($user['role'] == "hod") {
 
     $stmt = $conn->prepare("
         SELECT department
+<<<<<<< HEAD
         FROM hods
+=======
+        FROM hod
+>>>>>>> 442021c76d048be8a1c011e8e7f420eff8a9b9b5
         WHERE user_id = ?
     ");
 
