@@ -1,0 +1,34 @@
+<?php
+header("Content-Type: application/json");
+require_once "../config.php";
+
+$data = json_decode(file_get_contents("php://input"), true);
+
+if (!isset($data['enrollment'])) {
+    echo json_encode(["status" => false, "message" => "enrollment required"]);
+    exit;
+}
+
+$enrollment = $data['enrollment'];
+
+$query = $conn->prepare("SELECT * FROM students WHERE enrollment_no=?");
+$query->bind_param("s", $enrollment);
+$query->execute();
+$result = $query->get_result();
+
+if ($result->num_rows == 0) {
+    echo json_encode(["status" => false]);
+    exit;
+}
+
+$student = $result->fetch_assoc();
+
+echo json_encode([
+    "status" => true,
+    "enrollment" => $student['enrollment_no'],
+    "name" => $student['full_name'],
+    "roll" => $student['roll_no'],
+    "class" => $student['class'],
+    "phone" => $student['mobile_no']
+]);
+?>
