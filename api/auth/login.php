@@ -3,191 +3,182 @@ require_once("../config.php");
 
 header("Content-Type: application/json");
 
-/* ================= API KEY CHECK ================= */
-
-$headers = getallheaders();
-
-if (!isset($headers['x-api-key']) || $headers['x-api-key'] != "VSMART_API_2026") {
-    echo json_encode([
-        "status" => false,
-        "message" => "Invalid API Key"
-    ]);
-    exit;
-}
-
-/* ================= GET INPUT ================= */
+/* ===============================
+   1️⃣ Validate Input
+================================ */
 
 $data = json_decode(file_get_contents("php://input"), true);
 
-if (!isset($data['email']) || !isset($data['password'])) {
-    echo json_encode([
-        "status" => false,
-        "message" => "Email and Password required"
-    ]);
+if (!$data) {
+    echo json_encode(["status"=>false,"message"=>"Invalid request"]);
     exit;
 }
 
-$email = $data['email'];
-$password = $data['password'];
+$email = trim($data['email'] ?? "");
+$password = trim($data['password'] ?? "");
 
-/* ================= CHECK USER ================= */
+if (empty($email)) {
+    echo json_encode(["status"=>false,"message"=>"Email is required"]);
+    exit;
+}
+
+if (empty($password)) {
+    echo json_encode(["status"=>false,"message"=>"Password is required"]);
+    exit;
+}
+
+if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    echo json_encode(["status"=>false,"message"=>"Invalid email format"]);
+    exit;
+}
+
+/* ===============================
+   2️⃣ Fetch User
+================================ */
 
 $stmt = $conn->prepare("
-    SELECT user_id, email, password, role, status
+    SELECT user_id,email, role, password, status
     FROM users
     WHERE email = ?
+    LIMIT 1
 ");
 
 $stmt->bind_param("s", $email);
 $stmt->execute();
-$result = $stmt->get_result();
+$res = $stmt->get_result();
 
-if ($result->num_rows == 0) {
-    echo json_encode([
-        "status" => false,
-        "message" => "User not found"
-    ]);
+if ($res->num_rows == 0) {
+    echo json_encode(["status"=>false,"message"=>"User not found"]);
     exit;
 }
 
-$user = $result->fetch_assoc();
+$user = $res->fetch_assoc();
 
-/* ================= CHECK APPROVAL ================= */
-
-if ($user['status'] != "approved") {
-    echo json_encode([
-        "status" => false,
-        "message" => "Account not approved"
-    ]);
-    exit;
-}
-
-/* ================= CHECK PASSWORD ================= */
+/* ===============================
+   3️⃣ Verify Password
+================================ */
 
 if (!password_verify($password, $user['password'])) {
-    echo json_encode([
-        "status" => false,
-        "message" => "Invalid password"
-    ]);
+    echo json_encode(["status"=>false,"message"=>"Invalid password"]);
     exit;
 }
 
-/* ================= GENERATE AUTH TOKEN ================= */
+/* ===============================
+   4️⃣ Status Check
+================================ */
 
-$auth_token = bin2hex(random_bytes(32));
-
-$updateToken = $conn->prepare("
-    UPDATE users
-    SET auth_token = ?
-    WHERE user_id = ?
-");
-
-$updateToken->bind_param("si", $auth_token, $user['user_id']);
-$updateToken->execute();
-
-/* ================= ROLE BASED DATA ================= */
-
-$department = null;
-$principalName = null;
-
-/* ---------- HOD ---------- */
-if ($user['role'] == "hod") {
-
-    $stmt = $conn->prepare("
-        SELECT department
-<<<<<<< HEAD
-        FROM hods
-=======
-        FROM hod
->>>>>>> 442021c76d048be8a1c011e8e7f420eff8a9b9b5
-        WHERE user_id = ?
-    ");
-
-    $stmt->bind_param("i", $user['user_id']);
-    $stmt->execute();
-    $res = $stmt->get_result();
-
-    if ($res->num_rows > 0) {
-        $rowDept = $res->fetch_assoc();
-        $department = $rowDept['department'];
-    }
+if ($user['status'] !== "approved") {
+    echo json_encode(["status"=>false,"message"=>"Waiting for admin approval"]);
+    exit;
 }
 
-/* ---------- PRINCIPAL ---------- */
-if ($user['role'] == "principal") {
+/* ===============================
+   5️⃣ Role Based Extra Data
+================================ */
 
-    $stmt = $conn->prepare("
-        SELECT full_name
-        FROM principal
-        WHERE user_id = ?
-    ");
+$departments = [];
+$className = null;
+$semester = null;
 
-    $stmt->bind_param("i", $user['user_id']);
-    $stmt->execute();
-    $res = $stmt->get_result();
-
-    if ($res->num_rows > 0) {
-        $rowPrincipal = $res->fetch_assoc();
-        $principalName = $rowPrincipal['full_name'];
-    }
-}
-
-/* ---------- TEACHER ---------- */
-$teacherName = null;
-
+/* 🔹 TEACHER */
 if ($user['role'] == "teacher") {
 
-    $stmt = $conn->prepare("
-        SELECT full_name
+    $tStmt = $conn->prepare("
+        SELECT department_code
         FROM teachers
         WHERE user_id = ?
     ");
+    $tStmt->bind_param("i", $user['user_id']);
+    $tStmt->execute();
+    $tRes = $tStmt->get_result();
 
-    $stmt->bind_param("i", $user['user_id']);
-    $stmt->execute();
-    $res = $stmt->get_result();
-
-    if ($res->num_rows > 0) {
-        $rowTeacher = $res->fetch_assoc();
-        $teacherName = $rowTeacher['full_name'];
+    while ($row = $tRes->fetch_assoc()) {
+        if (!empty($row['department_code'])) {
+            $departments[] = $row['department_code'];
+        }
     }
 }
 
-/* ---------- STUDENT ---------- */
-$studentName = null;
+/* 🔹 HOD */
+if ($user['role'] == "hod") {
 
+    $hStmt = $conn->prepare("
+        SELECT department_code
+        FROM hod
+        WHERE user_id = ?
+    ");
+    $hStmt->bind_param("i", $user['user_id']);
+    $hStmt->execute();
+    $hRes = $hStmt->get_result();
+
+    if ($hRes->num_rows > 0) {
+        $row = $hRes->fetch_assoc();
+        $departments[] = $row['department_code'];
+    }
+}
+
+/* 🔹 PRINCIPAL */
+if ($user['role'] == "principal") {
+
+    // If principal can access all departments
+    $pStmt = $conn->query("SELECT department_code FROM departments");
+
+    while ($row = $pStmt->fetch_assoc()) {
+        $departments[] = $row['department_code'];
+    }
+}
+
+/* 🔹 STUDENT */
 if ($user['role'] == "student") {
 
-    $stmt = $conn->prepare("
-        SELECT full_name, department_code
+    $sStmt = $conn->prepare("
+        SELECT class, current_semester, department_code
         FROM students
         WHERE user_id = ?
     ");
 
-    $stmt->bind_param("i", $user['user_id']);
-    $stmt->execute();
-    $res = $stmt->get_result();
+    $sStmt->bind_param("i", $user['user_id']);
+    $sStmt->execute();
+    $sRes = $sStmt->get_result();
 
-    if ($res->num_rows > 0) {
-        $rowStudent = $res->fetch_assoc();
-        $studentName = $rowStudent['full_name'];
-        $department = $rowStudent['department_code'];
+    if ($sRes->num_rows > 0) {
+
+        $student = $sRes->fetch_assoc();
+
+        $className = $student['class'];
+
+        $semester = (int) filter_var(
+            $student['current_semester'],
+            FILTER_SANITIZE_NUMBER_INT
+        );
+
+        if (!empty($student['department_code'])) {
+            $departments[] = $student['department_code'];
+        }
+
+        if ($semester <= 0) {
+            echo json_encode([
+                "status"=>false,
+                "message"=>"Invalid semester"
+            ]);
+            exit;
+        }
     }
 }
 
-/* ================= SUCCESS RESPONSE ================= */
+/* ===============================
+   6️⃣ Final Response
+================================ */
 
 echo json_encode([
     "status" => true,
-    "message" => "Login successful",
-    "auth_token" => $auth_token,
     "user" => [
-        "user_id" => $user['user_id'],
+        "user_id" => (int)$user['user_id'],
         "email" => $user['email'],
         "role" => $user['role'],
-        "department" => $department,
-        "principal_name" => $principalName,
-        "teacher_name" => $teacherName,
-        "student_name" => $studentName
+        "status" => $user['status'],
+        "departments" => $departments,
+        "className" => $className,
+        "semester" => $semester
     ]
 ]);

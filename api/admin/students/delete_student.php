@@ -12,7 +12,7 @@ if (empty($data['user_id'])) {
         "message" => "User ID required"
     ]);
     exit;
-}
+}   
 
 $conn->begin_transaction();
 

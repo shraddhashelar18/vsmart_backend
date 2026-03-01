@@ -8,7 +8,7 @@ require_once("../../config.php");
 require_once("../../api_guard.php");
 
 /* =====================================
-   SET RESPONSE TYPE
+   RESPONSE TYPE
 ===================================== */
 
 header("Content-Type: application/json");
@@ -32,50 +32,52 @@ if ($id <= 0) {
     ]);
     exit;
 }
-$check = $conn->prepare("SELECT user_id FROM teachers WHERE user_id=?");
-$check->bind_param("i",$id);
-$check->execute();
 
-if($check->get_result()->num_rows == 0){
-    echo json_encode([
-        "status"=>false,
-        "message"=>"Teacher not found"
-    ]);
-    exit;
-}
 /* =====================================
-   START TRANSACTION
+   START TRANSACTION (IMPORTANT)
 ===================================== */
 
 $conn->begin_transaction();
 
 try {
 
-    /* 1️⃣ DELETE FROM teacher_assignments */
-    $stmt1 = $conn->prepare("
-        DELETE FROM teacher_assignments
-        WHERE id = ?
-    ");
-    $stmt1->bind_param("i", $id);
-    $stmt1->execute();
+    /* ==============================
+       DELETE FROM CHILD TABLE FIRST
+    =============================== */
 
-    /* 2️⃣ DELETE FROM teachers */
-    $stmt2 = $conn->prepare("
-        DELETE FROM teachers
-        WHERE user_id = ?
-    ");
-    $stmt2->bind_param("i", $id);
-    $stmt2->execute();
+    $deleteAssignments = $conn->prepare(
+        "DELETE FROM teacher_assignments WHERE user_id=?"
+    );
+    $deleteAssignments->bind_param("i",$id);
+    $deleteAssignments->execute();
 
-    /* 3️⃣ DELETE FROM users (IMPORTANT) */
-    $stmt3 = $conn->prepare("
-        DELETE FROM users
-        WHERE user_id = ?
-    ");
-    $stmt3->bind_param("i", $id);
-    $stmt3->execute();
+    /* ==============================
+       DELETE FROM TEACHERS TABLE
+    =============================== */
 
-    /* COMMIT */
+    $deleteTeacher = $conn->prepare(
+        "DELETE FROM teachers WHERE user_id=?"
+    );
+    $deleteTeacher->bind_param("i",$id);
+    $deleteTeacher->execute();
+
+    /* ==============================
+       DELETE FROM USERS TABLE
+    =============================== */
+
+    $deleteUser = $conn->prepare(
+        "DELETE FROM users WHERE user_id=?"
+    );
+    $deleteUser->bind_param("i",$id);
+
+    if(!$deleteUser->execute()){
+        throw new Exception($deleteUser->error);
+    }
+
+    /* =====================================
+       COMMIT TRANSACTION
+    ====================================== */
+
     $conn->commit();
 
     echo json_encode([
@@ -85,10 +87,14 @@ try {
 
 } catch (Exception $e) {
 
+    /* =====================================
+       ROLLBACK IF ANY ERROR
+    ====================================== */
+
     $conn->rollback();
 
     echo json_encode([
         "status" => false,
-        "message" => "Delete failed"
+        "message" => "Delete failed: " . $e->getMessage()
     ]);
 }
