@@ -13,8 +13,22 @@ header("Content-Type: application/json");
 
 $data = json_decode(file_get_contents("php://input"), true);
 
-if (!isset($data['class'])) {
-    echo json_encode(["status"=>false,"message"=>"class required"]);
+if (!isset($data['class']) || empty(trim($data['class']))) {
+    echo json_encode([
+        "status" => false,
+        "message" => "Class is required"
+    ]);
+    exit;
+}
+
+$class = trim($data['class']);
+
+/* Optional extra safety */
+if (!preg_match('/^[A-Z]{2}[0-9][A-Z]{2}$/', $class)) {
+    echo json_encode([
+        "status" => false,
+        "message" => "Invalid class format"
+    ]);
     exit;
 }
 

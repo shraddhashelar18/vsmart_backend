@@ -6,61 +6,111 @@ header("Content-Type: application/json");
 
 $data = json_decode(file_get_contents("php://input"), true);
 
-$name   = $data['name'] ?? '';
-$email  = $data['email'] ?? '';
-$password = $data['password'] ?? '';
-$phone  = $data['phone'] ?? '';
-$children = $data['children'][0] ?? '';
+$name     = $data['name'] ?? '';
+$email    = $data['email'] ?? '';
+$phone    = $data['phone'] ?? '';
+$children = $data['children'] ?? [];  // ARRAY
 
-if(!$name || !$email || !$password || !$phone || !$children){
-    echo json_encode(["status"=>false,"message"=>"All fields required"]);
+/* ================= VALIDATION ================= */
+
+if (empty($name) || empty($email) || empty($phone) || empty($children)) {
+    echo json_encode([
+        "status" => false,
+        "message" => "All fields required"
+    ]);
     exit;
 }
 
+if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    echo json_encode([
+        "status" => false,
+        "message" => "Invalid email format"
+    ]);
+    exit;
+}
+
+/* CHECK DUPLICATE EMAIL */
+
+$checkEmail = $conn->prepare("SELECT user_id FROM users WHERE email=?");
+$checkEmail->bind_param("s", $email);
+$checkEmail->execute();
+$checkEmail->store_result();
+
+if ($checkEmail->num_rows > 0) {
+    echo json_encode([
+        "status" => false,
+        "message" => "Email already exists"
+    ]);
+    exit;
+}
+
+/* GENERATE TEMP PASSWORD */
+$tempPassword = rand(100000, 999999);
+$hashedPassword = password_hash($tempPassword, PASSWORD_DEFAULT);
+
+/* START TRANSACTION */
 $conn->begin_transaction();
 
 try {
 
-    // 1️⃣ Insert into users table
-    $hash = password_hash($password, PASSWORD_BCRYPT);
-
-    $stmt1 = $conn->prepare("
-        INSERT INTO users (email, password, role, status, first_login)
-        VALUES (?, ?, 'parent', 'approved', 1)
+    /* INSERT INTO USERS */
+    $stmtUser = $conn->prepare("
+        INSERT INTO users (email, password, role, status)
+        VALUES (?, ?, 'parent', 'approved')
     ");
-    $stmt1->bind_param("ss", $email, $hash);
-    $stmt1->execute();
 
-    $user_id = $stmt1->insert_id;
+    $stmtUser->bind_param("ss", $email, $hashedPassword);
+    $stmtUser->execute();
 
-    // 2️⃣ Insert into parents table
-    $stmt2 = $conn->prepare("
-        INSERT INTO parents (user_id, full_name, mobile_no, enrollment_no)
-        VALUES (?, ?, ?, ?)
-    ");
-    $stmt2->bind_param("isss", $user_id, $name, $phone, $children);
-    $stmt2->execute();
+    $user_id = $stmtUser->insert_id;
 
-    // 3️⃣ Update student parent_mobile_no
-    $stmt3 = $conn->prepare("
-        UPDATE students
-        SET parent_mobile_no = ?
-        WHERE enrollment_no = ?
-    ");
-    $stmt3->bind_param("ss", $phone, $children);
-    $stmt3->execute();
+    /* LOOP FOR EACH CHILD */
+    foreach ($children as $enrollment) {
+
+        /* CHECK STUDENT EXISTS */
+        $checkStudent = $conn->prepare("
+            SELECT enrollment_no FROM students WHERE enrollment_no=?
+        ");
+        $checkStudent->bind_param("s", $enrollment);
+        $checkStudent->execute();
+
+        if ($checkStudent->get_result()->num_rows == 0) {
+            throw new Exception("Student not found: $enrollment");
+        }
+
+        /* INSERT INTO PARENTS TABLE */
+        $stmtParent = $conn->prepare("
+            INSERT INTO parents (enrollment_no, user_id, full_name, mobile_no)
+            VALUES (?, ?, ?, ?)
+        ");
+        $stmtParent->bind_param("siss", $enrollment, $user_id, $name, $phone);
+        $stmtParent->execute();
+
+        /* UPDATE STUDENT TABLE */
+        $stmtStudent = $conn->prepare("
+            UPDATE students
+            SET parent_mobile_no = ?
+            WHERE enrollment_no = ?
+        ");
+        $stmtStudent->bind_param("ss", $phone, $enrollment);
+        $stmtStudent->execute();
+    }
 
     $conn->commit();
 
     echo json_encode([
-        "status"=>true,
-        "message"=>"Parent added successfully"
+        "status" => true,
+        "message" => "Parent added successfully",
+        "temporaryPassword" => $tempPassword
     ]);
 
-} catch(Exception $e){
+} catch (Exception $e) {
+
     $conn->rollback();
+
     echo json_encode([
-        "status"=>false,
-        "message"=>$e->getMessage()
+        "status" => false,
+        "message" => $e->getMessage()
     ]);
 }
+?>

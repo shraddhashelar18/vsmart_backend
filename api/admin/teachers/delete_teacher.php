@@ -4,8 +4,8 @@
    IMPORT REQUIRED FILES
 ===================================== */
 
-require_once("../config.php");
-require_once("../api_guard.php");
+require_once("../../config.php");
+require_once("../../api_guard.php");
 
 /* =====================================
    SET RESPONSE TYPE
@@ -32,7 +32,17 @@ if ($id <= 0) {
     ]);
     exit;
 }
+$check = $conn->prepare("SELECT user_id FROM teachers WHERE user_id=?");
+$check->bind_param("i",$id);
+$check->execute();
 
+if($check->get_result()->num_rows == 0){
+    echo json_encode([
+        "status"=>false,
+        "message"=>"Teacher not found"
+    ]);
+    exit;
+}
 /* =====================================
    START TRANSACTION
 ===================================== */

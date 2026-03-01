@@ -6,6 +6,14 @@ header("Content-Type: application/json");
 
 $data = json_decode(file_get_contents("php://input"), true);
 
+if (empty($data['class_name']) || empty($data['class_teacher'])) {
+    echo json_encode([
+        "status"=>false,
+        "message"=>"Class name and teacher required"
+    ]);
+    exit;
+}
+
 $stmt = $conn->prepare("
 UPDATE classes
 SET class_teacher=?

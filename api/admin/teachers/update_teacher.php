@@ -1,6 +1,6 @@
 <?php
-require_once(__DIR__ . "/../config.php");
-require_once(__DIR__ . "/../api_guard.php");
+require_once(__DIR__ . "/../../config.php");
+require_once(__DIR__ . "/../../api_guard.php");
 
 header("Content-Type: application/json");
 
@@ -10,6 +10,13 @@ $user_id   = intval($data['user_id']);
 $full_name = $data['full_name'];
 $mobile_no = $data['mobile_no'];
 $subjects  = $data['subjects']; 
+if($user_id <= 0 || empty($full_name) || empty($mobile_no)){
+    echo json_encode([
+        "status"=>false,
+        "message"=>"All fields required"
+    ]);
+    exit;
+}
 // structure: department -> class -> subjects
 
 // 1️⃣ Update teacher basic details
@@ -34,7 +41,7 @@ foreach ($subjects as $department => $classes) {
 
             $stmt2 = $conn->prepare("
                 INSERT INTO teacher_assignments
-                (user_id, department_code, class, status, subject)
+                (user_id, department, class, status, subject)
                 VALUES (?, ?, ?, 'active', ?)
             ");
 

@@ -1,7 +1,7 @@
 <?php
 
-require_once(__DIR__ . "/../config.php");
-require_once(__DIR__ . "/../api_guard.php");
+require_once(__DIR__ . "../../../config.php");
+require_once(__DIR__ . "../../../api_guard.php");
 
 header("Content-Type: application/json");
 
@@ -22,6 +22,21 @@ if (empty($name) || empty($email) || empty($password)) {
     echo json_encode([
         "status" => false,
         "message" => "Required fields missing"
+    ]);
+    exit;
+}
+if(!filter_var($email, FILTER_VALIDATE_EMAIL)){
+    echo json_encode([
+        "status"=>false,
+        "message"=>"Invalid email format"
+    ]);
+    exit;
+}
+
+if(strlen($password) < 6){
+    echo json_encode([
+        "status"=>false,
+        "message"=>"Password must be at least 6 characters"
     ]);
     exit;
 }
@@ -85,7 +100,7 @@ foreach ($subjects as $class => $subjectList) {
 
         $stmt3 = $conn->prepare("
             INSERT INTO teacher_assignments
-            (user_id, department_code, class, subject, status)
+            (user_id, department, class, subject, status)
             VALUES (?, ?, ?, ?, 'active')
         ");
 

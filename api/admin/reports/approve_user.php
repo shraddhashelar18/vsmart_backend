@@ -5,7 +5,17 @@ require_once("../../api_guard.php");
 header("Content-Type: application/json");
 
 $data = json_decode(file_get_contents("php://input"), true);
-$user_id = $data['user_id'];
+
+$user_id = $data['user_id'] ?? '';
+
+if(empty($user_id) || !is_numeric($user_id)){
+    echo json_encode([
+        "status"=>false,
+        "message"=>"Valid user ID required"
+    ]);
+    exit;
+}
+
 
 $stmt = $conn->prepare("
 UPDATE users SET status='approved' WHERE user_id=?

@@ -7,8 +7,11 @@ header("Content-Type: application/json");
 
 $data = json_decode(file_get_contents("php://input"), true);
 
-if (!isset($data['student_id'])) {
-    echo json_encode(["status"=>false,"message"=>"student_id required"]);
+if (!isset($data['student_id']) || !is_numeric($data['student_id'])) {
+    echo json_encode([
+        "status" => false,
+        "message" => "Valid student_id required"
+    ]);
     exit;
 }
 
