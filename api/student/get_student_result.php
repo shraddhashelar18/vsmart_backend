@@ -136,6 +136,7 @@ $ct1Stmt->execute();
 $ct1Res = $ct1Stmt->get_result()->fetch_assoc();
 
 if ($ct1Res && isset($ct1Res['totalMax']) && $ct1Res['totalMax'] > 0) {
+if ($ct1Res['totalMax'] > 0) {
     $currentSemData[0] = round(
         ($ct1Res['totalObtained'] / $ct1Res['totalMax']) * 100,
         2
@@ -156,6 +157,7 @@ $ct2Stmt->execute();
 $ct2Res = $ct2Stmt->get_result()->fetch_assoc();
 
 if ($ct2Res && isset($ct2Res['totalMax']) && $ct2Res['totalMax'] > 0) {
+if ($ct2Res['totalMax'] > 0) {
     $currentSemData[1] = round(
         ($ct2Res['totalObtained'] / $ct2Res['totalMax']) * 100,
         2
@@ -174,8 +176,10 @@ $finalPercentStmt->execute();
 $finalPercentRes = $finalPercentStmt->get_result();
 
 if ($finalPercentRes && $finalPercentRes->num_rows > 0) {
+if ($finalPercentRes->num_rows > 0) {
     $finalRow = $finalPercentRes->fetch_assoc();
     $currentSemData[2] = (float)$finalRow['percentage'];
+}
 }
 
 /* =========================================
