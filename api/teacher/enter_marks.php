@@ -9,13 +9,14 @@ $data = json_decode(file_get_contents("php://input"), true);
 $class = $data['class'] ?? '';
 $subject = $data['subject'] ?? '';
 $examType = $data['exam_type'] ?? '';
-$totalMarks = $data['total_marks'] ?? '';
+$totalMarks = $data['total_marks'] ?? 30;
+$isDraft = $data['is_draft'] ?? true;
 $marksList = $data['marks'] ?? [];
 
-if (empty($class) || empty($subject) || empty($examType) || empty($totalMarks)) {
+if (empty($class) || empty($subject) || empty($examType)) {
     echo json_encode([
         "status" => false,
-        "message" => "Class, Subject, Exam Type and Total Marks are required"
+        "message" => "Class, Subject and Exam Type required"
     ]);
     exit;
 }
@@ -23,7 +24,7 @@ if (empty($class) || empty($subject) || empty($examType) || empty($totalMarks)) 
 if (empty($marksList)) {
     echo json_encode([
         "status" => false,
-        "message" => "No marks data received"
+        "message" => "No marks received"
     ]);
     exit;
 }
@@ -34,19 +35,38 @@ foreach ($marksList as $item) {
     $obtainedMarks = $item['obtained_marks'];
     $semester = $item['semester'];
 
-    if ($obtainedMarks > 30) {
-        echo json_encode([
-            "status" => false,
-            "message" => "Marks cannot exceed 30"
-        ]);
-        exit;
+    /* BLANK MARKS */
+
+    if ($obtainedMarks === "" || $obtainedMarks === null) {
+
+        if ($isDraft) {
+            $obtainedMarks = 0;
+            $status = "draft";
+        } else {
+            $obtainedMarks = 0;
+            $status = "AB";
+        }
+
+    } else {
+
+        if ($obtainedMarks > 30) {
+            echo json_encode([
+                "status" => false,
+                "message" => "Marks cannot exceed 30"
+            ]);
+            exit;
+        }
+
+        $status = $isDraft ? "draft" : "published";
     }
 
-    /* 🔥 Check if already exists */
+    /* CHECK EXISTING MARK */
+
     $check = $conn->prepare("
-        SELECT id FROM marks
-        WHERE student_id=? AND subject=? AND exam_type=?
+    SELECT id FROM marks
+    WHERE student_id=? AND subject=? AND exam_type=?
     ");
+
     $check->bind_param("iss", $studentUserId, $subject, $examType);
     $check->execute();
     $result = $check->get_result();
@@ -54,17 +74,19 @@ foreach ($marksList as $item) {
     if ($result->num_rows > 0) {
 
         /* UPDATE */
+
         $update = $conn->prepare("
-            UPDATE marks
-            SET obtained_marks=?, total_marks=?, semester=?
-            WHERE student_id=? AND subject=? AND exam_type=?
+        UPDATE marks
+        SET obtained_marks=?, total_marks=?, semester=?, status=?
+        WHERE student_id=? AND subject=? AND exam_type=?
         ");
 
         $update->bind_param(
-            "iisiss",
+            "iiisiss",
             $obtainedMarks,
             $totalMarks,
             $semester,
+            $status,
             $studentUserId,
             $subject,
             $examType
@@ -75,14 +97,15 @@ foreach ($marksList as $item) {
     } else {
 
         /* INSERT */
+
         $insert = $conn->prepare("
-            INSERT INTO marks
-            (student_id, teacher_user_id, class, subject, exam_type, total_marks, obtained_marks, semester)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO marks
+        (student_id, teacher_user_id, class, subject, exam_type, total_marks, obtained_marks, semester, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
 
         $insert->bind_param(
-            "iisssiis",
+            "iisssiiss",
             $studentUserId,
             $currentUserId,
             $class,
@@ -90,7 +113,8 @@ foreach ($marksList as $item) {
             $examType,
             $totalMarks,
             $obtainedMarks,
-            $semester
+            $semester,
+            $status
         );
 
         $insert->execute();
@@ -99,5 +123,5 @@ foreach ($marksList as $item) {
 
 echo json_encode([
     "status" => true,
-    "message" => "Marks saved successfully"
+    "message" => $isDraft ? "Draft saved successfully" : "Marks published successfully"
 ]);

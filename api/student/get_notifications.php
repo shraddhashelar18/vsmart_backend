@@ -14,6 +14,12 @@ if ($currentRole != 'student') {
 }
 
 $userId = $currentUserId;   // student user_id
+// If user_id is passed in body (for testing)
+$input = json_decode(file_get_contents("php://input"), true);
+
+if (isset($input['user_id']) && is_numeric($input['user_id'])) {
+    $userId = (int)$input['user_id'];
+}
 if (!$conn) {
     echo json_encode([
         "status" => false,
@@ -21,7 +27,18 @@ if (!$conn) {
     ]);
     exit;
 }
+$checkUser = $conn->prepare("SELECT user_id FROM students WHERE user_id = ?");
+$checkUser->bind_param("i", $userId);
+$checkUser->execute();
+$checkRes = $checkUser->get_result();
 
+if ($checkRes->num_rows == 0) {
+    echo json_encode([
+        "status" => false,
+        "message" => "Student not found"
+    ]);
+    exit;
+}
 /* Fetch Notifications */
 
 $stmt = $conn->prepare("
@@ -35,6 +52,7 @@ $stmt = $conn->prepare("
 
 $stmt->bind_param("i", $userId);
 $stmt->execute();
+$result = $stmt->get_result();
 if (!$result) {
     echo json_encode([
         "status" => false,
@@ -42,8 +60,6 @@ if (!$result) {
     ]);
     exit;
 }
-$result = $stmt->get_result();
-
 $notifications = [];
 
 while ($row = $result->fetch_assoc()) {

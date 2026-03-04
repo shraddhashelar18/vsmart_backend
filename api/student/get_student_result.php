@@ -142,6 +142,7 @@ if ($ct1Res['totalMax'] > 0) {
         2
     );
 }
+}
 
 // ---- CT2 ----
 $ct2Stmt = $conn->prepare("
@@ -162,6 +163,7 @@ if ($ct2Res['totalMax'] > 0) {
         ($ct2Res['totalObtained'] / $ct2Res['totalMax']) * 100,
         2
     );
+}
 }
 
 // ---- Final Percentage (From semester_results table) ----

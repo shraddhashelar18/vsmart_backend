@@ -1,35 +1,32 @@
 <?php
-require_once("config.php");
+require_once "includes/auth.php";
+require_once "includes/db.php";
 
-$result = $conn->query("
-SELECT s.*, s.full_name, u.email
-FROM students s
-JOIN users u ON u.user_id = s.user_id
-");
+$result=$conn->query("SELECT user_id,full_name,roll_no,class FROM students");
 ?>
 
 <link rel="stylesheet" href="assets/style.css">
-<?php include("sidebar.php"); ?>
 
-<div class="main">
-<h1>Manage Students</h1>
+<div class="wrapper">
 
-<table class="table">
-<tr>
-<th>Name</th>
-<th>Email</th>
-<th>Enrollment</th>
-<th>Class</th>
-</tr>
-
-<?php while($row = $result->fetch_assoc()): ?>
-<tr>
-<td><?php echo $row['full_name']; ?></td>
-<td><?php echo $row['email']; ?></td>
-<td><?php echo $row['enrollment_no']; ?></td>
-<td><?php echo $row['class']; ?></td>
-</tr>
-<?php endwhile; ?>
-</table>
+<div class="topbar">
+<a href="dashboard.php" class="back">←</a>
+Manage Students
 </div>
 
+<?php while($row=$result->fetch_assoc()): ?>
+
+<div class="card">
+<b><?= $row['full_name'] ?></b><br>
+<?= $row['class'] ?><br>
+Roll: <?= $row['roll_no'] ?><br>
+<a href="delete_student.php?id=<?= $row['user_id'] ?>">Delete</a>
+</div>
+
+<?php endwhile; ?>
+
+<button class="btn" onclick="location.href='add_student.php'">
++ Add Student
+</button>
+
+</div>
