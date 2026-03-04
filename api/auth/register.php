@@ -178,7 +178,23 @@ if ($selectedRole == "student") {
     }
 
     $studentEnrollmentNo = trim($data['studentEnrollmentNo']);
-    $rollNo              = trim($data['rollNo']);
+    if(!preg_match('/^[0-9]{11}$/', $studentEnrollmentNo)){
+    $conn->rollback();
+    echo json_encode([
+        "status"=>false,
+        "message"=>"Enrollment number must be 11 digits"
+    ]);
+    exit;
+}
+    $rollNo = trim($data['rollNo']);
+    if(!preg_match('/^[A-Za-z0-9]{10}$/', $rollNo)){
+    $conn->rollback();
+    echo json_encode([
+        "status"=>false,
+        "message"=>"Invalid roll number format"
+    ]);
+    exit;
+}
     $studentClass        = trim($data['studentClass']);
     $studentMobile       = trim($data['studentMobile']);
     $parentMobile        = trim($data['parentMobile']);
@@ -261,6 +277,16 @@ if ($selectedRole == "teacher") {
     }
 
     $employeeId   = trim($data['employeeId']);
+    /* EMPLOYEE ID VALIDATION */
+
+if(!preg_match('/^[A-Za-z0-9]{10}$/', $employeeId)){
+    $conn->rollback();
+    echo json_encode([
+        "status"=>false,
+        "message"=>"Employee ID must be exactly 6 characters"
+    ]);
+    exit;
+}
     $teacherMobile = trim($data['teacherMobile']);
 
     if (!validatePhone($teacherMobile)) {
@@ -328,6 +354,12 @@ if ($selectedRole == "parent") {
     }
 
     $enrollmentNo   = trim($data['enrollmentNo']);
+    if(!preg_match('/^[0-9]{11}$/', $enrollmentNo)){
+    $conn->rollback();
+    echo json_encode([
+        "status"=>false,
+        "message"=>"Enrollment number must be 11 digits"
+    ]);
     $parentOwnMobile = trim($data['parentOwnMobile']);
 
     if (!validatePhone($parentOwnMobile)) {
