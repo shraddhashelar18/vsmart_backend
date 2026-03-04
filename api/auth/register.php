@@ -8,6 +8,7 @@ header("Content-Type: application/json");
 =========================== */
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    $conn->rollback();
     echo json_encode([
         "status"=>false,
         "message"=>"Invalid request method"
@@ -22,7 +23,14 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $conn->begin_transaction();
 
 $data = json_decode(file_get_contents("php://input"), true);
-
+if(!$data){
+    $conn->rollback();
+    echo json_encode([
+        "status"=>false,
+        "message"=>"Invalid JSON data"
+    ]);
+    exit;
+}
 /* ===========================
    COMMON REQUIRED VALIDATION
 =========================== */
@@ -33,12 +41,13 @@ if (
     !isset($data['password']) ||
     !isset($data['selectedRole'])
 ) {
+    $conn->rollback();
     echo json_encode(["status"=>false,"message"=>"Missing required fields"]);
     exit;
 }
 
 $fullName     = trim($data['fullName']);
-$email        = trim($data['email']);
+$email = strtolower(trim($data['email']));
 $password     = trim($data['password']);
 $selectedRole = trim($data['selectedRole']);
 
@@ -47,11 +56,13 @@ $selectedRole = trim($data['selectedRole']);
 =========================== */
 
 if ($fullName == "") {
+    $conn->rollback();
     echo json_encode(["status"=>false,"message"=>"Full Name is required"]);
     exit;
 }
 
 if (preg_match('/[0-9]/', $fullName)) {
+    $conn->rollback();
     echo json_encode(["status"=>false,"message"=>"Name cannot contain numbers"]);
     exit;
 }
@@ -61,6 +72,7 @@ if (preg_match('/[0-9]/', $fullName)) {
 =========================== */
 
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    $conn->rollback();
     echo json_encode(["status"=>false,"message"=>"Invalid email format"]);
     exit;
 }
@@ -70,6 +82,7 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
 =========================== */
 
 if (strlen($password) < 6) {
+    $conn->rollback();
     echo json_encode([
         "status"=>false,
         "message"=>"Password must be at least 6 characters"
@@ -84,6 +97,7 @@ if (strlen($password) < 6) {
 $allowedRoles = ["student","teacher","parent"];
 
 if (!in_array($selectedRole, $allowedRoles)) {
+    $conn->rollback();
     echo json_encode(["status"=>false,"message"=>"Invalid role selected"]);
     exit;
 }
@@ -98,6 +112,7 @@ $checkStmt->execute();
 $checkStmt->store_result();
 
 if ($checkStmt->num_rows > 0) {
+    $conn->rollback();
     echo json_encode(["status"=>false,"message"=>"Email already registered"]);
     exit;
 }
@@ -106,7 +121,7 @@ if ($checkStmt->num_rows > 0) {
    INSERT INTO USERS TABLE
 =========================== */
 
-$hashedPassword = password_hash($password, PASSWORD_BCRYPT);
+$hashedPassword = password_hash($password, PASSWORD_BCRYPT, ['cost'=>12]);
 $status = "pending";
 $first_login = 0;
 
@@ -156,6 +171,7 @@ if ($selectedRole == "student") {
 
     foreach ($requiredFields as $field) {
         if (!isset($data[$field]) || trim($data[$field]) == "") {
+            $conn->rollback();
             echo json_encode(["status"=>false,"message"=>"All student fields are required"]);
             exit;
         }
@@ -168,6 +184,7 @@ if ($selectedRole == "student") {
     $parentMobile        = trim($data['parentMobile']);
 
     if (!validatePhone($studentMobile) || !validatePhone($parentMobile)) {
+        $conn->rollback();
         echo json_encode(["status"=>false,"message"=>"Enter valid 10-digit number"]);
         exit;
     }
@@ -184,6 +201,7 @@ if ($selectedRole == "student") {
     $checkStudent->store_result();
 
     if($checkStudent->num_rows > 0){
+        $conn->rollback();
         echo json_encode([
             "status"=>false,
             "message"=>"Student already registered"
@@ -237,6 +255,7 @@ if ($selectedRole == "teacher") {
         !isset($data['employeeId']) ||
         !isset($data['teacherMobile'])
     ) {
+        $conn->rollback();
         echo json_encode(["status"=>false,"message"=>"All teacher fields are required"]);
         exit;
     }
@@ -245,6 +264,7 @@ if ($selectedRole == "teacher") {
     $teacherMobile = trim($data['teacherMobile']);
 
     if (!validatePhone($teacherMobile)) {
+        $conn->rollback();
         echo json_encode(["status"=>false,"message"=>"Enter valid 10-digit number"]);
         exit;
     }
@@ -260,6 +280,7 @@ if ($selectedRole == "teacher") {
     $checkTeacher->store_result();
 
     if($checkTeacher->num_rows > 0){
+        $conn->rollback();
         echo json_encode([
             "status"=>false,
             "message"=>"Teacher already registered"
@@ -301,6 +322,7 @@ if ($selectedRole == "parent") {
         !isset($data['enrollmentNo']) ||
         !isset($data['parentOwnMobile'])
     ) {
+        $conn->rollback();
         echo json_encode(["status"=>false,"message"=>"All parent fields are required"]);
         exit;
     }
@@ -309,6 +331,7 @@ if ($selectedRole == "parent") {
     $parentOwnMobile = trim($data['parentOwnMobile']);
 
     if (!validatePhone($parentOwnMobile)) {
+        $conn->rollback();
         echo json_encode(["status"=>false,"message"=>"Enter valid 10-digit number"]);
         exit;
     }
