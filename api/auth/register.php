@@ -8,7 +8,6 @@ header("Content-Type: application/json");
 =========================== */
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    $conn->rollback();
     echo json_encode([
         "status"=>false,
         "message"=>"Invalid request method"
@@ -283,7 +282,7 @@ if(!preg_match('/^[A-Za-z0-9]{10}$/', $employeeId)){
     $conn->rollback();
     echo json_encode([
         "status"=>false,
-        "message"=>"Employee ID must be exactly 6 characters"
+        "message"=>"Employee ID must be exactly 10 characters"
     ]);
     exit;
 }
@@ -353,6 +352,7 @@ if ($selectedRole == "parent") {
         exit;
     }
 
+
     $enrollmentNo   = trim($data['enrollmentNo']);
     if(!preg_match('/^[0-9]{11}$/', $enrollmentNo)){
     $conn->rollback();
@@ -360,6 +360,8 @@ if ($selectedRole == "parent") {
         "status"=>false,
         "message"=>"Enrollment number must be 11 digits"
     ]);
+    exit;
+    }
     $parentOwnMobile = trim($data['parentOwnMobile']);
 
     if (!validatePhone($parentOwnMobile)) {
