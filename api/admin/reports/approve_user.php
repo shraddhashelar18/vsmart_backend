@@ -1,14 +1,7 @@
 <?php
 require_once("../../config.php");
 require_once("../../api_guard.php");
-
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
-
-require $_SERVER['DOCUMENT_ROOT'] . "/vsmart_backend/PHPMailer/PHPMailer-master/src/PHPMailer.php";
-require $_SERVER['DOCUMENT_ROOT'] . "/vsmart_backend/PHPMailer/PHPMailer-master/src/SMTP.php";
-require $_SERVER['DOCUMENT_ROOT'] . "/vsmart_backend/PHPMailer/PHPMailer-master/src/Exception.php";
-
+require_once("../../cors.php");
 header("Content-Type: application/json");
 
 if ($currentRole != "admin") {
@@ -27,7 +20,6 @@ if(empty($user_id) || !is_numeric($user_id)){
     ]);
     exit;
 }
-
 
 if (!isset($data['user_id'])) {
     echo json_encode(["status"=>false,"message"=>"User ID required"]);
@@ -52,38 +44,8 @@ $update = $conn->prepare("UPDATE users SET status='approved' WHERE user_id=?");
 $update->bind_param("s", $userId);
 $update->execute();
 
-$mail = new PHPMailer(true);
-
-try {
-    $mail->isSMTP();
-    $mail->Host = 'smtp.gmail.com';
-    $mail->SMTPAuth = true;
-    $mail->Username = 'kadwadkarkaveri@gmail.com';
-    $mail->Password = 'xkndfopkqzdaoqjn';
-    $mail->addAddress($user['email']);
-    $mail->SMTPSecure = 'tls';
-    $mail->Port = 587;
-
-    $mail->setFrom('kadwadkarkaveri@gmail.com', 'VSmart Admin');
-    $mail->addAddress($user['surekhashelar18672@gmail.com']);
-
-    $mail->isHTML(true);
-    $mail->Subject = "Account Approved";
-    $mail->Body = "
-        <h3>Your account has been approved</h3>
-        <p>You can now login to the system.</p>
-    ";
-
-    $mail->send();
-
-    echo json_encode([
-        "status" => true,
-        "message" => "User approved and email sent"
-    ]);
-
-} catch (Exception $e) {
-    echo json_encode([
-        "status" => false,
-        "message" => "Approved but email failed: " . $mail->ErrorInfo
-    ]);
-}
+echo json_encode([
+    "status" => true,
+    "message" => "User approved successfully"
+]);
+?>

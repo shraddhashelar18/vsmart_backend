@@ -6,7 +6,7 @@
 
 require_once("../../config.php");
 require_once("../../api_guard.php");
-
+require_once("../../cors.php");
 /* =====================================
    SET RESPONSE TYPE
 ===================================== */

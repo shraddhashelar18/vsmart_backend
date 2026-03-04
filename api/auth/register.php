@@ -3,6 +3,24 @@ require_once("../config.php");
 require_once("../cors.php");
 header("Content-Type: application/json");
 
+/* ===========================
+   REQUEST METHOD VALIDATION
+=========================== */
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    echo json_encode([
+        "status"=>false,
+        "message"=>"Invalid request method"
+    ]);
+    exit;
+}
+
+/* ===========================
+   START DATABASE TRANSACTION
+=========================== */
+
+$conn->begin_transaction();
+
 $data = json_decode(file_get_contents("php://input"), true);
 
 /* ===========================
@@ -107,6 +125,7 @@ $userStmt->bind_param(
 );
 
 if (!$userStmt->execute()) {
+    $conn->rollback();
     echo json_encode(["status"=>false,"message"=>"User creation failed"]);
     exit;
 }
@@ -153,9 +172,26 @@ if ($selectedRole == "student") {
         exit;
     }
 
-    /* Extract semester number from class like IF6KA */
-    $semester = (int) filter_var($studentClass, FILTER_SANITIZE_NUMBER_INT);
+    /* DUPLICATE STUDENT CHECK */
 
+    $checkStudent = $conn->prepare("
+    SELECT roll_no FROM students
+    WHERE roll_no = ? OR enrollment_no = ?
+    ");
+
+    $checkStudent->bind_param("ss",$rollNo,$studentEnrollmentNo);
+    $checkStudent->execute();
+    $checkStudent->store_result();
+
+    if($checkStudent->num_rows > 0){
+        echo json_encode([
+            "status"=>false,
+            "message"=>"Student already registered"
+        ]);
+        exit;
+    }
+
+    $semester = (int) filter_var($studentClass, FILTER_SANITIZE_NUMBER_INT);
     $departmentCode = substr($studentClass, 0, 2);
 
     $stmt = $conn->prepare("
@@ -181,7 +217,14 @@ if ($selectedRole == "student") {
         $studentStatus
     );
 
-    $stmt->execute();
+    if(!$stmt->execute()){
+        $conn->rollback();
+        echo json_encode([
+            "status"=>false,
+            "message"=>"Student registration failed"
+        ]);
+        exit;
+    }
 }
 
 /* ======================================================
@@ -206,6 +249,24 @@ if ($selectedRole == "teacher") {
         exit;
     }
 
+    /* DUPLICATE TEACHER CHECK */
+
+    $checkTeacher = $conn->prepare("
+    SELECT employee_id FROM teachers WHERE employee_id = ?
+    ");
+
+    $checkTeacher->bind_param("s",$employeeId);
+    $checkTeacher->execute();
+    $checkTeacher->store_result();
+
+    if($checkTeacher->num_rows > 0){
+        echo json_encode([
+            "status"=>false,
+            "message"=>"Teacher already registered"
+        ]);
+        exit;
+    }
+
     $stmt = $conn->prepare("
         INSERT INTO teachers
         (employee_id,user_id,full_name,mobile_no)
@@ -220,7 +281,14 @@ if ($selectedRole == "teacher") {
         $teacherMobile
     );
 
-    $stmt->execute();
+    if(!$stmt->execute()){
+        $conn->rollback();
+        echo json_encode([
+            "status"=>false,
+            "message"=>"Teacher registration failed"
+        ]);
+        exit;
+    }
 }
 
 /* ======================================================
@@ -259,8 +327,21 @@ if ($selectedRole == "parent") {
         $parentOwnMobile
     );
 
-    $stmt->execute();
+    if(!$stmt->execute()){
+        $conn->rollback();
+        echo json_encode([
+            "status"=>false,
+            "message"=>"Parent registration failed"
+        ]);
+        exit;
+    }
 }
+
+/* ===========================
+         COMMIT TRANSACTION
+=========================== */
+
+$conn->commit();
 
 /* ===========================
          SUCCESS RESPONSE
