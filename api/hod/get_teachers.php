@@ -2,10 +2,11 @@
 require_once("../config.php");
 require_once("../api_guard.php");
 require_once("../cors.php");
+
 header("Content-Type: application/json");
 
 /* ===============================
-   1️⃣ ROLE CHECK
+1️⃣ ROLE CHECK
 ================================ */
 
 if ($currentRole != 'hod' && $currentRole != 'principal') {
@@ -17,14 +18,16 @@ if ($currentRole != 'hod' && $currentRole != 'principal') {
 }
 
 /* ===============================
-   2️⃣ DEPARTMENT LOGIC
+2️⃣ DEPARTMENT LOGIC
 ================================ */
 
 $data = json_decode(file_get_contents("php://input"), true);
 
 if ($currentRole == 'hod') {
-    $department = $currentDepartment;  // Secure
-} else {
+    $department = $currentDepartment;
+} 
+else {
+
     if (!isset($data['department'])) {
         echo json_encode([
             "status" => false,
@@ -32,18 +35,22 @@ if ($currentRole == 'hod') {
         ]);
         exit;
     }
+
     $department = $data['department'];
 }
 
 /* =========================================
-   3️⃣ Get Teachers From Department
+3️⃣ GET TEACHERS WITH DETAILS
 ========================================= */
 
 $stmt = $conn->prepare("
-    SELECT DISTINCT 
+    SELECT DISTINCT
         t.user_id,
-        t.full_name
+        t.full_name,
+        t.mobile_no,
+        u.email
     FROM teachers t
+    JOIN users u ON t.user_id = u.user_id
     JOIN teacher_assignments ta ON t.user_id = ta.user_id
     WHERE ta.department = ?
     AND ta.status = 'active'
@@ -60,11 +67,11 @@ while ($row = $result->fetch_assoc()) {
     $user_id = $row['user_id'];
 
     /* =========================================
-       4️⃣ Check If Class Teacher
+    4️⃣ GET ASSIGNMENTS
     ========================================= */
 
     $assignStmt = $conn->prepare("
-        SELECT class
+        SELECT class, subject
         FROM teacher_assignments
         WHERE user_id = ?
         AND status = 'active'
@@ -74,11 +81,22 @@ while ($row = $result->fetch_assoc()) {
     $assignStmt->execute();
     $assignResult = $assignStmt->get_result();
 
+    $assignments = [];
     $classes = [];
 
     while ($a = $assignResult->fetch_assoc()) {
+
+        $assignments[] = [
+            "className" => $a['class'],
+            "subject" => $a['subject']
+        ];
+
         $classes[] = $a['class'];
     }
+
+    /* =========================================
+    5️⃣ CLASS TEACHER LOGIC
+    ========================================= */
 
     $uniqueClasses = array_unique($classes);
 
@@ -91,23 +109,23 @@ while ($row = $result->fetch_assoc()) {
     }
 
     /* =========================================
-       5️⃣ Build Response
+    6️⃣ RESPONSE
     ========================================= */
 
     $teachers[] = [
         "id" => (string)$user_id,
         "name" => $row['full_name'],
-        "email" => "",              // If needed in detail screen
-        "mobile" => "",             // If needed
+        "email" => $row['email'],
+        "mobile" => $row['mobile_no'],
         "department" => $department,
         "isClassTeacher" => $isClassTeacher,
         "classTeacherOf" => $classTeacherOf,
-        "assignments" => []         // You can expand later
+        "assignments" => $assignments
     ];
 }
 
 /* =========================================
-   6️⃣ Final JSON
+7️⃣ FINAL RESPONSE
 ========================================= */
 
 echo json_encode([
