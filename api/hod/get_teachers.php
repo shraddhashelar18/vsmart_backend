@@ -21,23 +21,18 @@ if ($currentRole != 'hod' && $currentRole != 'principal') {
 2️⃣ DEPARTMENT LOGIC
 ================================ */
 
+
 $data = json_decode(file_get_contents("php://input"), true);
 
-if ($currentRole == 'hod') {
-    $department = $currentDepartment;
-} 
-else {
-
-    if (!isset($data['department'])) {
-        echo json_encode([
-            "status" => false,
-            "message" => "Department required"
-        ]);
-        exit;
-    }
-
-    $department = $data['department'];
+if (!isset($data['department']) || empty($data['department'])) {
+    echo json_encode([
+        "status" => false,
+        "message" => "Department required"
+    ]);
+    exit;
 }
+
+$department = $data['department'];
 
 /* =========================================
 3️⃣ GET TEACHERS WITH DETAILS

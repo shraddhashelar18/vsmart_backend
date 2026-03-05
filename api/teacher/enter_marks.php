@@ -13,13 +13,42 @@ $totalMarks = $data['total_marks'] ?? 30;
 $isDraft = $data['is_draft'] ?? true;
 $marksList = $data['marks'] ?? [];
 
-if (empty($class) || empty($subject) || empty($examType)) {
+if (!$class || !$subject || !$examType) {
     echo json_encode([
         "status" => false,
         "message" => "Class, Subject and Exam Type required"
     ]);
     exit;
 }
+
+/* =========================
+   CHECK SUBJECT EXISTS
+========================= */
+
+$prefix = substr($class, 0, 4); // IF6KA -> IF6K
+
+$subjectCheck = $conn->prepare("
+SELECT subject_name
+FROM semester_subjects
+WHERE class LIKE CONCAT(?, '%') 
+AND subject_name=?
+");
+
+$subjectCheck->bind_param("ss", $prefix, $subject);
+$subjectCheck->execute();
+$subjectRes = $subjectCheck->get_result();
+
+if ($subjectRes->num_rows == 0) {
+    echo json_encode([
+        "status" => false,
+        "message" => "Subject not found for this class"
+    ]);
+    exit;
+}
+
+/* =========================
+   CHECK MARKS LIST
+========================= */
 
 if (empty($marksList)) {
     echo json_encode([
@@ -31,11 +60,15 @@ if (empty($marksList)) {
 
 foreach ($marksList as $item) {
 
-    $studentUserId = $item['user_id'];
-    $obtainedMarks = $item['obtained_marks'];
-    $semester = $item['semester'];
+    $studentUserId = $item['user_id'] ?? '';
+    $obtainedMarks = $item['obtained_marks'] ?? '';
+    $semester = $item['semester'] ?? '';
 
-    /* BLANK MARKS */
+    if (!$studentUserId || !$semester) continue;
+
+    /* =========================
+       HANDLE BLANK MARKS
+    ========================= */
 
     if ($obtainedMarks === "" || $obtainedMarks === null) {
 
@@ -49,10 +82,10 @@ foreach ($marksList as $item) {
 
     } else {
 
-        if ($obtainedMarks > 30) {
+        if ($obtainedMarks > $totalMarks) {
             echo json_encode([
                 "status" => false,
-                "message" => "Marks cannot exceed 30"
+                "message" => "Marks cannot exceed total marks"
             ]);
             exit;
         }
@@ -60,14 +93,16 @@ foreach ($marksList as $item) {
         $status = $isDraft ? "draft" : "published";
     }
 
-    /* CHECK EXISTING MARK */
+    /* =========================
+       CHECK EXISTING MARK
+    ========================= */
 
     $check = $conn->prepare("
     SELECT id FROM marks
-    WHERE student_id=? AND subject=? AND exam_type=?
+    WHERE student_id=? AND subject=? AND exam_type=? AND class=?
     ");
 
-    $check->bind_param("iss", $studentUserId, $subject, $examType);
+    $check->bind_param("isss", $studentUserId, $subject, $examType, $class);
     $check->execute();
     $result = $check->get_result();
 
@@ -78,18 +113,19 @@ foreach ($marksList as $item) {
         $update = $conn->prepare("
         UPDATE marks
         SET obtained_marks=?, total_marks=?, semester=?, status=?
-        WHERE student_id=? AND subject=? AND exam_type=?
+        WHERE student_id=? AND subject=? AND exam_type=? AND class=?
         ");
 
         $update->bind_param(
-            "iiisiss",
+            "iiisisss",
             $obtainedMarks,
             $totalMarks,
             $semester,
             $status,
             $studentUserId,
             $subject,
-            $examType
+            $examType,
+            $class
         );
 
         $update->execute();
@@ -100,20 +136,20 @@ foreach ($marksList as $item) {
 
         $insert = $conn->prepare("
         INSERT INTO marks
-        (student_id, teacher_user_id, class, subject, exam_type, total_marks, obtained_marks, semester, status)
+        (student_id, teacher_user_id, class, semester, subject, exam_type, total_marks, obtained_marks, status)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
 
         $insert->bind_param(
-            "iisssiiss",
+            "iisssiiis",
             $studentUserId,
             $currentUserId,
             $class,
+            $semester,
             $subject,
             $examType,
             $totalMarks,
             $obtainedMarks,
-            $semester,
             $status
         );
 
@@ -125,3 +161,4 @@ echo json_encode([
     "status" => true,
     "message" => $isDraft ? "Draft saved successfully" : "Marks published successfully"
 ]);
+?>
