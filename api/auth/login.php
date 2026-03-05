@@ -165,6 +165,16 @@ if ($user['role'] == "student") {
         }
     }
 }
+$token = hash("sha256", $user['user_id'] . time() . rand());
+
+$update = $conn->prepare("
+UPDATE users
+SET auth_token = ?
+WHERE user_id = ?
+");
+
+$update->bind_param("si", $token, $user['user_id']);
+$update->execute();
 
 /* ===============================
    6️⃣ Final Response
@@ -172,6 +182,7 @@ if ($user['role'] == "student") {
 
 echo json_encode([
     "status" => true,
+    "token" => $token,
     "user" => [
         "user_id" => (int)$user['user_id'],
         "email" => $user['email'],
@@ -181,4 +192,5 @@ echo json_encode([
         "className" => $className,
         "semester" => $semester
     ]
+
 ]);

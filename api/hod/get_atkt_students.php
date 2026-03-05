@@ -1,5 +1,6 @@
 <?php
 require_once("../config.php");
+require_once("../cors.php");
 require_once("../api_guard.php");
 require_once("../promotion_helper.php");
 header("Content-Type: application/json");
@@ -7,7 +8,7 @@ header("Content-Type: application/json");
 if ($currentRole != 'hod' && $currentRole != 'principal') {
     echo json_encode([
         "status" => false,
-        "message" => "Access Denied"
+        "message" => "Access Denied"  
     ]);
     exit;
 }
