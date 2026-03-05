@@ -54,7 +54,7 @@ while($row = $result->fetch_assoc()){
 /* COUNT TEACHERS */
 $teacherStmt = $conn->prepare("
     SELECT COUNT(DISTINCT user_id) AS totalTeachers
-    FROM teacher_assignments
+    FROM teachers
     WHERE department = ?
 ");
 
