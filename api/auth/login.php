@@ -99,12 +99,11 @@ if ($user['role'] == "teacher") {
     }
 }
 
-/* 🔹 HOD */
 if ($user['role'] == "hod") {
 
     $hStmt = $conn->prepare("
-        SELECT department_code
-        FROM hod
+        SELECT full_name, department
+        FROM hods
         WHERE user_id = ?
     ");
     $hStmt->bind_param("i", $user['user_id']);
@@ -113,7 +112,10 @@ if ($user['role'] == "hod") {
 
     if ($hRes->num_rows > 0) {
         $row = $hRes->fetch_assoc();
-        $departments[] = $row['department_code'];
+        $departments[] = $row['department'];
+
+        // attach name to user response
+        $user['name'] = $row['full_name'];
     }
 }
 
@@ -124,7 +126,7 @@ if ($user['role'] == "principal") {
     $pStmt = $conn->query("SELECT department_code FROM departments");
 
     while ($row = $pStmt->fetch_assoc()) {
-        $departments[] = $row['department_code'];
+        $departments[] = $row['department'];
     }
 }
 
@@ -165,6 +167,16 @@ if ($user['role'] == "student") {
         }
     }
 }
+$token = hash("sha256", $user['user_id'] . time() . rand());
+
+$update = $conn->prepare("
+UPDATE users
+SET auth_token = ?
+WHERE user_id = ?
+");
+
+$update->bind_param("si", $token, $user['user_id']);
+$update->execute();
 
 /* ===============================
    6️⃣ Final Response
@@ -172,6 +184,7 @@ if ($user['role'] == "student") {
 
 echo json_encode([
     "status" => true,
+    "token" => $token,
     "user" => [
         "user_id" => (int)$user['user_id'],
         "email" => $user['email'],
@@ -181,4 +194,5 @@ echo json_encode([
         "className" => $className,
         "semester" => $semester
     ]
+
 ]);

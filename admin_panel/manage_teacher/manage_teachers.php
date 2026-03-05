@@ -2,6 +2,12 @@
 require_once "../auth.php";
 require_once "../db.php";
 
+<<<<<<< HEAD
+$result = $conn->query("
+SELECT t.full_name, u.email, t.department
+FROM teacher_assignments t
+JOIN users u ON u.user_id = t.user_id
+=======
 $dept = $_GET['dept'] ?? '';
 
 if(empty($dept)){
@@ -19,6 +25,7 @@ FROM teacher_assignments ta
 JOIN users u ON ta.user_id = u.user_id
 JOIN teachers t ON ta.user_id = t.user_id
 WHERE ta.department = ?
+>>>>>>> b5f3620ebd6a52d6e779168b7459e9dd09ccc8ce
 ");
 $stmt->bind_param("s",$dept);
 $stmt->execute();

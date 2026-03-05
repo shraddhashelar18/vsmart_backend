@@ -1,30 +1,72 @@
 <?php
 
-$headers = getallheaders();
+header("Content-Type: application/json");
 
-if (!isset($headers['Authorization'])) {
-    echo json_encode(["status" => false, "message" => "Unauthorized"]);
+/* ======================
+   GET AUTH HEADER
+====================== */
+
+$authHeader = null;
+
+/* Method 1 */
+if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
+    $authHeader = $_SERVER['HTTP_AUTHORIZATION'];
+}
+
+/* Method 2 */
+elseif (function_exists('apache_request_headers')) {
+    $headers = apache_request_headers();
+    if (isset($headers['Authorization'])) {
+        $authHeader = $headers['Authorization'];
+    }
+}
+
+/* ======================
+   CHECK HEADER
+====================== */
+
+if (!$authHeader) {
+    echo json_encode([
+        "status" => false,
+        "message" => "Authorization header missing"
+    ]);
     exit;
 }
 
-$token = str_replace("Bearer ", "", $headers['Authorization']);
+/* ======================
+   EXTRACT TOKEN
+====================== */
+
+$token = str_replace("Bearer ", "", $authHeader);
+
+/* ======================
+   VALIDATE TOKEN
+====================== */
+
 $stmt = $conn->prepare("
-    SELECT u.user_id, u.role, h.department
-    FROM users u
-    LEFT JOIN hod h ON u.user_id = h.hod_id
-    WHERE u.auth_token = ?
+    SELECT user_id, role
+    FROM users
+    WHERE auth_token = ?
 ");
+
 $stmt->bind_param("s", $token);
 $stmt->execute();
+
 $result = $stmt->get_result();
 
 if ($result->num_rows == 0) {
-    echo json_encode(["status" => false, "message" => "Invalid Token"]);
+    echo json_encode([
+        "status" => false,
+        "message" => "Invalid Token"
+    ]);
     exit;
 }
 
 $user = $result->fetch_assoc();
 
+/* ======================
+   GLOBAL USER VARIABLES
+====================== */
+
 $currentUserId = $user['user_id'];
-$currentRole = $user['role'];           // 🔥 VERY IMPORTANT
-$currentDepartment = $user['department'];
+$currentRole = $user['role'];

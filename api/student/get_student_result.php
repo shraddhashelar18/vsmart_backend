@@ -1,85 +1,79 @@
 <?php
-require_once("../config.php");
-require_once("../api_guard.php");
-
 header("Content-Type: application/json");
+require_once("../config.php");
 
-/* =========================================
-   1️⃣ Allow Only Student
-========================================= */
+/* ==============================
+   READ JSON BODY (POST)
+============================== */
 
-if ($currentRole != 'student') {
-    echo json_encode([
-        "status" => false,
-        "message" => "Access Denied"
-    ]);
+$data = json_decode(file_get_contents("php://input"), true);
+
+if(!isset($data['student_id'])){
+    echo json_encode(["status"=>false,"message"=>"student_id required"]);
     exit;
 }
 
-$userId = $currentUserId;
+$student_id = $data['student_id'];
 
-/* =========================================
-   2️⃣ Get Student Semester (SEM6 format)
-========================================= */
+/* =====================================================
+   1️⃣ GET STUDENT DETAILS
+===================================================== */
 
-$stmt = $conn->prepare("
-    SELECT current_semester 
-    FROM students 
-    WHERE user_id = ?
+$studentQuery = $conn->prepare("
+SELECT class, current_semester 
+FROM students 
+WHERE user_id=?
 ");
-$stmt->bind_param("i", $userId);
-$stmt->execute();
-$res = $stmt->get_result();
+$studentQuery->bind_param("i",$student_id);
+$studentQuery->execute();
+$student = $studentQuery->get_result()->fetch_assoc();
 
-if ($res->num_rows == 0) {
-    echo json_encode(["status" => false]);
+if(!$student){
+    echo json_encode(["status"=>false,"message"=>"Student not found"]);
     exit;
 }
 
-$row = $res->fetch_assoc();
-$semesterCode = $row['current_semester'];   // e.g. SEM6
+$current_class = $student['class'];
+$current_sem   = $student['current_semester']; // VARCHAR
 
-// Extract number for frontend (6)
-$semesterNumber = (int) filter_var($semesterCode, FILTER_SANITIZE_NUMBER_INT);
+/* =====================================================
+   2️⃣ DETERMINE ODD / EVEN
+===================================================== */
 
-/* =========================================
-   3️⃣ Check CT1 / CT2 Declared
-========================================= */
+$semester_number = (int)$current_sem;
 
-$ct1Declared = false;
-$ct2Declared = false;
+$semester_type = ($semester_number % 2 == 0) ? "EVEN" : "ODD";
 
-$checkStmt = $conn->prepare("
-    SELECT exam_type 
-    FROM marks 
-    WHERE student_id = ? 
-    AND semester = ?
-");
-$checkStmt->bind_param("is", $userId, $semesterCode);
-$checkStmt->execute();
-$checkRes = $checkStmt->get_result();
+/* Active semester = current semester only */
+$active_semester = $current_sem;
 
-while ($m = $checkRes->fetch_assoc()) {
+/* =====================================================
+   3️⃣ GET SETTINGS SAFELY
+===================================================== */
 
-    if ($m['exam_type'] == 'CT-1') {
-        $ct1Declared = true;
-    }
+$settings = $conn->query("SELECT * FROM settings LIMIT 1")->fetch_assoc();
 
-    if ($m['exam_type'] == 'CT-2') {
-        $ct2Declared = true;
-    }
+if(!$settings){
+    echo json_encode(["status"=>false,"message"=>"Settings not found"]);
+    exit;
 }
 
-/* =========================================
-   4️⃣ Final Upload & Publish Settings
-========================================= */
+/* =====================================================
+   4️⃣ SUBJECT COUNT
+===================================================== */
 
-$settingsRes = $conn->query("
-    SELECT allow_marksheet_upload, allow_reupload
-    FROM settings
-    LIMIT 1
+$subjectQuery = $conn->prepare("
+SELECT COUNT(id) as total_subjects
+FROM semester_subjects
+WHERE semester=? AND class=?
 ");
+$subjectQuery->bind_param("ss",$active_semester,$current_class);
+$subjectQuery->execute();
+$subjectCountRow = $subjectQuery->get_result()->fetch_assoc();
 
+<<<<<<< HEAD
+$subjectCount = $subjectCountRow ? $subjectCountRow['total_subjects'] : 0;
+=======
 if ($settingsRes->num_rows == 0) {
     echo json_encode([
         "status" => false,
@@ -89,83 +83,102 @@ if ($settingsRes->num_rows == 0) {
 }
 
 $settings = $settingsRes->fetch_assoc();
+>>>>>>> b5f3620ebd6a52d6e779168b7459e9dd09ccc8ce
 
-$finalUploadAllowed = (bool)$settings['allow_marksheet_upload'];
-$reuploadAllowed = (bool)$settings['allow_reupload'];
+$total_ct_marks = $subjectCount * 30;
 
-/* =========================================
-   5️⃣ Check Final Marksheet Uploaded
-========================================= */
+/* =====================================================
+   5️⃣ FETCH MARKS (VARCHAR SAFE)
+===================================================== */
 
-$finalPdfUploaded = false;
-$finalDeclared = false;
-
-$finalStmt = $conn->prepare("
-    SELECT id 
-    FROM final_marksheets
-    WHERE user_id = ?
-    AND semester = ?
+$marksQuery = $conn->prepare("
+SELECT subject, exam_type, obtained_marks
+FROM marks
+WHERE student_id=? AND semester=?
 ");
-$finalStmt->bind_param("is", $userId, $semesterCode);
-$finalStmt->execute();
-$finalRes = $finalStmt->get_result();
+$marksQuery->bind_param("is",$student_id,$active_semester);
+$marksQuery->execute();
+$marksResult = $marksQuery->get_result();
 
-if ($finalRes->num_rows > 0) {
-    $finalPdfUploaded = true;
-    $finalDeclared = true;
+$marksData = [];
+$ct1_total = 0;
+$ct2_total = 0;
+$final_total = 0;
+
+while($row = $marksResult->fetch_assoc()){
+
+    $marksData[$row['subject']][$row['exam_type']] = $row['obtained_marks'];
+
+    if($row['exam_type']=="CT1") $ct1_total += (int)$row['obtained_marks'];
+    if($row['exam_type']=="CT2") $ct2_total += (int)$row['obtained_marks'];
+    if($row['exam_type']=="FINAL") $final_total += (int)$row['obtained_marks'];
 }
 
-/* =========================================
-   6️⃣ Current Semester CT Percentages
-   (CT1, CT2, Final placeholder)
-========================================= */
+/* =====================================================
+   6️⃣ PERCENTAGE CALCULATION
+===================================================== */
 
-$currentSemData = [0, 0, 0];  // CT1, CT2, Final
+$ct1_percent = $total_ct_marks>0 ? round(($ct1_total/$total_ct_marks)*100,2) : 0;
+$ct2_percent = $total_ct_marks>0 ? round(($ct2_total/$total_ct_marks)*100,2) : 0;
 
-// ---- CT1 ----
-$ct1Stmt = $conn->prepare("
-    SELECT SUM(obtained_marks) as totalObtained,
-           SUM(total_marks) as totalMax
-    FROM marks
-    WHERE student_id = ?
-    AND semester = ?
-    AND exam_type = 'CT-1'
-");
-$ct1Stmt->bind_param("is", $userId, $semesterCode);
-$ct1Stmt->execute();
-$ct1Res = $ct1Stmt->get_result()->fetch_assoc();
+$current_sem_graph = [];
 
+<<<<<<< HEAD
+if($settings['ct1_published']=="1")
+    $current_sem_graph[] = ["exam"=>"CT1","percentage"=>$ct1_percent];
+
+if($settings['ct2_published']=="1")
+    $current_sem_graph[] = ["exam"=>"CT2","percentage"=>$ct2_percent];
+
+if($settings['final_published']=="1"){
+    $final_total_marks = $subjectCount * 100;
+    $final_percent = $final_total_marks>0 ? round(($final_total/$final_total_marks)*100,2) : 0;
+    $current_sem_graph[] = ["exam"=>"FINAL","percentage"=>$final_percent];
+=======
 if ($ct1Res && isset($ct1Res['totalMax']) && $ct1Res['totalMax'] > 0) {
 if ($ct1Res['totalMax'] > 0) {
     $currentSemData[0] = round(
         ($ct1Res['totalObtained'] / $ct1Res['totalMax']) * 100,
         2
     );
+>>>>>>> b5f3620ebd6a52d6e779168b7459e9dd09ccc8ce
 }
 }
 
-// ---- CT2 ----
-$ct2Stmt = $conn->prepare("
-    SELECT SUM(obtained_marks) as totalObtained,
-           SUM(total_marks) as totalMax
-    FROM marks
-    WHERE student_id = ?
-    AND semester = ?
-    AND exam_type = 'CT-2'
+/* =====================================================
+   7️⃣ ALL SEMESTER GRAPH
+===================================================== */
+
+<<<<<<< HEAD
+$allSemQuery = $conn->prepare("
+SELECT semester, percentage
+FROM semester_results
+WHERE student_id=?
+ORDER BY CAST(semester AS UNSIGNED) ASC
 ");
-$ct2Stmt->bind_param("is", $userId, $semesterCode);
-$ct2Stmt->execute();
-$ct2Res = $ct2Stmt->get_result()->fetch_assoc();
+$allSemQuery->bind_param("i",$student_id);
+$allSemQuery->execute();
+$allSemResult = $allSemQuery->get_result();
 
+$allSemesterGraph = [];
+while($row = $allSemResult->fetch_assoc()){
+    $allSemesterGraph[] = $row;
+=======
 if ($ct2Res && isset($ct2Res['totalMax']) && $ct2Res['totalMax'] > 0) {
 if ($ct2Res['totalMax'] > 0) {
     $currentSemData[1] = round(
         ($ct2Res['totalObtained'] / $ct2Res['totalMax']) * 100,
         2
     );
+>>>>>>> b5f3620ebd6a52d6e779168b7459e9dd09ccc8ce
 }
 }
 
+<<<<<<< HEAD
+/* =====================================================
+   FINAL RESPONSE
+===================================================== */
+=======
 // ---- Final Percentage (From semester_results table) ----
 $finalPercentStmt = $conn->prepare("
     SELECT percentage 
@@ -207,16 +220,25 @@ while ($s = $allRes->fetch_assoc()) {
 /* =========================================
    8️⃣ Final Response (Matches Flutter Model)
 ========================================= */
+>>>>>>> b5f3620ebd6a52d6e779168b7459e9dd09ccc8ce
 
 echo json_encode([
-    "status" => true,
-    "semester" => $semesterNumber,
-    "ct1Declared" => $ct1Declared,
-    "ct2Declared" => $ct2Declared,
-    "finalDeclared" => $finalDeclared,
-    "finalUploadAllowed" => $finalUploadAllowed,
-    "finalPdfUploaded" => $finalPdfUploaded,
-    "reuploadAllowed" => $reuploadAllowed,
-    "currentSemData" => $currentSemData,
-    "allSemData" => $allSemData
+    "status"=>true,
+    "semester_type"=>$semester_type, // ODD or EVEN
+    "current_class"=>$current_class,
+    "current_semester"=>$current_sem,
+    "active_semester"=>$active_semester,
+    "ct1_published"=>$settings['ct1_published'],
+    "ct2_published"=>$settings['ct2_published'],
+    "final_published"=>$settings['final_published'],
+    "total_ct_marks"=>$total_ct_marks,
+    "ct1_total"=>$ct1_total,
+    "ct1_percentage"=>$ct1_percent,
+    "ct2_total"=>$ct2_total,
+    "ct2_percentage"=>$ct2_percent,
+    "marks"=>$marksData,
+    "current_sem_performance_graph"=>$current_sem_graph,
+    "all_semester_graph"=>$allSemesterGraph,
+    "allow_marksheet_upload"=>$settings['allow_marksheet_upload'],
+    "allow_reupload"=>$settings['allow_reupload']
 ]);
