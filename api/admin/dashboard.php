@@ -4,9 +4,9 @@
    IMPORT REQUIRED FILES
 ===================================== */
 
-require_once(__DIR__ . "/../config.php");
-require_once(__DIR__ . "/../api_guard.php");
-require_once("/../cors.php");
+require_once(__DIR__ . "../config.php");
+require_once(__DIR__ . "../api_guard.php");
+require_once("../cors.php");
 /* =====================================
    SET RESPONSE TYPE
 ===================================== */
