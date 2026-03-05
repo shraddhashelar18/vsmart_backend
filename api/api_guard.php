@@ -2,9 +2,17 @@
 
 $headers = getallheaders();
 
-/* ✅ Check Authorization header safely */
+/* Fix for Apache not passing Authorization header */
 
-if (!isset($headers['Authorization'])) {
+$authHeader = null;
+
+if (isset($headers['Authorization'])) {
+    $authHeader = $headers['Authorization'];
+} elseif (isset($_SERVER['HTTP_AUTHORIZATION'])) {
+    $authHeader = $_SERVER['HTTP_AUTHORIZATION'];
+}
+
+if (!$authHeader) {
     echo json_encode([
         "status" => false,
         "message" => "Authorization header missing"
@@ -12,33 +20,6 @@ if (!isset($headers['Authorization'])) {
     exit;
 }
 
-/* ✅ Extract token */
+/* Extract token */
 
-$token = str_replace("Bearer ", "", $headers['Authorization']);
-
-$stmt = $conn->prepare("
-    SELECT u.user_id, u.role, h.department
-    FROM users u
-    LEFT JOIN hods h ON u.user_id = h.hod_id
-    WHERE u.auth_token = ?
-");
-
-$stmt->bind_param("s", $token);
-$stmt->execute();
-$result = $stmt->get_result();
-
-if ($result->num_rows == 0) {
-    echo json_encode([
-        "status" => false,
-        "message" => "Invalid Token"
-    ]);
-    exit;
-}
-
-$user = $result->fetch_assoc();
-
-/* ✅ Make global user info available */
-
-$currentUserId = $user['user_id'];
-$currentRole = $user['role'];
-$currentDepartment = $user['department'] ?? null;
+$token = str_replace("Bearer ", "", $authHeader);
