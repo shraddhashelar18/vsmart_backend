@@ -1,3 +1,4 @@
+```php
 <?php
 require_once("../../config.php");
 require_once("../../api_guard.php");
@@ -84,6 +85,7 @@ if ($action == "get_subjects") {
     exit;
 }
 
+
 /* ---------------------------------------------------
 3️⃣ GET ALLOCATED SUBJECTS (ALL DIVISIONS)
 --------------------------------------------------- */
@@ -100,7 +102,7 @@ if ($action == "get_allocated") {
         exit;
     }
 
-    // IF6KA → IF6K
+    // Example: IF6KA → IF6K
     $prefix = substr($class, 0, 4);
 
     $stmt = $conn->prepare("
@@ -127,6 +129,8 @@ if ($action == "get_allocated") {
 
     exit;
 }
+
+
 /* ---------------------------------------------------
 4️⃣ ASSIGN TEACHER + APPROVE
 API:
@@ -159,6 +163,30 @@ if ($action == "assign_teacher") {
         exit;
     }
 
+    /* ---------------------------------------------------
+    1️⃣ INSERT INTO TEACHERS TABLE
+    --------------------------------------------------- */
+
+    $check = $conn->prepare("SELECT user_id FROM teachers WHERE user_id=?");
+    $check->bind_param("i", $user_id);
+    $check->execute();
+    $res = $check->get_result();
+
+    if ($res->num_rows == 0) {
+
+        $insertTeacher = $conn->prepare("
+            INSERT INTO teachers (user_id, department)
+            VALUES (?,?)
+        ");
+
+        $insertTeacher->bind_param("is", $user_id, $department);
+        $insertTeacher->execute();
+    }
+
+    /* ---------------------------------------------------
+    2️⃣ INSERT SUBJECT ASSIGNMENTS
+    --------------------------------------------------- */
+
     foreach ($subjects as $subject) {
 
         $stmt = $conn->prepare("
@@ -171,7 +199,10 @@ if ($action == "assign_teacher") {
         $stmt->execute();
     }
 
-    // approve teacher
+    /* ---------------------------------------------------
+    3️⃣ APPROVE USER
+    --------------------------------------------------- */
+
     $update = $conn->prepare("UPDATE users SET status='approved' WHERE user_id=?");
     $update->bind_param("i", $user_id);
     $update->execute();
@@ -184,8 +215,14 @@ if ($action == "assign_teacher") {
     exit;
 }
 
+
+/* ---------------------------------------------------
+INVALID ACTION
+--------------------------------------------------- */
+
 echo json_encode([
     "status" => false,
     "message" => "Invalid action"
 ]);
 ?>
+```
