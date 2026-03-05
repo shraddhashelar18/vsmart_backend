@@ -6,10 +6,6 @@ require_once("../../cors.php");
 
 header("Content-Type: application/json");
 
-/* =========================
-   READ INPUT
-========================= */
-
 $data = json_decode(file_get_contents("php://input"), true);
 
 $className = $data['class_name'] ?? null;
@@ -23,44 +19,26 @@ if(!$className){
 }
 
 /* =========================
-   GET CLASS INFO
+   DERIVE CLASS GROUP
 ========================= */
 
-$stmt = $conn->prepare("
-SELECT department, semester 
-FROM classes 
-WHERE class_name = ?
-");
+$department = substr($className,0,2);
+$semester = substr($className,2,1);
 
-$stmt->bind_param("s",$className);
-$stmt->execute();
-$res = $stmt->get_result();
-
-if($res->num_rows == 0){
-    echo json_encode([
-        "status"=>false,
-        "message"=>"Class not found"
-    ]);
-    exit;
-}
-
-$class = $res->fetch_assoc();
-
-$department = $class['department'];
-$semester = $class['semester'];
+$classGroup = $department.$semester."K";
 
 /* =========================
    FETCH SUBJECTS
 ========================= */
 
 $stmt = $conn->prepare("
-SELECT subject_name 
+SELECT subject_name
 FROM semester_subjects
-WHERE department = ? AND semester = ?
+WHERE class = ? AND semester = ?
 ORDER BY subject_name
 ");
 
-$stmt->bind_param("si",$department,$semester);
+$stmt->bind_param("si",$classGroup,$semester);
 $stmt->execute();
 
 $res = $stmt->get_result();
@@ -70,10 +48,6 @@ $subjects = [];
 while($row = $res->fetch_assoc()){
     $subjects[] = $row['subject_name'];
 }
-
-/* =========================
-   RESPONSE
-========================= */
 
 echo json_encode([
     "status"=>true,

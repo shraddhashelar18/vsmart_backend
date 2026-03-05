@@ -52,16 +52,21 @@ while($row = $result->fetch_assoc()){
 }
 
 /* COUNT TEACHERS */
+
 $teacherStmt = $conn->prepare("
-    SELECT COUNT(DISTINCT user_id) AS totalTeachers
-    FROM teacher_assignments
-    WHERE department = ?
+SELECT COUNT(DISTINCT ta.user_id) AS totalTeachers
+FROM teacher_assignments ta
+JOIN teachers t ON t.user_id = ta.user_id
+WHERE ta.department = ?
 ");
 
 $teacherStmt->bind_param("s",$department);
 $teacherStmt->execute();
+
 $teacherResult = $teacherStmt->get_result();
 $totalTeachers = $teacherResult->fetch_assoc()['totalTeachers'];
+
+;
 
 /* RESPONSE */
 

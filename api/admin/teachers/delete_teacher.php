@@ -1,31 +1,18 @@
 <?php
 
-/* =====================================
-   IMPORT REQUIRED FILES
-===================================== */
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
-require_once("../../config.php");
-require_once("../../api_guard.php");
-
-/* =====================================
-   RESPONSE TYPE
-===================================== */
+require_once(__DIR__ . "/../../config.php");
+require_once(__DIR__ . "/../../api_guard.php");
 
 header("Content-Type: application/json");
 
-/* =====================================
-   GET JSON BODY
-===================================== */
-
 $data = json_decode(file_get_contents("php://input"), true);
 
-$id = intval($data['id'] ?? 0);
+$id = $data['id'] ?? 0;
 
-/* =====================================
-   VALIDATION
-===================================== */
-
-if ($id <= 0) {
+if (!$id) {
     echo json_encode([
         "status" => false,
         "message" => "Teacher ID required"
@@ -33,68 +20,37 @@ if ($id <= 0) {
     exit;
 }
 
-/* =====================================
-   START TRANSACTION (IMPORTANT)
-===================================== */
+/* delete assignments first */
 
-$conn->begin_transaction();
+$stmt = $conn->prepare("
+DELETE FROM teacher_assignments
+WHERE user_id = ?
+");
 
-try {
+$stmt->bind_param("i", $id);
+$stmt->execute();
 
-    /* ==============================
-       DELETE FROM CHILD TABLE FIRST
-    =============================== */
+/* delete teacher */
 
-    $deleteAssignments = $conn->prepare(
-        "DELETE FROM teacher_assignments WHERE user_id=?"
-    );
-    $deleteAssignments->bind_param("i",$id);
-    $deleteAssignments->execute();
+$stmt = $conn->prepare("
+DELETE FROM teachers
+WHERE user_id = ?
+");
 
-    /* ==============================
-       DELETE FROM TEACHERS TABLE
-    =============================== */
+$stmt->bind_param("i", $id);
+$stmt->execute();
 
-    $deleteTeacher = $conn->prepare(
-        "DELETE FROM teachers WHERE user_id=?"
-    );
-    $deleteTeacher->bind_param("i",$id);
-    $deleteTeacher->execute();
+/* delete user */
 
-    /* ==============================
-       DELETE FROM USERS TABLE
-    =============================== */
+$stmt = $conn->prepare("
+DELETE FROM users
+WHERE user_id = ?
+");
 
-    $deleteUser = $conn->prepare(
-        "DELETE FROM users WHERE user_id=?"
-    );
-    $deleteUser->bind_param("i",$id);
+$stmt->bind_param("i", $id);
+$stmt->execute();
 
-    if(!$deleteUser->execute()){
-        throw new Exception($deleteUser->error);
-    }
-
-    /* =====================================
-       COMMIT TRANSACTION
-    ====================================== */
-
-    $conn->commit();
-
-    echo json_encode([
-        "status" => true,
-        "message" => "Teacher deleted successfully"
-    ]);
-
-} catch (Exception $e) {
-
-    /* =====================================
-       ROLLBACK IF ANY ERROR
-    ====================================== */
-
-    $conn->rollback();
-
-    echo json_encode([
-        "status" => false,
-        "message" => "Delete failed: " . $e->getMessage()
-    ]);
-}
+echo json_encode([
+    "status" => true,
+    "message" => "Teacher deleted successfully"
+]);

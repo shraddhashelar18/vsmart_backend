@@ -1,11 +1,15 @@
 <?php
 
-require_once(__DIR__ . "/../config.php");
-require_once(__DIR__ . "/../api_guard.php");
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+require_once(__DIR__ . "/../../config.php");
+require_once(__DIR__ . "/../../api_guard.php");
 
 header("Content-Type: application/json");
 
 $data = json_decode(file_get_contents("php://input"), true);
+
 $department = $data['department'] ?? '';
 
 if (empty($department)) {
@@ -16,21 +20,16 @@ if (empty($department)) {
     exit;
 }
 
-/* ===============================
-   GET TEACHERS BY DEPARTMENT
-================================= */
-
 $stmt = $conn->prepare("
-    SELECT 
-        t.user_id AS id,
-        t.full_name AS name,
-        u.email,
-        t.mobile_no AS phone
-    FROM teacher_assignments ta
-    JOIN teachers t ON t.user_id = ta.user_id
-    JOIN users u ON u.user_id = t.user_id
-    WHERE ta.department_code = ?
-    GROUP BY t.user_id
+SELECT DISTINCT
+    t.user_id AS id,
+    t.full_name AS name,
+    u.email,
+    t.mobile_no AS phone
+FROM teacher_assignments ta
+JOIN teachers t ON t.user_id = ta.user_id
+JOIN users u ON u.user_id = t.user_id
+WHERE ta.department = ?
 ");
 
 $stmt->bind_param("s", $department);

@@ -18,29 +18,23 @@ if ($currentRole != 'hod' && $currentRole != 'principal') {
 }
 
 /* ===============================
-2️⃣ DEPARTMENT LOGIC
+2️⃣ GET DEPARTMENT
 ================================ */
 
 $data = json_decode(file_get_contents("php://input"), true);
 
-if ($currentRole == 'hods') {
-    $department = $currentDepartment;
-} 
-else {
-
-    if (!isset($data['department'])) {
-        echo json_encode([
-            "status" => false,
-            "message" => "Department required"
-        ]);
-        exit;
-    }
-
-    $department = $data['department'];
+if (!isset($data['department']) || empty($data['department'])) {
+    echo json_encode([
+        "status" => false,
+        "message" => "Department required"
+    ]);
+    exit;
 }
 
+$department = $data['department'];
+
 /* =========================================
-3️⃣ GET TEACHERS WITH DETAILS
+3️⃣ GET TEACHERS
 ========================================= */
 
 $stmt = $conn->prepare("
@@ -82,7 +76,6 @@ while ($row = $result->fetch_assoc()) {
     $assignResult = $assignStmt->get_result();
 
     $assignments = [];
-    $classes = [];
 
     while ($a = $assignResult->fetch_assoc()) {
 
@@ -90,26 +83,34 @@ while ($row = $result->fetch_assoc()) {
             "className" => $a['class'],
             "subject" => $a['subject']
         ];
-
-        $classes[] = $a['class'];
     }
 
     /* =========================================
-    5️⃣ CLASS TEACHER LOGIC
+    5️⃣ CLASS TEACHER FROM CLASSES TABLE
     ========================================= */
 
-    $uniqueClasses = array_unique($classes);
+    $classStmt = $conn->prepare("
+        SELECT class_name
+        FROM classes
+        WHERE class_teacher = ?
+    ");
+
+    $classStmt->bind_param("i", $user_id);
+    $classStmt->execute();
+    $classResult = $classStmt->get_result();
 
     $isClassTeacher = false;
     $classTeacherOf = null;
 
-    if (count($uniqueClasses) == 1 && count($classes) > 0) {
+    if ($classResult->num_rows > 0) {
         $isClassTeacher = true;
-        $classTeacherOf = array_values($uniqueClasses)[0];
+
+        $rowClass = $classResult->fetch_assoc();
+        $classTeacherOf = $rowClass['class_name'];
     }
 
     /* =========================================
-    6️⃣ RESPONSE
+    6️⃣ FINAL OBJECT
     ========================================= */
 
     $teachers[] = [
@@ -125,10 +126,11 @@ while ($row = $result->fetch_assoc()) {
 }
 
 /* =========================================
-7️⃣ FINAL RESPONSE
+7️⃣ RESPONSE
 ========================================= */
 
 echo json_encode([
     "status" => true,
     "teachers" => $teachers
 ]);
+?>

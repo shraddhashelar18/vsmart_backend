@@ -1,7 +1,7 @@
 <?php
 
-require_once(__DIR__ . "../../../config.php");
-require_once(__DIR__ . "../../../api_guard.php");
+require_once(__DIR__ . "/../../config.php");
+require_once(__DIR__ . "/../../api_guard.php");
 
 header("Content-Type: application/json");
 
@@ -92,23 +92,39 @@ $stmt2->execute();
    INSERT TEACHER ASSIGNMENTS
 =========================== */
 
-foreach ($subjects as $class => $subjectList) {
+/* =========================
+   SAVE SUBJECT ASSIGNMENTS
+========================= */
+if (isset($data['subjects']) && is_array($data['subjects'])) {
 
-    foreach ($subjectList as $subject) {
+    foreach ($data['subjects'] as $department => $classes) {
 
-        $department_code = substr($class, 0, 2); // IF, CO, EJ
+        foreach ($classes as $className => $subjectList) {
 
-        $stmt3 = $conn->prepare("
-            INSERT INTO teacher_assignments
-            (user_id, department, class, subject, status)
-            VALUES (?, ?, ?, ?, 'active')
-        ");
+            if (!is_array($subjectList))
+                continue;
 
-        $stmt3->bind_param("isss", $user_id, $department_code, $class, $subject);
-        $stmt3->execute();
+            foreach ($subjectList as $subject) {
+
+                $stmt = $conn->prepare("
+                    INSERT INTO teacher_assignments
+(user_id, department, class, subject, status)
+VALUES (?,?,?,?, 'active')
+                ");
+
+                $stmt->bind_param(
+                    "isss",
+                    $user_id,
+                    $department,
+                    $className,
+                    $subject
+                );
+
+                $stmt->execute();
+            }
+        }
     }
 }
-
 echo json_encode([
     "status" => true,
     "message" => "Teacher added successfully"
