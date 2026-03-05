@@ -2,7 +2,7 @@
 require_once("config.php");
 
 $result = $conn->query("
-SELECT s.*, u.full_name, u.email
+SELECT s.*, s.full_name, u.email
 FROM students s
 JOIN users u ON u.user_id = s.user_id
 ");

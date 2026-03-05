@@ -2,9 +2,9 @@
 require_once("config.php");
 
 $result = $conn->query("
-SELECT t.full_name, u.email, t.department
-FROM teacher_assignments t
-JOIN users u ON u.user_id = t.user_id
+SELECT c.class_name, c.department_code, u.full_name as teacher
+FROM classes c
+LEFT JOIN users u ON u.user_id = c.teacher_user_id
 ");
 ?>
 
@@ -12,20 +12,20 @@ JOIN users u ON u.user_id = t.user_id
 <?php include("sidebar.php"); ?>
 
 <div class="main">
-<h1>Manage Teachers</h1>
+<h1>Manage Classes</h1>
 
 <table class="table">
 <tr>
-<th>Name</th>
-<th>Email</th>
+<th>Class</th>
 <th>Department</th>
+<th>Teacher</th>
 </tr>
 
 <?php while($row = $result->fetch_assoc()): ?>
 <tr>
-<td><?php echo $row['full_name']; ?></td>
-<td><?php echo $row['email']; ?></td>
-<td><?php echo $row['department']; ?></td>
+<td><?php echo $row['class_name']; ?></td>
+<td><?php echo $row['department_code']; ?></td>
+<td><?php echo $row['teacher']; ?></td>
 </tr>
 <?php endwhile; ?>
 </table>
