@@ -92,33 +92,38 @@ $stmt2->execute();
    INSERT TEACHER ASSIGNMENTS
 =========================== */
 
-foreach ($subjectList as $subject) {
+/* =========================
+   SAVE SUBJECT ASSIGNMENTS
+========================= */
+if (isset($data['subjects']) && is_array($data['subjects'])) {
 
-    $department_code = substr($class, 0, 2);
+    foreach ($data['subjects'] as $department => $classes) {
 
-    /* check if subject already assigned */
+        foreach ($classes as $className => $subjectList) {
 
-    $check = $conn->prepare("
-        SELECT id FROM teacher_assignments
-        WHERE class = ? AND subject = ? AND status = 'active'
-    ");
+            if (!is_array($subjectList))
+                continue;
 
-    $check->bind_param("ss", $class, $subject);
-    $check->execute();
-    $res = $check->get_result();
+            foreach ($subjectList as $subject) {
 
-    if($res->num_rows > 0){
-        continue; // skip duplicate
+                $stmt = $conn->prepare("
+                    INSERT INTO teacher_assignments
+(user_id, department, class, subject, status)
+VALUES (?,?,?,?, 'active')
+                ");
+
+                $stmt->bind_param(
+                    "isss",
+                    $user_id,
+                    $department,
+                    $className,
+                    $subject
+                );
+
+                $stmt->execute();
+            }
+        }
     }
-
-    $stmt3 = $conn->prepare("
-        INSERT INTO teacher_assignments
-        (user_id, department, class, subject, status)
-        VALUES (?, ?, ?, ?, 'active')
-    ");
-
-    $stmt3->bind_param("isss", $user_id, $department_code, $class, $subject);
-    $stmt3->execute();
 }
 echo json_encode([
     "status" => true,

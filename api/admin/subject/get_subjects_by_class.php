@@ -1,7 +1,7 @@
 <?php
 
-require_once("/../../config.php");
-require_once("/../../api_guard.php");
+require_once("../../config.php");
+require_once("../../api_guard.php");
 require_once("../../cors.php");
 
 header("Content-Type: application/json");
