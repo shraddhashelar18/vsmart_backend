@@ -1,7 +1,7 @@
 <?php
 
-require_once(__DIR__ . "../../../config.php");
-require_once(__DIR__ . "../../../api_guard.php");
+require_once(__DIR__ . "../../config.php");
+require_once(__DIR__ . "../../api_guard.php");
 
 header("Content-Type: application/json");
 
@@ -92,23 +92,34 @@ $stmt2->execute();
    INSERT TEACHER ASSIGNMENTS
 =========================== */
 
-foreach ($subjects as $class => $subjectList) {
+foreach ($subjectList as $subject) {
 
-    foreach ($subjectList as $subject) {
+    $department_code = substr($class, 0, 2);
 
-        $department_code = substr($class, 0, 2); // IF, CO, EJ
+    /* check if subject already assigned */
 
-        $stmt3 = $conn->prepare("
-            INSERT INTO teacher_assignments
-            (user_id, department, class, subject, status)
-            VALUES (?, ?, ?, ?, 'active')
-        ");
+    $check = $conn->prepare("
+        SELECT id FROM teacher_assignments
+        WHERE class = ? AND subject = ? AND status = 'active'
+    ");
 
-        $stmt3->bind_param("isss", $user_id, $department_code, $class, $subject);
-        $stmt3->execute();
+    $check->bind_param("ss", $class, $subject);
+    $check->execute();
+    $res = $check->get_result();
+
+    if($res->num_rows > 0){
+        continue; // skip duplicate
     }
-}
 
+    $stmt3 = $conn->prepare("
+        INSERT INTO teacher_assignments
+        (user_id, department, class, subject, status)
+        VALUES (?, ?, ?, ?, 'active')
+    ");
+
+    $stmt3->bind_param("isss", $user_id, $department_code, $class, $subject);
+    $stmt3->execute();
+}
 echo json_encode([
     "status" => true,
     "message" => "Teacher added successfully"
