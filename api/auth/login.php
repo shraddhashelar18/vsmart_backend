@@ -102,7 +102,7 @@ if ($user['role'] == "teacher") {
 if ($user['role'] == "hod") {
 
     $hStmt = $conn->prepare("
-        SELECT name, department
+        SELECT full_name, department
         FROM hods
         WHERE user_id = ?
     ");
@@ -126,7 +126,7 @@ if ($user['role'] == "principal") {
     $pStmt = $conn->query("SELECT department_code FROM departments");
 
     while ($row = $pStmt->fetch_assoc()) {
-        $departments[] = $row['department_code'];
+        $departments[] = $row['department'];
     }
 }
 
