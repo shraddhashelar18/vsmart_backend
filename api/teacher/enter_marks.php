@@ -135,24 +135,23 @@ foreach ($marksList as $item) {
         /* INSERT */
 
         $insert = $conn->prepare("
-        INSERT INTO marks
-        (student_id, teacher_user_id, class, semester, subject, exam_type, total_marks, obtained_marks, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ");
+INSERT INTO marks
+(student_id, teacher_user_id, class, semester, subject, exam_type, total_marks, obtained_marks, status)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+");
 
-        $insert->bind_param(
-            "iisssiiis",
-            $studentUserId,
-            $currentUserId,
-            $class,
-            $semester,
-            $subject,
-            $examType,
-            $totalMarks,
-            $obtainedMarks,
-            $status
-        );
-
+$insert->bind_param(
+"iissssiis",
+$studentUserId,
+$currentUserId,
+$class,
+$semester,
+$subject,
+$examType,
+$totalMarks,
+$obtainedMarks,
+$status
+);
         $insert->execute();
     }
 }
