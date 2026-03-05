@@ -103,8 +103,8 @@ if ($user['role'] == "teacher") {
 if ($user['role'] == "hod") {
 
     $hStmt = $conn->prepare("
-        SELECT department_code
-        FROM hod
+        SELECT department
+        FROM hods
         WHERE user_id = ?
     ");
     $hStmt->bind_param("i", $user['user_id']);
@@ -113,7 +113,7 @@ if ($user['role'] == "hod") {
 
     if ($hRes->num_rows > 0) {
         $row = $hRes->fetch_assoc();
-        $departments[] = $row['department_code'];
+        $departments[] = $row['department'];
     }
 }
 

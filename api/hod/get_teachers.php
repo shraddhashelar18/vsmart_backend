@@ -23,7 +23,7 @@ if ($currentRole != 'hod' && $currentRole != 'principal') {
 
 $data = json_decode(file_get_contents("php://input"), true);
 
-if ($currentRole == 'hod') {
+if ($currentRole == 'hods') {
     $department = $currentDepartment;
 } 
 else {
