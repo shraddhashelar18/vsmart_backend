@@ -7,6 +7,10 @@ header("Content-Type: application/json");
 
 $data = json_decode(file_get_contents("php://input"), true);
 
+/* ==============================
+   1️⃣ Validate Input
+============================== */
+
 if (!isset($data['user_id']) || empty($data['user_id'])) {
     echo json_encode([
         "status" => false,
@@ -25,11 +29,9 @@ if (!is_numeric($data['user_id'])) {
 
 $user_id = (int)$data['user_id'];
 
-$user_id = $data['user_id'];
-
 /* ==============================
-   1️⃣ Get Teacher Basic Details
-   ============================== */
+   2️⃣ Get Teacher Basic Details
+============================== */
 
 $stmt = $conn->prepare("
     SELECT 
@@ -57,8 +59,8 @@ if ($result->num_rows == 0) {
 $teacher = $result->fetch_assoc();
 
 /* ==============================
-   2️⃣ Get Assignments
-   ============================== */
+   3️⃣ Get Teaching Assignments
+============================== */
 
 $assignStmt = $conn->prepare("
     SELECT class, subject, department
@@ -76,8 +78,8 @@ $department = null;
 while ($row = $assignResult->fetch_assoc()) {
 
     $assignments[] = [
-        "className" => $row['class'],   // MUST match Flutter
-        "subject" => $row['subject']    // MUST match Flutter
+        "className" => $row['class'],
+        "subject" => $row['subject']
     ];
 
     if ($department === null) {
@@ -86,40 +88,43 @@ while ($row = $assignResult->fetch_assoc()) {
 }
 
 /* ==============================
-   3️⃣ Class Teacher Logic
-   (Temporary simple logic)
-   ============================== */
+   4️⃣ Check Class Teacher
+============================== */
+
+$classTeacherStmt = $conn->prepare("
+    SELECT class_name
+    FROM classes
+    WHERE class_teacher = ?
+");
+
+$classTeacherStmt->bind_param("i", $user_id);
+$classTeacherStmt->execute();
+$classResult = $classTeacherStmt->get_result();
 
 $isClassTeacher = false;
 $classTeacherOf = null;
 
-/*
-If teacher is assigned to exactly one class
-you can treat as class teacher.
-(You can improve this later with proper column)
-*/
-
-$uniqueClasses = array_unique(array_column($assignments, 'className'));
-
-if (count($uniqueClasses) == 1 && count($assignments) > 0) {
+if ($classResult->num_rows > 0) {
+    $row = $classResult->fetch_assoc();
     $isClassTeacher = true;
-    $classTeacherOf = $uniqueClasses[0];
+    $classTeacherOf = $row['class_name'];
 }
 
 /* ==============================
-   4️⃣ Final JSON Response
-   ============================== */
+   5️⃣ Final JSON Response
+============================== */
 
 echo json_encode([
     "status" => true,
     "teacher" => [
-        "id" => (string)$teacher['user_id'],         // Flutter expects id
-        "name" => $teacher['full_name'],             // Flutter expects name
-        "email" => $teacher['email'],                // Flutter expects email
-        "mobile" => $teacher['mobile_no'],           // Flutter expects mobile
-        "department" => $department ?? "",           // Required field
-        "isClassTeacher" => $isClassTeacher,         // bool
-        "classTeacherOf" => $classTeacherOf,         // nullable
-        "assignments" => $assignments                // List<TeachingAssignment>
+        "id" => (string)$teacher['user_id'],
+        "name" => $teacher['full_name'],
+        "email" => $teacher['email'],
+        "mobile" => $teacher['mobile_no'],
+        "department" => $department ?? "",
+        "isClassTeacher" => $isClassTeacher,
+        "classTeacherOf" => $classTeacherOf,
+        "assignments" => $assignments
     ]
 ]);
+?>
