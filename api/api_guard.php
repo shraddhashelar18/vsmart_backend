@@ -8,14 +8,12 @@ if (!isset($headers['Authorization'])) {
 }
 
 $token = str_replace("Bearer ", "", $headers['Authorization']);
-
 $stmt = $conn->prepare("
     SELECT u.user_id, u.role, h.department
     FROM users u
     LEFT JOIN hods h ON u.user_id = h.hod_id
     WHERE u.auth_token = ?
 ");
-
 $stmt->bind_param("s", $token);
 $stmt->execute();
 $result = $stmt->get_result();

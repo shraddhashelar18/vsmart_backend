@@ -6,13 +6,23 @@ header("Content-Type: application/json");
 
 $data = json_decode(file_get_contents("php://input"), true);
 
-if (!isset($data['user_id'])) {
+if (!isset($data['user_id']) || empty($data['user_id'])) {
     echo json_encode([
         "status" => false,
-        "message" => "user_id is required"
+        "message" => "Teacher ID is required"
     ]);
     exit;
 }
+
+if (!is_numeric($data['user_id'])) {
+    echo json_encode([
+        "status" => false,
+        "message" => "Invalid Teacher ID"
+    ]);
+    exit;
+}
+
+$user_id = (int)$data['user_id'];
 
 $user_id = $data['user_id'];
 

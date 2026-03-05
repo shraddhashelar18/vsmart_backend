@@ -71,7 +71,19 @@ $subjectQuery->bind_param("ss",$active_semester,$current_class);
 $subjectQuery->execute();
 $subjectCountRow = $subjectQuery->get_result()->fetch_assoc();
 
+<<<<<<< HEAD
 $subjectCount = $subjectCountRow ? $subjectCountRow['total_subjects'] : 0;
+=======
+if ($settingsRes->num_rows == 0) {
+    echo json_encode([
+        "status" => false,
+        "message" => "Settings not configured"
+    ]);
+    exit;
+}
+
+$settings = $settingsRes->fetch_assoc();
+>>>>>>> b5f3620ebd6a52d6e779168b7459e9dd09ccc8ce
 
 $total_ct_marks = $subjectCount * 30;
 
@@ -111,6 +123,7 @@ $ct2_percent = $total_ct_marks>0 ? round(($ct2_total/$total_ct_marks)*100,2) : 0
 
 $current_sem_graph = [];
 
+<<<<<<< HEAD
 if($settings['ct1_published']=="1")
     $current_sem_graph[] = ["exam"=>"CT1","percentage"=>$ct1_percent];
 
@@ -121,12 +134,22 @@ if($settings['final_published']=="1"){
     $final_total_marks = $subjectCount * 100;
     $final_percent = $final_total_marks>0 ? round(($final_total/$final_total_marks)*100,2) : 0;
     $current_sem_graph[] = ["exam"=>"FINAL","percentage"=>$final_percent];
+=======
+if ($ct1Res && isset($ct1Res['totalMax']) && $ct1Res['totalMax'] > 0) {
+if ($ct1Res['totalMax'] > 0) {
+    $currentSemData[0] = round(
+        ($ct1Res['totalObtained'] / $ct1Res['totalMax']) * 100,
+        2
+    );
+>>>>>>> b5f3620ebd6a52d6e779168b7459e9dd09ccc8ce
+}
 }
 
 /* =====================================================
    7️⃣ ALL SEMESTER GRAPH
 ===================================================== */
 
+<<<<<<< HEAD
 $allSemQuery = $conn->prepare("
 SELECT semester, percentage
 FROM semester_results
@@ -140,11 +163,64 @@ $allSemResult = $allSemQuery->get_result();
 $allSemesterGraph = [];
 while($row = $allSemResult->fetch_assoc()){
     $allSemesterGraph[] = $row;
+=======
+if ($ct2Res && isset($ct2Res['totalMax']) && $ct2Res['totalMax'] > 0) {
+if ($ct2Res['totalMax'] > 0) {
+    $currentSemData[1] = round(
+        ($ct2Res['totalObtained'] / $ct2Res['totalMax']) * 100,
+        2
+    );
+>>>>>>> b5f3620ebd6a52d6e779168b7459e9dd09ccc8ce
+}
 }
 
+<<<<<<< HEAD
 /* =====================================================
    FINAL RESPONSE
 ===================================================== */
+=======
+// ---- Final Percentage (From semester_results table) ----
+$finalPercentStmt = $conn->prepare("
+    SELECT percentage 
+    FROM semester_results
+    WHERE student_id = ?
+    AND semester = ?
+");
+$finalPercentStmt->bind_param("is", $userId, $semesterCode);
+$finalPercentStmt->execute();
+$finalPercentRes = $finalPercentStmt->get_result();
+
+if ($finalPercentRes && $finalPercentRes->num_rows > 0) {
+if ($finalPercentRes->num_rows > 0) {
+    $finalRow = $finalPercentRes->fetch_assoc();
+    $currentSemData[2] = (float)$finalRow['percentage'];
+}
+}
+
+/* =========================================
+   7️⃣ All Semester Graph Data
+========================================= */
+
+$allSemData = [];
+
+$allStmt = $conn->prepare("
+    SELECT semester, percentage
+    FROM semester_results
+    WHERE student_id = ?
+    ORDER BY semester ASC
+");
+$allStmt->bind_param("i", $userId);
+$allStmt->execute();
+$allRes = $allStmt->get_result();
+
+while ($s = $allRes->fetch_assoc()) {
+    $allSemData[] = (float)$s['percentage'];
+}
+
+/* =========================================
+   8️⃣ Final Response (Matches Flutter Model)
+========================================= */
+>>>>>>> b5f3620ebd6a52d6e779168b7459e9dd09ccc8ce
 
 echo json_encode([
     "status"=>true,

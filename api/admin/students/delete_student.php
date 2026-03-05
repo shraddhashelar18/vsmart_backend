@@ -1,7 +1,7 @@
 <?php
-require_once("../config.php");
-require_once("../api_guard.php");
-
+require_once("../../config.php");
+require_once("../../api_guard.php");
+require_once("../../cors.php");
 header("Content-Type: application/json");
 
 $data = json_decode(file_get_contents("php://input"), true);
@@ -12,7 +12,7 @@ if (empty($data['user_id'])) {
         "message" => "User ID required"
     ]);
     exit;
-}
+}   
 
 $conn->begin_transaction();
 

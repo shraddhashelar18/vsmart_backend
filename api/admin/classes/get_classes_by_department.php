@@ -1,6 +1,7 @@
 <?php
-require_once("../config.php");
-require_once("../api_guard.php");
+require_once("../../config.php");
+require_once("../../api_guard.php");
+require_once("../../cors.php");
 
 header("Content-Type: application/json");
 
@@ -35,8 +36,4 @@ while($r=$res->fetch_assoc()){
 echo json_encode([
     "status"=>true,
     "classes"=>$classes
-<<<<<<< HEAD
 ]);
-=======
-]);
->>>>>>> 3aba2f6ad2bf1196518bbd07f85dbfb78f698994

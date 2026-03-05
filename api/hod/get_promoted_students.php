@@ -13,15 +13,22 @@ header("Content-Type: application/json");
 
 $data = json_decode(file_get_contents("php://input"), true);
 
-if (!isset($data['class'])) {
+if (!isset($data['class']) || empty(trim($data['class']))) {
     echo json_encode([
         "status" => false,
         "message" => "Class is required"
     ]);
     exit;
 }
+if (!preg_match('/^[A-Z]{2}[0-9][A-Z]{2}$/', $class)) {
+    echo json_encode([
+        "status" => false,
+        "message" => "Invalid class format"
+    ]);
+    exit;
+}
 
-$class = $data['class'];
+$class = trim($data['class']);
 
 // Get ATKT limit
 $setting = $conn->query("SELECT atkt_limit FROM settings LIMIT 1");
