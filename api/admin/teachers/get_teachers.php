@@ -29,7 +29,7 @@ $stmt = $conn->prepare("
     FROM teacher_assignments ta
     JOIN teachers t ON t.user_id = ta.user_id
     JOIN users u ON u.user_id = t.user_id
-    WHERE ta.department_code = ?
+    WHERE ta.department = ?
     GROUP BY t.user_id
 ");
 

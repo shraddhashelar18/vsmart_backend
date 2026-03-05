@@ -50,7 +50,7 @@ $teacher = $result->fetch_assoc();
 ================================= */
 
 $stmt2 = $conn->prepare("
-    SELECT class, subject, department_code
+    SELECT class, subject, department
     FROM teacher_assignments
     WHERE user_id = ? AND status = 'active'
 ");
@@ -65,7 +65,7 @@ $departments = [];
 
 while ($row = $res2->fetch_assoc()) {
     $classes[] = $row['class'];
-    $departments[] = $row['department_code'];
+    $departments[] = $row['department'];
 
     $subjects[$row['class']][] = $row['subject'];
 }
