@@ -99,11 +99,10 @@ if ($user['role'] == "teacher") {
     }
 }
 
-/* 🔹 HOD */
 if ($user['role'] == "hod") {
 
     $hStmt = $conn->prepare("
-        SELECT department
+        SELECT name, department
         FROM hods
         WHERE user_id = ?
     ");
@@ -114,6 +113,9 @@ if ($user['role'] == "hod") {
     if ($hRes->num_rows > 0) {
         $row = $hRes->fetch_assoc();
         $departments[] = $row['department'];
+
+        // attach name to user response
+        $user['name'] = $row['name'];
     }
 }
 
