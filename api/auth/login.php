@@ -115,7 +115,7 @@ if ($user['role'] == "hod") {
         $departments[] = $row['department'];
 
         // attach name to user response
-        $user['name'] = $row['name'];
+        $user['name'] = $row['full_name'];
     }
 }
 
