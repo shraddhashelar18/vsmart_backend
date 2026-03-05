@@ -1,6 +1,6 @@
 <?php
-require_once "auth.php";
-require_once "db.php";
+require_once "../auth.php";
+require_once "../db.php";
 
 $id=intval($_GET['id']);
 

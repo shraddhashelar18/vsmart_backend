@@ -1,6 +1,6 @@
 <?php
-require_once "includes/auth.php";
-require_once "includes/db.php";
+require_once "auth.php";
+require_once "db.php";
 
 $result=$conn->query("SELECT user_id,full_name,roll_no,class FROM students");
 ?>
