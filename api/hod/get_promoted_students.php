@@ -1,8 +1,10 @@
 <?php
 require_once("../config.php");
 require_once("../api_guard.php");
-require_once("../cors.php");
 require_once("../promotion_helper.php");
+
+header("Content-Type: application/json");
+
 if ($currentRole != 'hod' && $currentRole != 'principal') {
     echo json_encode([
         "status" => false,
@@ -10,7 +12,6 @@ if ($currentRole != 'hod' && $currentRole != 'principal') {
     ]);
     exit;
 }
-header("Content-Type: application/json");
 
 $data = json_decode(file_get_contents("php://input"), true);
 
@@ -21,6 +22,10 @@ if (!isset($data['class']) || empty(trim($data['class']))) {
     ]);
     exit;
 }
+
+$class = trim($data['class']);   // ✅ define class first
+
+// Validate class format
 if (!preg_match('/^[A-Z]{2}[0-9][A-Z]{2}$/', $class)) {
     echo json_encode([
         "status" => false,
@@ -29,13 +34,11 @@ if (!preg_match('/^[A-Z]{2}[0-9][A-Z]{2}$/', $class)) {
     exit;
 }
 
-$class = trim($data['class']);
-
 // Get ATKT limit
 $setting = $conn->query("SELECT atkt_limit FROM settings LIMIT 1");
 $atktLimit = $setting->fetch_assoc()['atkt_limit'];
 
-// Get students of class
+// Get students
 $stmt = $conn->prepare("
     SELECT user_id, full_name
     FROM students
