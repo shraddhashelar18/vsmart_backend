@@ -28,12 +28,6 @@ if (!isset($data['class']) || empty(trim($data['class']))) {
 }
 
 $class = trim($data['class']);
-$sem = (int)preg_replace('/[^0-9]/','',$class);
-$department = substr($class,0,2);
-$division = substr($class,-2);
-
-$previousClass = $department . ($sem - 1) . $division;
-$class = $previousClass;
 
 /* ================= CLASS VALIDATION ================= */
 
@@ -62,7 +56,7 @@ $atktLimit = (int)$setting->fetch_assoc()['atkt_limit'];
 /* ================= GET STUDENTS ================= */
 
 $stmt = $conn->prepare("
-    SELECT user_id, full_name, current_semester, class, status
+    SELECT user_id, full_name, class, current_semester, status
     FROM students
     WHERE class = ?
 ");
@@ -73,69 +67,101 @@ $result = $stmt->get_result();
 
 $students = [];
 
-/* ================= PROMOTION CALCULATION ================= */
+/* ================= PROMOTION PROCESS ================= */
 
 while ($row = $result->fetch_assoc()) {
 
-    $promotion = calculatePromotion($conn, $row['user_id'], $atktLimit);
+    $studentId = $row['user_id'];
 
-    $currentSemester = (int) preg_replace('/[^0-9]/', '', $row['current_semester']);
+    /* ===== Calculate Promotion ===== */
+
+    $promotion = calculatePromotion($conn, $studentId, $atktLimit);
+
     $currentClass = $row['class'];
+
+    /* Extract semester number */
+    $currentSemester = (int) preg_replace('/[^0-9]/', '', $row['current_semester']);
 
     $newSemester = $currentSemester;
     $newClass = $currentClass;
 
     /* ===== PROMOTION LOGIC ===== */
 
-   if ($promotion['status'] == "PROMOTED" || $promotion['status'] == "PROMOTED_WITH_ATKT") {
+    if (
+        $promotion['status'] == "PROMOTED" ||
+        $promotion['status'] == "PROMOTED_WITH_ATKT"
+    ) {
 
-    if ($currentSemester < 6) {
+        if ($currentSemester < 6) {
 
-        $newSemester = $currentSemester + 1;
+            $newSemester = $currentSemester + 1;
 
-        $department = substr($currentClass, 0, 2);
-        $division = substr($currentClass, -2);
+            $department = substr($currentClass, 0, 2);
+            $division = substr($currentClass, -2);
 
-        $newClass = $department . $newSemester . $division;
+            $newClass = $department . $newSemester . $division;
 
-    } else {
+        } else {
 
-        // SEM6 completed
-        $newSemester = "PASSED_OUT";
-        $newClass = "PASSED_OUT";
+            /* Semester 6 completed */
+
+            if ($promotion['status'] == "PROMOTED") {
+                $promotion['status'] = "COMPLETED";
+            }
+
+            $newSemester = 6;
+            $newClass = $currentClass;
+        }
     }
 
-} else {
+    /* Store only semester number */
+    $newSemesterStr = $newSemester;
 
-    // detained students remain in same class
-    $newSemester = $currentSemester;
-    $newClass = $currentClass;
-}
+    /* ===== UPDATE STUDENT ===== */
 
+    $update = $conn->prepare("
+        UPDATE students
+        SET status = ?, current_semester = ?, class = ?
+        WHERE user_id = ?
+    ");
 
-    /* ===== RETURN DATA ===== */
+    $update->bind_param(
+        "sssi",
+        $promotion['status'],
+        $newSemesterStr,
+        $newClass,
+        $studentId
+    );
 
-   if ($promotion['status'] == "PROMOTED") {
+    if (!$update->execute()) {
+        echo json_encode([
+            "status" => false,
+            "error" => $conn->error
+        ]);
+        exit;
+    }
+
+    /* ===== RESPONSE DATA ===== */
 
     $students[] = [
+        "student_id" => $studentId,
         "name" => $row['full_name'],
         "oldClass" => $currentClass,
         "newClass" => $newClass,
         "oldSemester" => $currentSemester,
         "newSemester" => $newSemester,
-        "backlogCount" => $promotion['backlogCount'],
         "promotionStatus" => $promotion['status'],
-        "percentage" => $promotion['percentage'],
+        "percentage" => $promotion['percentage'] ?? null,
+        "backlogCount" => $promotion['backlogCount'],
         "ktSubjects" => $promotion['ktSubjects']
     ];
-
-}
 }
 
 /* ================= RESPONSE ================= */
 
 echo json_encode([
     "status" => true,
+    "class" => $class,
     "students" => $students
 ]);
 ?>
