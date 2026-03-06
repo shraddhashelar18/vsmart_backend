@@ -28,6 +28,12 @@ if (!isset($data['class']) || empty(trim($data['class']))) {
 }
 
 $class = trim($data['class']);
+$sem = (int)preg_replace('/[^0-9]/','',$class);
+$department = substr($class,0,2);
+$division = substr($class,-2);
+
+$previousClass = $department . ($sem - 1) . $division;
+$class = $previousClass;
 
 /* ================= CLASS VALIDATION ================= */
 
@@ -81,38 +87,35 @@ while ($row = $result->fetch_assoc()) {
 
     /* ===== PROMOTION LOGIC ===== */
 
-    if ($promotion['status'] == "PROMOTED" || $promotion['status'] == "PROMOTED_WITH_ATKT") {
+   if ($promotion['status'] == "PROMOTED" || $promotion['status'] == "PROMOTED_WITH_ATKT") {
+
+    if ($currentSemester < 6) {
 
         $newSemester = $currentSemester + 1;
 
-        // Extract department and division
         $department = substr($currentClass, 0, 2);
         $division = substr($currentClass, -2);
 
         $newClass = $department . $newSemester . $division;
+
+    } else {
+
+        // SEM6 completed
+        $newSemester = "PASSED_OUT";
+        $newClass = "PASSED_OUT";
     }
 
-    /* ===== UPDATE STUDENT RECORD ===== */
+} else {
 
-    $update = $conn->prepare("
-        UPDATE students
-        SET status = ?, current_semester = ?, class = ?
-        WHERE user_id = ?
-    ");
+    // detained students remain in same class
+    $newSemester = $currentSemester;
+    $newClass = $currentClass;
+}
 
-   $newSemesterStr = "SEM" . $newSemester;
-
-    $update->bind_param(
-        "sssi",
-        $promotion['status'],
-        $newSemesterStr,
-        $newClass,
-        $row['user_id']
-    );
-
-    $update->execute();
 
     /* ===== RETURN DATA ===== */
+
+   if ($promotion['status'] == "PROMOTED") {
 
     $students[] = [
         "name" => $row['full_name'],
@@ -125,6 +128,8 @@ while ($row = $result->fetch_assoc()) {
         "percentage" => $promotion['percentage'],
         "ktSubjects" => $promotion['ktSubjects']
     ];
+
+}
 }
 
 /* ================= RESPONSE ================= */
