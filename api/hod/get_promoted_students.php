@@ -71,7 +71,11 @@ $students = [];
 
 while ($row = $result->fetch_assoc()) {
 
-    $promotion = calculatePromotion($conn, $row['user_id'], $atktLimit);
+    $studentId = $row['user_id'];
+
+    /* ===== Calculate Promotion ===== */
+
+    $promotion = calculatePromotion($conn, $studentId, $atktLimit);
 
     $currentClass = $row['class'];
 
@@ -99,7 +103,11 @@ while ($row = $result->fetch_assoc()) {
 
         } else {
 
+<<<<<<< HEAD
             /* SEM6 completed */
+=======
+            /* Semester 6 completed */
+>>>>>>> 960f81bd08ef5dd1e5fb1a9c7b40ffde8ce6a7d9
 
             if ($promotion['status'] == "PROMOTED") {
                 $promotion['status'] = "COMPLETED";
@@ -110,7 +118,12 @@ while ($row = $result->fetch_assoc()) {
         }
     }
 
+<<<<<<< HEAD
     $newSemesterStr = "SEM" . $newSemester;
+=======
+    /* Store only semester number */
+    $newSemesterStr = $newSemester;
+>>>>>>> 960f81bd08ef5dd1e5fb1a9c7b40ffde8ce6a7d9
 
     /* ===== UPDATE STUDENT ===== */
 
@@ -125,22 +138,43 @@ while ($row = $result->fetch_assoc()) {
         $promotion['status'],
         $newSemesterStr,
         $newClass,
+<<<<<<< HEAD
         $row['user_id']
     );
 
     $update->execute();
+=======
+        $studentId
+    );
+
+    if (!$update->execute()) {
+        echo json_encode([
+            "status" => false,
+            "error" => $conn->error
+        ]);
+        exit;
+    }
+>>>>>>> 960f81bd08ef5dd1e5fb1a9c7b40ffde8ce6a7d9
 
     /* ===== RESPONSE DATA ===== */
 
     $students[] = [
+<<<<<<< HEAD
         "student_id" => $row['user_id'],
+=======
+        "student_id" => $studentId,
+>>>>>>> 960f81bd08ef5dd1e5fb1a9c7b40ffde8ce6a7d9
         "name" => $row['full_name'],
         "oldClass" => $currentClass,
         "newClass" => $newClass,
         "oldSemester" => $currentSemester,
         "newSemester" => $newSemester,
         "promotionStatus" => $promotion['status'],
+<<<<<<< HEAD
         "percentage" => $promotion['percentage'],
+=======
+        "percentage" => $promotion['percentage'] ?? null,
+>>>>>>> 960f81bd08ef5dd1e5fb1a9c7b40ffde8ce6a7d9
         "backlogCount" => $promotion['backlogCount'],
         "ktSubjects" => $promotion['ktSubjects']
     ];
