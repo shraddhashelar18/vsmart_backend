@@ -66,7 +66,7 @@ if ($result) {
 /* =====================================
    GET ADMIN NAME
 ===================================== */
-
+//
 $admin_name = "";
 
 $stmt = $conn->prepare("SELECT full_name FROM admins WHERE user_id = ?");
