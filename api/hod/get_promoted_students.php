@@ -67,21 +67,24 @@ $result = $stmt->get_result();
 
 $students = [];
 
-/* ================= PROMOTION PROCESS ================= */
+/* ================= PROMOTION PREVIEW ================= */
 
 while ($row = $result->fetch_assoc()) {
 
-    $promotion = calculatePromotion($conn, $row['user_id'], $atktLimit);
+    $studentId = $row['user_id'];
+
+    /* Calculate promotion using helper */
+
+    $promotion = calculatePromotion($conn, $studentId, $atktLimit);
 
     $currentClass = $row['class'];
 
-    /* Extract semester number */
     $currentSemester = (int) preg_replace('/[^0-9]/', '', $row['current_semester']);
 
     $newSemester = $currentSemester;
     $newClass = $currentClass;
 
-    /* ===== PROMOTION LOGIC ===== */
+    /* Promotion logic preview */
 
     if (
         $promotion['status'] == "PROMOTED" ||
@@ -99,8 +102,6 @@ while ($row = $result->fetch_assoc()) {
 
         } else {
 
-            /* SEM6 completed */
-
             if ($promotion['status'] == "PROMOTED") {
                 $promotion['status'] = "COMPLETED";
             }
@@ -110,37 +111,17 @@ while ($row = $result->fetch_assoc()) {
         }
     }
 
-    $newSemesterStr = "SEM" . $newSemester;
-
-    /* ===== UPDATE STUDENT ===== */
-
-    $update = $conn->prepare("
-        UPDATE students
-        SET status = ?, current_semester = ?, class = ?
-        WHERE user_id = ?
-    ");
-
-    $update->bind_param(
-        "sssi",
-        $promotion['status'],
-        $newSemesterStr,
-        $newClass,
-        $row['user_id']
-    );
-
-    $update->execute();
-
-    /* ===== RESPONSE DATA ===== */
+    /* Build response */
 
     $students[] = [
-        "student_id" => $row['user_id'],
+        "student_id" => $studentId,
         "name" => $row['full_name'],
         "oldClass" => $currentClass,
         "newClass" => $newClass,
         "oldSemester" => $currentSemester,
         "newSemester" => $newSemester,
         "promotionStatus" => $promotion['status'],
-        "percentage" => $promotion['percentage'],
+        "percentage" => $promotion['percentage'] ?? null,
         "backlogCount" => $promotion['backlogCount'],
         "ktSubjects" => $promotion['ktSubjects']
     ];
