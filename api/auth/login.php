@@ -38,10 +38,11 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
 ================================ */
 
 $stmt = $conn->prepare("
-    SELECT user_id,email,role,password,status
-    FROM users
-    WHERE email=?
-    LIMIT 1
+   SELECT u.user_id, u.email, u.role, u.password, u.status, a.full_name
+FROM users u
+LEFT JOIN admins a ON a.user_id = u.user_id
+WHERE u.email=?
+LIMIT 1
 ");
 
 $stmt->bind_param("s",$email);
@@ -195,6 +196,7 @@ echo json_encode([
     "user"=>[
         "user_id"=>(int)$user['user_id'],
         "email"=>$user['email'],
+        "name" => $user['full_name'] ?? "Administrator",
         "role"=>$user['role'],
         "status"=>$user['status'],
         "departments"=>$departments,
