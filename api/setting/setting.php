@@ -48,21 +48,21 @@ if ($action == "update_academic") {
     }
 
     $activeSemester = $data['activeSemester'];
-    $registrationOpen = $data['registrationOpen'];
-    $attendanceLocked = $data['attendanceLocked'];
-    $atktLimit = $data['atktLimit'];
+    $registrationOpen = (int) $data['registrationOpen'];
+    $attendanceLocked = (int) $data['attendanceLocked'];
+    $atktLimit = (int) $data['atktLimit'];
 
     // lock attendance logic
     $allowReupload = $attendanceLocked ? 0 : 1;
 
     $stmt = $conn->prepare("
-        UPDATE settings
-        SET active_semester=?,
-            allow_marksheet_upload=?,
-            allow_reupload=?,
-            atkt_limit=?
-        WHERE id=1
-    ");
+    UPDATE settings
+    SET active_semester=?,
+        registration_open=?,
+        allow_reupload=?,
+        atkt_limit=?
+    WHERE id=1
+");
 
     $stmt->bind_param(
         "siii",
@@ -86,8 +86,13 @@ if ($action == "update_academic") {
 ===================================================== */
 if ($action == "change_password") {
 
+    if (!isset($data['currentPassword']) || !isset($data['newPassword'])) {
+        echo json_encode(["status"=>false,"message"=>"Password fields required"]);
+        exit;
+    }
+
     $currentPassword = $data['currentPassword'];
-    $newPassword     = password_hash($data['newPassword'], PASSWORD_DEFAULT);
+    $newPasswordRaw  = $data['newPassword'];
 
     switch ($role) {
         case "admin":     $table = "admins"; break;
@@ -101,25 +106,41 @@ if ($action == "change_password") {
             exit;
     }
 
-    $result = $conn->query("SELECT password FROM $table WHERE user_id='$userId'");
-    $row = $result->fetch_assoc();
+    // Get stored password hash
+    $stmt = $conn->prepare("SELECT password FROM users WHERE user_id=?");
+    $stmt->bind_param("s", $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
 
-    if (!password_verify($currentPassword, $row['password'])) {
+    if ($result->num_rows == 0) {
+        echo json_encode(["status"=>false,"message"=>"User not found"]);
+        exit;
+    }
+
+    $row = $result->fetch_assoc();
+    $storedHash = $row['password'];
+
+    // Verify current password
+    if (!password_verify($currentPassword, $storedHash)) {
         echo json_encode(["status"=>false,"message"=>"Current password incorrect"]);
         exit;
     }
 
-    $stmt = $conn->prepare("UPDATE $table SET password=? WHERE user_id=?");
+    // Hash new password
+    $newPassword = password_hash($newPasswordRaw, PASSWORD_DEFAULT);
+
+    // Update password
+    $stmt = $conn->prepare("UPDATE users SET password=? WHERE user_id=?");
     $stmt->bind_param("ss", $newPassword, $userId);
 
     if ($stmt->execute()) {
-        echo json_encode(["status"=>true,"message"=>"Password changed"]);
+        echo json_encode(["status"=>true,"message"=>"Password changed successfully"]);
     } else {
-        echo json_encode(["status"=>false,"message"=>"Failed"]);
+        echo json_encode(["status"=>false,"message"=>"Password update failed"]);
     }
+
     exit;
 }
-
 
 /* =====================================================
    4️⃣ LOGOUT
