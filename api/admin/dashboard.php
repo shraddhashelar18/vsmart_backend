@@ -64,12 +64,25 @@ if ($result) {
 }
 
 /* =====================================
+   GET ADMIN NAME
+===================================== */
+//
+$admin_name = "";
+
+$stmt = $conn->prepare("SELECT full_name FROM admins WHERE user_id = ?");
+$stmt->bind_param("i", $currentUserId);   // user id coming from api_guard
+$stmt->execute();
+$result = $stmt->get_result();
+
+if ($row = $result->fetch_assoc()) {
+    $admin_name = $row['full_name'];
+}
+/* =====================================
    SEND FINAL RESPONSE
 ===================================== */
-
 echo json_encode([
     "status" => true,
-    "admin_name" => "Administrator",
+    "admin_name" => $admin_name,
     "total_teachers" => $total_teachers,
     "total_students" => $total_students,
     "total_parents"  => $total_parents,

@@ -2,7 +2,7 @@
 require_once("../config.php");
 require_once("../api_guard.php");
 require_once("../promotion_helper.php");
-
+require_once("../cors.php");
 header("Content-Type: application/json");
 
 /* ================= ROLE CHECK ================= */
@@ -67,25 +67,24 @@ $result = $stmt->get_result();
 
 $students = [];
 
-/* ================= PROMOTION PROCESS ================= */
+/* ================= PROMOTION PREVIEW ================= */
 
 while ($row = $result->fetch_assoc()) {
 
     $studentId = $row['user_id'];
 
-    /* ===== Calculate Promotion ===== */
+    /* Calculate promotion using helper */
 
     $promotion = calculatePromotion($conn, $studentId, $atktLimit);
 
     $currentClass = $row['class'];
 
-    /* Extract semester number */
     $currentSemester = (int) preg_replace('/[^0-9]/', '', $row['current_semester']);
 
     $newSemester = $currentSemester;
     $newClass = $currentClass;
 
-    /* ===== PROMOTION LOGIC ===== */
+    /* Promotion logic preview */
 
     if (
         $promotion['status'] == "PROMOTED" ||
@@ -103,8 +102,6 @@ while ($row = $result->fetch_assoc()) {
 
         } else {
 
-            /* Semester 6 completed */
-
             if ($promotion['status'] == "PROMOTED") {
                 $promotion['status'] = "COMPLETED";
             }
@@ -114,34 +111,7 @@ while ($row = $result->fetch_assoc()) {
         }
     }
 
-    /* Store only semester number */
-    $newSemesterStr = $newSemester;
-
-    /* ===== UPDATE STUDENT ===== */
-
-    $update = $conn->prepare("
-        UPDATE students
-        SET status = ?, current_semester = ?, class = ?
-        WHERE user_id = ?
-    ");
-
-    $update->bind_param(
-        "sssi",
-        $promotion['status'],
-        $newSemesterStr,
-        $newClass,
-        $studentId
-    );
-
-    if (!$update->execute()) {
-        echo json_encode([
-            "status" => false,
-            "error" => $conn->error
-        ]);
-        exit;
-    }
-
-    /* ===== RESPONSE DATA ===== */
+    /* Build response */
 
     $students[] = [
         "student_id" => $studentId,
@@ -164,4 +134,3 @@ echo json_encode([
     "class" => $class,
     "students" => $students
 ]);
-?>
