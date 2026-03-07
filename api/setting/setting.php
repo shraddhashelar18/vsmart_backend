@@ -7,7 +7,7 @@ header("Content-Type: application/json");
 $data = json_decode(file_get_contents("php://input"), true);
 
 if (!isset($data['action'])) {
-    echo json_encode(["status"=>false,"message"=>"Action required"]);
+    echo json_encode(["status" => false, "message" => "Action required"]);
     exit;
 }
 
@@ -26,12 +26,12 @@ if ($action == "settings") {
     echo json_encode([
         "status" => true,
         "activeSemester" => $row['active_semester'],
-      "registrationOpen" => (bool)$row['registration_open'],
+        "registrationOpen" => (bool) $row['registration_open'],
         "attendanceLocked" => $row['allow_reupload'] == 0 ? true : false,
-        "atktLimit" => (int)$row['atkt_limit'],
-        "ct1Published" => (bool)$row['ct1_published'],
-        "ct2Published" => (bool)$row['ct2_published'],
-        "finalPublished" => (bool)$row['final_published']
+        "atktLimit" => (int) $row['atkt_limit'],
+        "ct1Published" => (bool) $row['ct1_published'],
+        "ct2Published" => (bool) $row['ct2_published'],
+        "finalPublished" => (bool) $row['final_published']
     ]);
     exit;
 }
@@ -43,26 +43,26 @@ if ($action == "settings") {
 if ($action == "update_academic") {
 
     if ($role != "admin") {
-        echo json_encode(["status"=>false,"message"=>"Access Denied"]);
+        echo json_encode(["status" => false, "message" => "Access Denied"]);
         exit;
     }
 
     $activeSemester = $data['activeSemester'];
-    $registrationOpen = $data['registrationOpen'];
-    $attendanceLocked = $data['attendanceLocked'];
-    $atktLimit = $data['atktLimit'];
+    $registrationOpen = (int) $data['registrationOpen'];
+    $attendanceLocked = (int) $data['attendanceLocked'];
+    $atktLimit = (int) $data['atktLimit'];
 
     // lock attendance logic
     $allowReupload = $attendanceLocked ? 0 : 1;
 
     $stmt = $conn->prepare("
-        UPDATE settings
-        SET active_semester=?,
-            allow_marksheet_upload=?,
-            allow_reupload=?,
-            atkt_limit=?
-        WHERE id=1
-    ");
+    UPDATE settings
+    SET active_semester=?,
+        registration_open=?,
+        allow_reupload=?,
+        atkt_limit=?
+    WHERE id=1
+");
 
     $stmt->bind_param(
         "siii",
@@ -73,9 +73,9 @@ if ($action == "update_academic") {
     );
 
     if ($stmt->execute()) {
-        echo json_encode(["status"=>true,"message"=>"Settings Updated"]);
+        echo json_encode(["status" => true, "message" => "Settings Updated"]);
     } else {
-        echo json_encode(["status"=>false,"message"=>"Update Failed"]);
+        echo json_encode(["status" => false, "message" => "Update Failed"]);
     }
     exit;
 }
@@ -84,43 +84,55 @@ if ($action == "update_academic") {
 /* =====================================================
    3️⃣ CHANGE PASSWORD (ALL ROLES)
 ===================================================== */
+/* =====================================================
+   3️⃣ CHANGE PASSWORD (ALL ROLES)
+===================================================== */
+
 if ($action == "change_password") {
 
-    $currentPassword = $data['currentPassword'];
-    $newPassword     = password_hash($data['newPassword'], PASSWORD_DEFAULT);
-
-    switch ($role) {
-        case "admin":     $table = "admins"; break;
-        case "principal": $table = "principals"; break;
-        case "hod":       $table = "hods"; break;
-        case "teacher":   $table = "teachers"; break;
-        case "parent":    $table = "parents"; break;
-        case "student":   $table = "students"; break;
-        default:
-            echo json_encode(["status"=>false,"message"=>"Invalid Role"]);
-            exit;
-    }
-
-    $result = $conn->query("SELECT password FROM $table WHERE user_id='$userId'");
-    $row = $result->fetch_assoc();
-
-    if (!password_verify($currentPassword, $row['password'])) {
-        echo json_encode(["status"=>false,"message"=>"Current password incorrect"]);
+    if (!isset($data['currentPassword']) || !isset($data['newPassword'])) {
+        echo json_encode(["status" => false, "message" => "Password fields required"]);
         exit;
     }
 
-    $stmt = $conn->prepare("UPDATE $table SET password=? WHERE user_id=?");
-    $stmt->bind_param("ss", $newPassword, $userId);
+    $currentPassword = $data['currentPassword'];
+    $newPasswordRaw = $data['newPassword'];
+
+    // Get stored password hash
+    $stmt = $conn->prepare("SELECT password FROM users WHERE user_id=?");
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    if ($result->num_rows == 0) {
+        echo json_encode(["status" => false, "message" => "User not found"]);
+        exit;
+    }
+
+    $row = $result->fetch_assoc();
+    $storedHash = $row['password'];
+
+    // Verify current password
+    if (!password_verify($currentPassword, $storedHash)) {
+        echo json_encode(["status" => false, "message" => "Current password incorrect"]);
+        exit;
+    }
+
+    // Hash new password
+    $newPassword = password_hash($newPasswordRaw, PASSWORD_DEFAULT);
+
+    // Update password
+    $stmt = $conn->prepare("UPDATE users SET password=? WHERE user_id=?");
+    $stmt->bind_param("si", $newPassword, $userId);
 
     if ($stmt->execute()) {
-        echo json_encode(["status"=>true,"message"=>"Password changed"]);
+        echo json_encode(["status" => true, "message" => "Password changed successfully"]);
     } else {
-        echo json_encode(["status"=>false,"message"=>"Failed"]);
+        echo json_encode(["status" => false, "message" => "Password update failed"]);
     }
+
     exit;
 }
-
-
 /* =====================================================
    4️⃣ LOGOUT
 ===================================================== */
@@ -135,4 +147,4 @@ if ($action == "logout") {
     exit;
 }
 
-echo json_encode(["status"=>false,"message"=>"Invalid Action"]);
+echo json_encode(["status" => false, "message" => "Invalid Action"]);
