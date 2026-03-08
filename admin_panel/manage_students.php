@@ -2,15 +2,11 @@
 require_once "auth.php";
 require_once "db.php";
 
-<<<<<<< HEAD
 $result = $conn->query("
 SELECT s.*, s.full_name, u.email
 FROM students s
 JOIN users u ON u.user_id = s.user_id
 ");
-=======
-$result=$conn->query("SELECT user_id,full_name,roll_no,class FROM students");
->>>>>>> b5f3620ebd6a52d6e779168b7459e9dd09ccc8ce
 ?>
 
 <link rel="stylesheet" href="assets/style.css">

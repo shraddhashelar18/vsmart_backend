@@ -38,12 +38,12 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
 ================================ */
 
 $stmt = $conn->prepare("
-   SELECT u.user_id, u.email, u.role, u.password, u.status, a.full_name
+  SELECT u.user_id, u.email, u.role, u.password, u.status
 FROM users u
-LEFT JOIN admins a ON a.user_id = u.user_id
 WHERE u.email=?
 LIMIT 1
 ");
+$name = null;
 
 $stmt->bind_param("s",$email);
 $stmt->execute();
@@ -82,9 +82,27 @@ $departments = [];
 $className = null;
 $semester = null;
 
+if ($user['role'] == "admin") {
+
+    $stmt = $conn->prepare("
+        SELECT full_name
+        FROM admins
+        WHERE user_id=?
+    ");
+
+    $stmt->bind_param("i",$user['user_id']);
+    $stmt->execute();
+    $res = $stmt->get_result();
+
+    if ($row = $res->fetch_assoc()) {
+        $name = $row['full_name'];
+    }
+}
+
 /* 🔹 TEACHER */
 if ($user['role'] == "teacher") {
 
+    // Get departments
     $tStmt = $conn->prepare("
         SELECT department
         FROM teacher_assignments
@@ -99,6 +117,21 @@ if ($user['role'] == "teacher") {
         if (!empty($row['department'])) {
             $departments[] = $row['department'];
         }
+    }
+
+    // Get teacher name
+    $stmt = $conn->prepare("
+        SELECT full_name
+        FROM teachers
+        WHERE user_id=?
+    ");
+
+    $stmt->bind_param("i",$user['user_id']);
+    $stmt->execute();
+    $res = $stmt->get_result();
+
+    if ($row = $res->fetch_assoc()) {
+        $name = $row['full_name'];
     }
 }
 
@@ -119,12 +152,26 @@ if ($user['role'] == "hod") {
         $row = $hRes->fetch_assoc();
 
         $departments[] = $row['department'];
-        $user['name'] = $row['full_name'];
+        $name = $row['full_name'];
     }
 }
 
 /* 🔹 PRINCIPAL */
 if ($user['role'] == "principal") {
+
+    $stmt = $conn->prepare("
+        SELECT full_name
+        FROM principal
+        WHERE user_id=?
+    ");
+
+    $stmt->bind_param("i",$user['user_id']);
+    $stmt->execute();
+    $res = $stmt->get_result();
+
+    if ($row = $res->fetch_assoc()) {
+        $name = $row['full_name'];
+    }
 
     $pStmt = $conn->query("SELECT department FROM departments");
 
@@ -137,9 +184,9 @@ if ($user['role'] == "principal") {
 if ($user['role'] == "student") {
 
     $sStmt = $conn->prepare("
-        SELECT class,current_semester,department
-        FROM students
-        WHERE user_id = ?
+       SELECT full_name,class,current_semester,department
+FROM students
+WHERE user_id = ?
     ");
 
     $sStmt->bind_param("i",$user['user_id']);
@@ -151,7 +198,7 @@ if ($user['role'] == "student") {
         $student = $sRes->fetch_assoc();
 
         $className = $student['class'];
-
+$name = $student['full_name'] ?? null;
         $semester = (int) filter_var(
             $student['current_semester'],
             FILTER_SANITIZE_NUMBER_INT
@@ -168,6 +215,25 @@ if ($user['role'] == "student") {
             ]);
             exit;
         }
+    }
+}
+
+/* 🔹 PARENT */
+
+if ($user['role'] == "parent") {
+
+    $stmt = $conn->prepare("
+        SELECT full_name
+        FROM parents
+        WHERE user_id=?
+    ");
+
+    $stmt->bind_param("i",$user['user_id']);
+    $stmt->execute();
+    $res = $stmt->get_result();
+
+    if ($row = $res->fetch_assoc()) {
+        $name = $row['full_name'];
     }
 }
 
@@ -196,7 +262,7 @@ echo json_encode([
     "user"=>[
         "user_id"=>(int)$user['user_id'],
         "email"=>$user['email'],
-        "name" => $user['full_name'] ?? "Administrator",
+        "name"=>$name ?? $user['email'],
         "role"=>$user['role'],
         "status"=>$user['status'],
         "departments"=>$departments,
