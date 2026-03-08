@@ -61,10 +61,10 @@ while($row = $marksResult->fetch_assoc()){
         $marksValue = "Absent";
     }
 
-    if($row['exam_type'] == "CT-1"){
+    if($row['exam_type'] == "CT1"){
         $ct1Marks[$row['subject']] = (string)$marksValue;
     }
-    elseif($row['exam_type'] == "CT-2"){
+    elseif($row['exam_type'] == "CT2"){
         $ct2Marks[$row['subject']] = (string)$marksValue;
     }
     elseif($row['exam_type'] == "FINAL"){
