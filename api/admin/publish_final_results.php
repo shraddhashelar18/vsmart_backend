@@ -74,13 +74,6 @@ $div=substr($class,-2);
 $newClass=$dept.$newSem.$div;
 
 }
-else{
-
-if($promotion['status']=="PROMOTED"){
-$promotion['status']="COMPLETED";
-}
-
-}
 
 }
 

@@ -101,12 +101,7 @@ while ($row = $result->fetch_assoc()) {
             $newClass = $department . $newSemester . $division;
 
         } else {
-
-            if ($promotion['status'] == "PROMOTED") {
-                $promotion['status'] = "COMPLETED";
-            }
-
-            $newSemester = 6;
+            $newSemester = $currentSemester;
             $newClass = $currentClass;
         }
     }

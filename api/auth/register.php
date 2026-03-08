@@ -31,7 +31,20 @@ if(!$data){
     ]);
     exit;
 }
+/* ===========================
+   CHECK REGISTRATION STATUS
+=========================== */
 
+$settings = $conn->query("SELECT registration_open FROM settings WHERE id=1");
+$row = $settings->fetch_assoc();
+
+if ($row['registration_open'] == 0) {
+    echo json_encode([
+        "status" => false,
+        "message" => "Registration is currently closed by admin"
+    ]);
+    exit;
+}
 /* ===========================
    COMMON FIELDS
 =========================== */
