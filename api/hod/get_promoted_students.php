@@ -3,6 +3,7 @@ require_once("../config.php");
 require_once("../api_guard.php");
 require_once("../promotion_helper.php");
 require_once("../cors.php");
+
 header("Content-Type: application/json");
 
 /* ================= ROLE CHECK ================= */
@@ -73,43 +74,44 @@ while ($row = $result->fetch_assoc()) {
 
     $studentId = $row['user_id'];
 
-    /* Calculate promotion using helper */
-
     $promotion = calculatePromotion($conn, $studentId, $atktLimit);
-    if ($promotion['status'] != "PROMOTED") {
-    continue;
-}
+
+    /* Only show promoted or passed out students */
+
+    if (
+        $promotion['status'] != "PROMOTED" &&
+        strtolower($row['status']) != "passed_out"
+    ) {
+        continue;
+    }
 
     $currentClass = $row['class'];
 
-    $currentSemester = (int) preg_replace('/[^0-9]/', '', $row['current_semester']);
+    $currentSemester = (int)preg_replace('/[^0-9]/', '', $row['current_semester']);
 
     $department = substr($currentClass, 0, 2);
     $division = substr($currentClass, -2);
 
     $oldSemester = $currentSemester - 1;
     $oldClass = $department . $oldSemester . $division;
+
     $newSemester = $currentSemester;
     $newClass = $currentClass;
 
-    /* Promotion logic preview */
+    /* Promotion preview */
 
-    if ( $promotion['status'] == "PROMOTED" ) {
+    if ($promotion['status'] == "PROMOTED" && $currentSemester < 6) {
 
-        if ($currentSemester < 6) {
+        $newSemester = $currentSemester + 1;
 
-            $newSemester = $currentSemester + 1;
-
-            $department = substr($currentClass, 0, 2);
-            $division = substr($currentClass, -2);
-
-            $newClass = $department . $newSemester . $division;
-
-        } else {
-            $newSemester = $currentSemester;
-            $newClass = $currentClass;
-        }
+        $newClass = $department . $newSemester . $division;
     }
+
+    /* PASSED OUT LOGIC */
+
+    $displayStatus = ($row['status'] == "passed_out")
+        ? "PASSED_OUT"
+        : $promotion['status'];
 
     /* Build response */
 
@@ -120,7 +122,7 @@ while ($row = $result->fetch_assoc()) {
         "newClass" => $currentClass,
         "oldSemester" => $oldSemester,
         "newSemester" => $newSemester,
-        "promotionStatus" => $promotion['status'],
+        "promotionStatus" => $displayStatus,
         "percentage" => $promotion['percentage'] ?? null,
         "backlogCount" => $promotion['backlogCount'],
         "ktSubjects" => $promotion['ktSubjects']
@@ -134,3 +136,4 @@ echo json_encode([
     "class" => $class,
     "students" => $students
 ]);
+?>

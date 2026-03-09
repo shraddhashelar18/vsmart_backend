@@ -14,7 +14,7 @@ $semQuery->bind_param("i",$studentId);
 $semQuery->execute();
 $semResult = $semQuery->get_result()->fetch_assoc();
 
-$currentSemester = $semResult['current_semester'];
+$currentSemester = "SEM".$semResult['current_semester'];
 
 /* calculate promotion only for that semester */
 
@@ -24,7 +24,7 @@ SUM(total_marks) total_marks,
 SUM(obtained_marks) obtained_marks
 FROM marks
 WHERE student_id=?
-AND semester=?
+AND semester LIKE CONCAT('%',?,'%')
 AND exam_type='FINAL'
 AND status='published'
 GROUP BY subject
