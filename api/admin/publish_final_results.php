@@ -53,7 +53,9 @@ FROM students
 while($student=$students->fetch_assoc()){
 
 $id=$student['user_id'];
-
+if($sem == 6 && $promotion['status']=="PROMOTED_WITH_ATKT"){
+    $promotion['status'] = "DETAINED";
+}
 $promotion=calculatePromotion($conn,$id,$atktLimit);
 
 $class=$student['class'];
