@@ -7,7 +7,7 @@ header("Content-Type: application/json");
 $data = json_decode(file_get_contents("php://input"), true);
 
 $class = $data['class'] ?? '';
-$subject = $data['subject'] ?? '';
+$subject = $data['subject_name'] ?? '';
 $date = $data['date'] ?? '';
 $attendanceList = $data['attendance'] ?? [];
 
@@ -30,7 +30,7 @@ if (empty($attendanceList)) {
 /* 🔥 Duplicate Check */
 $check = $conn->prepare("
     SELECT id FROM attendance
-    WHERE class=? AND subject=? AND date=?
+    WHERE class=? AND subject_name=? AND date=?
 ");
 $check->bind_param("sss", $class, $subject, $date);
 $check->execute();
@@ -53,7 +53,7 @@ foreach ($attendanceList as $item) {
 
     $stmt = $conn->prepare("
         INSERT INTO attendance
-        (student_id, teacher_user_id, class, subject, date, status)
+        (student_id, teacher_id, class, subject_name, date, status)
         VALUES (?, ?, ?, ?, ?, ?)
     ");
 

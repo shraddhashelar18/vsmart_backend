@@ -76,20 +76,25 @@ while ($row = $result->fetch_assoc()) {
     /* Calculate promotion using helper */
 
     $promotion = calculatePromotion($conn, $studentId, $atktLimit);
+    if ($promotion['status'] != "PROMOTED") {
+    continue;
+}
 
     $currentClass = $row['class'];
 
     $currentSemester = (int) preg_replace('/[^0-9]/', '', $row['current_semester']);
 
+    $department = substr($currentClass, 0, 2);
+    $division = substr($currentClass, -2);
+
+    $oldSemester = $currentSemester - 1;
+    $oldClass = $department . $oldSemester . $division;
     $newSemester = $currentSemester;
     $newClass = $currentClass;
 
     /* Promotion logic preview */
 
-    if (
-        $promotion['status'] == "PROMOTED" ||
-        $promotion['status'] == "PROMOTED_WITH_ATKT"
-    ) {
+    if ( $promotion['status'] == "PROMOTED" ) {
 
         if ($currentSemester < 6) {
 
@@ -111,9 +116,9 @@ while ($row = $result->fetch_assoc()) {
     $students[] = [
         "student_id" => $studentId,
         "name" => $row['full_name'],
-        "oldClass" => $currentClass,
-        "newClass" => $newClass,
-        "oldSemester" => $currentSemester,
+        "oldClass" => $oldClass,
+        "newClass" => $currentClass,
+        "oldSemester" => $oldSemester,
         "newSemester" => $newSemester,
         "promotionStatus" => $promotion['status'],
         "percentage" => $promotion['percentage'] ?? null,

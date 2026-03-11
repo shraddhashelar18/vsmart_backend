@@ -30,6 +30,7 @@ exit;
 $missing=$conn->query("
 SELECT user_id FROM students
 WHERE marks_uploaded=0
+AND status!='detained'
 ");
 
 if($missing->num_rows>0){
@@ -61,21 +62,49 @@ $sem=(int)preg_replace('/[^0-9]/','',$student['current_semester']);
 $newClass=$class;
 $newSem=$sem;
 
-if($promotion['status']=="PROMOTED" ||
-$promotion['status']=="PROMOTED_WITH_ATKT"){
+/* ===== PROMOTION LOGIC ===== */
 
-if($sem<6){
+if($promotion['status']=="PROMOTED" || 
+   $promotion['status']=="PROMOTED_WITH_ATKT"){
 
-$newSem=$sem+1;
+    /* SEMESTER 1–5 */
 
-$dept=substr($class,0,2);
-$div=substr($class,-2);
+    if($sem < 6){
 
-$newClass=$dept.$newSem.$div;
+        $newSem = $sem + 1;
 
+<<<<<<< HEAD
+=======
+        $dept = substr($class,0,2);
+        $div = substr($class,-2);
+
+        $newClass = $dept.$newSem.$div;
+
+    }
+
+    /* SEMESTER 6 (FINAL) */
+
+    else{
+
+        /* Only fully passed students graduate */
+
+        if($promotion['status']=="PROMOTED"){
+            $promotion['status'] = "PASSED_OUT";
+        }
+
+        /* ATKT students remain in SEM6 */
+        else if($promotion['status']=="PROMOTED_WITH_ATKT"){
+            $promotion['status'] = "PROMOTED_WITH_ATKT";
+            $newSem = 6;
+            $newClass = $class;
+        }
+
+    }
+
+>>>>>>> e6a5f178130228e6f5e713abe60623585768e6a2
 }
 
-}
+/* ===== UPDATE STUDENT ===== */
 
 $stmt=$conn->prepare("
 UPDATE students
@@ -94,6 +123,8 @@ $id
 $stmt->execute();
 
 }
+
+/* mark promotion completed */
 
 $conn->query("
 UPDATE settings

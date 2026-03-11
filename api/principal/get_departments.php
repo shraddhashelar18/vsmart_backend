@@ -16,7 +16,7 @@ if ($currentRole != 'principal') {
 /* Get distinct departments */
 $result = $conn->query("
     SELECT DISTINCT department
-    FROM teacher_assignments
+    FROM classes
     WHERE status = 'active'
     ORDER BY department
 ");
