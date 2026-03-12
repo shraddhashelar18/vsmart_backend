@@ -30,7 +30,7 @@ if (empty($attendanceList)) {
 /* 🔥 Duplicate Check */
 $check = $conn->prepare("
     SELECT id FROM attendance
-    WHERE class=? AND subject=? AND date=?
+    WHERE class=? AND subject_name=? AND date=?
 ");
 $check->bind_param("sss", $class, $subject, $date);
 $check->execute();
@@ -50,10 +50,14 @@ foreach ($attendanceList as $item) {
     $status = $item['status'];
 
     if (empty($studentUserId) || empty($status)) continue;
+    // ✅ allow only valid attendance status
+    if (!in_array($status, ['P','A','L'])) {
+        continue;
+    }
 
     $stmt = $conn->prepare("
         INSERT INTO attendance
-        (student_id, teacher_user_id, class, subject, date, status)
+        (student_id, teacher_id, class, subject_name, date, status)
         VALUES (?, ?, ?, ?, ?, ?)
     ");
 

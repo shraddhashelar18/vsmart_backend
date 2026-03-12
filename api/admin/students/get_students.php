@@ -38,6 +38,7 @@ $stmt = $conn->prepare("
         s.enrollment_no AS enrollment,
         s.full_name AS name,
         u.email AS email,
+        s.user_id,
         s.mobile_no AS phone,
         s.parent_mobile_no AS parentPhone,
         s.roll_no AS roll,
@@ -45,8 +46,8 @@ $stmt = $conn->prepare("
     FROM students s
     LEFT JOIN users u ON u.user_id = s.user_id
     WHERE s.class = ?
+    AND u.status = 'approved'
 ");
-
 $stmt->bind_param("s", $className);
 $stmt->execute();
 $res = $stmt->get_result();

@@ -14,6 +14,24 @@ if (empty($data['class_name']) || empty($data['class_teacher'])) {
     exit;
 }
 
+$check = $conn->prepare("
+SELECT class_name 
+FROM classes 
+WHERE class_teacher=? 
+AND class_name!=?
+");
+
+$check->bind_param("is", $data['class_teacher'], $data['class_name']);
+$check->execute();
+
+if ($check->get_result()->num_rows > 0) {
+    echo json_encode([
+        "status" => false,
+        "message" => "Teacher already assigned to another class"
+    ]);
+    exit;
+}
+
 $stmt = $conn->prepare("
 UPDATE classes
 SET class_teacher=?

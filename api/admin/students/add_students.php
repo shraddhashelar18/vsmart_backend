@@ -118,7 +118,7 @@ try {
         INSERT INTO students
         (roll_no, user_id, full_name, class,
          mobile_no, parent_mobile_no,
-         enrollment_no, department_code,
+         enrollment_no, department,
          current_semester, status)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'studying')
     ");

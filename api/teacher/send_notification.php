@@ -31,6 +31,7 @@ if ($sendTo == "Students" && empty($selectedStudents)) {
 $title = $subject . " - Notification";
 
 /* Insert Notification */
+$created_at = date("Y-m-d H:i:s");
 $stmt = $conn->prepare("
     INSERT INTO notifications
     (teacher_user_id, class, subject, message, created_at)
@@ -53,7 +54,9 @@ if ($sendTo == "Whole Class") {
     $result = $studentQuery->get_result();
 
     while ($row = $result->fetch_assoc()) {
-        insertReceiver($conn, $notificationId, $row['user_id']);
+        if(!empty($row['user_id'])){
+   insertReceiver($conn, $notificationId, $row['user_id']);
+}
     }
 
 } else {

@@ -3,7 +3,9 @@ require_once("../config.php");
 require_once("../api_guard.php");
 require_once("../promotion_helper.php");
 require_once("../cors.php");
+
 header("Content-Type: application/json");
+
 if ($currentRole != 'hod' && $currentRole != 'principal') {
     echo json_encode([
         "status" => false,
@@ -21,10 +23,18 @@ if (!isset($data['class'])) {
 
 $class = $data['class'];
 
+/* Extract semester from class (IF6KA → 6) */
+$currentSemester = (int)preg_replace('/[^0-9]/','',$class);
+
 $setting = $conn->query("SELECT atkt_limit FROM settings LIMIT 1");
 $atktLimit = $setting->fetch_assoc()['atkt_limit'];
 
-$stmt = $conn->prepare("SELECT user_id, full_name FROM students WHERE class=?");
+$stmt = $conn->prepare("
+SELECT user_id, full_name
+FROM students
+WHERE class=?
+");
+
 $stmt->bind_param("s",$class);
 $stmt->execute();
 $result = $stmt->get_result();
@@ -35,16 +45,41 @@ while($row = $result->fetch_assoc()){
 
     $promotion = calculatePromotion($conn,$row['user_id'],$atktLimit);
 
-    if($promotion['status']=="DETAINED"){
+    /* ===== DETAINED LOGIC ===== */
 
-        $students[] = [
-            "name"=>$row['full_name'],
-            "backlogCount"=>$promotion['backlogCount'],
-            "promotionStatus"=>$promotion['status'],
-            "ktSubjects"=>$promotion['ktSubjects']
-        ];
+    if($currentSemester == 6){
+
+        if(
+            $promotion['status']=="DETAINED" ||
+            $promotion['status']=="PROMOTED_WITH_ATKT"
+        ){
+
+            $students[] = [
+                "name"=>$row['full_name'],
+                "backlogCount"=>$promotion['backlogCount'],
+                "promotionStatus"=>$promotion['status'],
+                "ktSubjects"=>$promotion['ktSubjects']
+            ];
+        }
+
     }
+    else{
+
+        if($promotion['status']=="DETAINED"){
+
+            $students[] = [
+                "name"=>$row['full_name'],
+                "backlogCount"=>$promotion['backlogCount'],
+                "promotionStatus"=>$promotion['status'],
+                "ktSubjects"=>$promotion['ktSubjects']
+            ];
+        }
+
+    }
+
 }
 
-echo json_encode(["status"=>true,"students"=>$students]);
-
+echo json_encode([
+    "status"=>true,
+    "students"=>$students
+]);
