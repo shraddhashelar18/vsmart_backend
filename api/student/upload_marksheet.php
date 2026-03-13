@@ -21,34 +21,49 @@ if($row['allow_marksheet_upload']==0){
     exit;
 }
 
+/* prevent reupload */
+
+$check=$conn->query("
+SELECT marks_uploaded,current_semester
+FROM students
+WHERE user_id='$userId'
+")->fetch_assoc();
+
+if($check['marks_uploaded']==1){
+    echo json_encode(["status"=>false,"message"=>"Already uploaded"]);
+    exit;
+}
+
+$semester="SEM".$check['current_semester'];
+
 /* assume PDF parsed already */
 
 $marks=[
  ["subject"=>"Machine Learning","marks"=>78],
  ["subject"=>"Computer Networks","marks"=>65],
- ["subject"=>"OS","marks"=>55]
+ ["subject"=>"Operating System","marks"=>55]
 ];
 
 foreach($marks as $m){
 
     $stmt=$conn->prepare("
         INSERT INTO marks
-        (student_id,subject,exam_type,total_marks,obtained_marks)
-        VALUES (?,?,?,?,?)
+        (student_id,semester,subject,exam_type,total_marks,obtained_marks)
+        VALUES (?,?,?,?,?,?)
     ");
 
+    $exam="FINAL";
     $total=100;
 
     $stmt->bind_param(
-        "issii",
+        "isssii",
         $userId,
+        $semester,
         $m['subject'],
         $exam,
         $total,
         $m['marks']
     );
-
-    $exam="FINAL";
 
     $stmt->execute();
 }
