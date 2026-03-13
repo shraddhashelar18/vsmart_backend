@@ -13,4 +13,6 @@ if ($conn->connect_error) {
         "message" => "Database connection failed"
     ]));
 }
+
+define("BASE_URL","http://192.168.1.138/vsmart_backend/");
 ?> 

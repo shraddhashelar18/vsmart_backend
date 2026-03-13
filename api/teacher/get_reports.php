@@ -1,6 +1,6 @@
 <?php
-error_reporting(0);
-ini_set('display_errors', 0);
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 require_once("../config.php");
 require_once("../api_guard.php");
 
@@ -69,11 +69,11 @@ if(!$stmt){
     exit;
 }
 
-$stmt->bind_param("ii",$user_id,$currentSemester);
+$stmt->bind_param("is",$user_id,$currentSemester);
 $stmt->execute();
 $result = $stmt->get_result();
 
-$marks = new stdClass();
+$marks = [];
 
 while($row=$result->fetch_assoc()){
 

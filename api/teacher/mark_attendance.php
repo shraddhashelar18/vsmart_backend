@@ -8,6 +8,8 @@ header("Content-Type: application/json");
 $data = json_decode(file_get_contents("php://input"), true);
 
 $class = $data['class'] ?? '';
+preg_match('/\d+/', $class, $match);
+$semester = $match[0];
 $subject = $data['subject'] ?? '';
 $date = $data['date'] ?? '';
 $attendanceList = $data['attendance'] ?? [];
@@ -57,20 +59,21 @@ foreach ($attendanceList as $item) {
     }
 
     $stmt = $conn->prepare("
-        INSERT INTO attendance
-        (student_id, teacher_id, class, subject_name, date, status)
-        VALUES (?, ?, ?, ?, ?, ?)
-    ");
+    INSERT INTO attendance
+    (student_id, teacher_id, class, semester, subject_name, date, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+");
 
-    $stmt->bind_param(
-        "iissss",
-        $studentUserId,
-        $currentUserId,
-        $class,
-        $subject,
-        $date,
-        $status
-    );
+$stmt->bind_param(
+    "iisssss",
+    $studentUserId,
+    $currentUserId,
+    $class,
+    $semester,
+    $subject,
+    $date,
+    $status
+);
 
     $stmt->execute();
 }

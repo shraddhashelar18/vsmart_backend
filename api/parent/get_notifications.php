@@ -1,33 +1,46 @@
 <?php
+require_once("../config.php");
+require_once("../api_guard.php");
+
 header("Content-Type: application/json");
-require_once "../config.php";
 
-$data = json_decode(file_get_contents("php://input"), true);
-
-if (!isset($data['class'])) {
-    echo json_encode(["status" => false]);
+/* Allow only parent */
+if ($currentRole != 'parent') {
+    echo json_encode([
+        "status" => false,
+        "message" => "Access Denied"
+    ]);
     exit;
 }
 
-$class = $data['class'];
+$userId = $currentUserId;
 
-$query = $conn->prepare("SELECT subject, message, created_at FROM notifications WHERE class=? ORDER BY created_at DESC");
-$query->bind_param("s", $class);
-$query->execute();
-$result = $query->get_result();
+$stmt = $conn->prepare("
+    SELECT n.subject, n.message, n.created_at
+    FROM notifications n
+    INNER JOIN notification_receivers nr
+        ON n.id = nr.notification_id
+    WHERE nr.receiver_user_id = ?
+    ORDER BY n.created_at DESC
+");
+
+$stmt->bind_param("i", $userId);
+$stmt->execute();
+$result = $stmt->get_result();
 
 $notifications = [];
 
 while ($row = $result->fetch_assoc()) {
+
     $notifications[] = [
-        "title" => "New Message from " . $row['subject'],
+        "title" => "Message from " . $row['subject'],
         "message" => $row['message'],
-        "date" => $row['created_at']
+        "date" => date("d M Y h:i A", strtotime($row['created_at']))
     ];
 }
 
 echo json_encode([
     "status" => true,
-    "notifications" => $notifications
+    "data" => $notifications
 ]);
 ?>

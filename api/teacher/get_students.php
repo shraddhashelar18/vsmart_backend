@@ -5,9 +5,7 @@ require_once("../api_guard.php");
 
 header("Content-Type: application/json");
 
-$data = json_decode(file_get_contents("php://input"), true);
-
-$class = $data['class'];
+$class = $_GET['class'] ?? '';
 
 $stmt = $conn->prepare("
     SELECT user_id, full_name, roll_no 
