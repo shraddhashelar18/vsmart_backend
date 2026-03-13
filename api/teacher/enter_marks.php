@@ -68,17 +68,17 @@ foreach ($marksList as $item) {
 
     /* ================= HANDLE BLANK MARKS ================= */
 
-    if ($obtainedMarks === "" || $obtainedMarks === null) {
+   if ($obtainedMarks === "" || $obtainedMarks === null) {
 
-        if ($isDraft) {
-            $obtainedMarks = 0;
-            $status = "draft";
-        } else {
-            $obtainedMarks = 0;
-            $status = "AB";
-        }
+    $obtainedMarks = null;   // 🔥 keep it NULL instead of 0
 
+    if ($isDraft) {
+        $status = "draft";
     } else {
+        $status = "published";
+    }
+
+} else {
 
         if ($obtainedMarks > $totalMarks) {
             echo json_encode([
@@ -126,7 +126,7 @@ foreach ($marksList as $item) {
         ");
 
         $update->bind_param(
-            "iiisisss",
+          "sississs",
             $obtainedMarks,
             $totalMarks,
             $semester,
@@ -162,6 +162,21 @@ foreach ($marksList as $item) {
             $status
         );
 
+<<<<<<< HEAD
+=======
+$insert->bind_param(
+"iisssssis",
+$studentUserId,
+$currentUserId,
+$class,
+$semester,
+$subject,
+$examType,
+$totalMarks,
+$obtainedMarks,
+$status
+);
+>>>>>>> 0bd6972add62d72da43eee285cf165c873b210c1
         $insert->execute();
     }
 }

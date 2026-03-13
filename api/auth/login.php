@@ -104,7 +104,7 @@ if ($user['role'] == "teacher") {
 
     // Get departments
     $tStmt = $conn->prepare("
-        SELECT department
+        SELECT DISTINCT department
         FROM teacher_assignments
         WHERE user_id = ?
     ");
@@ -173,7 +173,11 @@ if ($user['role'] == "principal") {
         $name = $row['full_name'];
     }
 
-    $pStmt = $conn->query("SELECT department FROM departments");
+    $pStmt = $conn->query("
+        SELECT DISTINCT department
+        FROM teacher_assignments
+        WHERE status='active'
+    ");
 
     while ($row = $pStmt->fetch_assoc()) {
         $departments[] = $row['department'];

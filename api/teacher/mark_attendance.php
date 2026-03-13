@@ -50,6 +50,10 @@ foreach ($attendanceList as $item) {
     $status = $item['status'];
 
     if (empty($studentUserId) || empty($status)) continue;
+    // ✅ allow only valid attendance status
+    if (!in_array($status, ['P','A','L'])) {
+        continue;
+    }
 
     $stmt = $conn->prepare("
         INSERT INTO attendance

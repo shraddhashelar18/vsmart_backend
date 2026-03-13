@@ -1,9 +1,9 @@
 <?php
-require_once("db.php");
+require_once("../config.php");
 
 /* ================= DEPARTMENT ================= */
 
-$department = "IT";   // Change if needed
+$department = "IF";   
 
 /* ================= GET ACTIVE SEMESTER ================= */
 
@@ -44,62 +44,74 @@ $result = $stmt->get_result();
 <html>
 
 <head>
-    <title>HOD Panel - Select Class</title>
-    <link rel="stylesheet" href="css/style.css">
+<title>Select Class</title>
+
+<style>
+
+body{
+margin:0;
+font-family:Arial;
+background:#e9e4ea;
+}
+
+.header{
+background:#0a8f3c;
+color:#000;
+padding:18px;
+font-size:22px;
+font-weight:500;
+}
+
+.container{
+padding:15px;
+}
+
+.class-card{
+background:white;
+padding:18px;
+margin-bottom:15px;
+border-radius:12px;
+box-shadow:0 2px 6px rgba(0,0,0,0.2);
+display:flex;
+justify-content:space-between;
+align-items:center;
+font-size:18px;
+}
+
+a{
+text-decoration:none;
+color:black;
+}
+
+</style>
+
 </head>
 
 <body>
 
 <div class="header">
-    Select Class
+Select Class
 </div>
 
-<table border="1" width="100%" cellpadding="10">
-
-<tr>
-    <th>Class</th>
-    <th>Actions</th>
-</tr>
+<div class="container">
 
 <?php while ($class = $result->fetch_assoc()) { ?>
 
-<tr>
-
-<td>
-    <?php echo $class['class_name']; ?>
-</td>
-
-<td>
-
 <a href="students.php?class=<?php echo $class['class_name']; ?>">
-    View Students
+
+<div class="class-card">
+
+<div>
+<?php echo $class['class_name']; ?>
+</div>
+
+</div>
+
 </a>
-
-|
-
-<a href="promoted.php?class=<?php echo $class['class_name']; ?>">
-    Promoted Students
-</a>
-
-|
-
-<a href="atkt.php?class=<?php echo $class['class_name']; ?>">
-    Promoted With ATKT
-</a>
-
-|
-
-<a href="detained.php?class=<?php echo $class['class_name']; ?>">
-    Detained Students
-</a>
-
-</td>
-
-</tr>
 
 <?php } ?>
 
-</table>
+</div>
 
 </body>
 </html>

@@ -141,7 +141,7 @@ if ($action == "report") {
         SELECT
             s.full_name,
             COUNT(a.id) AS total,
-            SUM(CASE WHEN a.status='Present' THEN 1 ELSE 0 END) AS present
+            SUM(CASE WHEN a.status='P' THEN 1 ELSE 0 END) AS present
         FROM students s
         LEFT JOIN attendance a
             ON s.user_id = a.student_id

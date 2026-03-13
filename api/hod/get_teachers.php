@@ -30,7 +30,7 @@ if (!isset($data['department']) || empty($data['department'])) {
     ]);
     exit;
 }
-
+ 
 $department = $data['department'];
 
 /* =========================================
