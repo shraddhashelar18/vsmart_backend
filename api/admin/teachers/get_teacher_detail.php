@@ -25,12 +25,12 @@ $stmt = $conn->prepare("
         t.user_id AS id,
         t.full_name AS name,
         u.email,
-        t.mobile_no AS phone
+        t.mobile_no AS phone,
+        t.employee_id
     FROM teachers t
     JOIN users u ON u.user_id = t.user_id
     WHERE t.user_id = ?
 ");
-
 $stmt->bind_param("i", $id);
 $stmt->execute();
 $result = $stmt->get_result();
@@ -80,6 +80,7 @@ echo json_encode([
     "name" => $teacher['name'],
     "email" => $teacher['email'],
     "phone" => $teacher['phone'],
+    "employee_id" => $teacher['employee_id'],   // ADD THIS
     "departments" => $departments,
     "classes" => $classes,
     "subjects" => $subjects

@@ -1,7 +1,8 @@
 <?php
 require_once("../config.php");
 require_once("../api_guard.php");
-
+error_reporting(0);
+ini_set('display_errors', 0);
 header("Content-Type: application/json");
 
 $data = json_decode(file_get_contents("php://input"), true);
@@ -27,10 +28,10 @@ if ($action == "settings") {
         "status" => true,
         "activeSemester" => $row['active_semester'],
         "registrationOpen" => (bool) $row['registration_open'],
-        "attendanceLocked" => $row['allow_reupload'] == 0 ? true : false,
+        "attendanceLocked" => $row['attendance_locked'] == 1,
         "atktLimit" => (int) $row['atkt_limit'],
-        "ct1Published" => (bool) $row['ct1_published'],
-        "ct2Published" => (bool) $row['ct2_published'],
+        "ct1Published" => isset($row['ct1_published']) ? (bool) $row['ct1_published'] : false,
+        "ct2Published" => isset($row['ct2_published']) ? (bool) $row['ct2_published'] : false,
         "finalPublished" => (bool) $row['final_published']
     ]);
     exit;
@@ -53,25 +54,22 @@ if ($action == "update_academic") {
     $atktLimit = (int) $data['atktLimit'];
 
     // lock attendance logic
-    $allowReupload = $attendanceLocked ? 0 : 1;
-
     $stmt = $conn->prepare("
-    UPDATE settings
-    SET active_semester=?,
-        registration_open=?,
-        allow_reupload=?,
-        atkt_limit=?
-    WHERE id=1
+UPDATE settings
+SET active_semester=?,
+    registration_open=?,
+    attendance_locked=?,
+    atkt_limit=?
+WHERE id=1
 ");
 
     $stmt->bind_param(
         "siii",
         $activeSemester,
         $registrationOpen,
-        $allowReupload,
+        $attendanceLocked,
         $atktLimit
     );
-
     if ($stmt->execute()) {
         echo json_encode(["status" => true, "message" => "Settings Updated"]);
     } else {

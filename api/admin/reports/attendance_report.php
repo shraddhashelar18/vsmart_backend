@@ -115,16 +115,31 @@ if ($action == "months") {
 
 if ($action == "check_month") {
 
-    $month = $data['month'];
-
-    // example rule: months <= current month enabled
+    $month = $data['month']; // month number sent from Flutter
     $currentMonth = date("n");
 
-    $enabled = $month <= $currentMonth;
+    // semester month order
+    $evenMonths = [12, 1, 2, 3, 4, 5];
+    $oddMonths = [6, 7, 8, 9, 10, 11];
+
+    // get active semester
+    $settings = $conn->query("SELECT active_semester FROM settings WHERE id=1")->fetch_assoc();
+    $semester = $settings['active_semester'];
+
+    $months = ($semester == "EVEN") ? $evenMonths : $oddMonths;
+
+    $currentIndex = array_search($currentMonth, $months);
+    $monthIndex = array_search($month, $months);
+
+    $enabled = false;
+
+    if ($monthIndex !== false && $currentIndex !== false) {
+        $enabled = $monthIndex < $currentIndex;
+    }
 
     echo json_encode([
-        "status"=>true,
-        "enabled"=>$enabled
+        "status" => true,
+        "enabled" => $enabled
     ]);
     exit;
 }
@@ -141,7 +156,7 @@ if ($action == "report") {
         SELECT
             s.full_name,
             COUNT(a.id) AS total,
-            SUM(CASE WHEN a.status='P' THEN 1 ELSE 0 END) AS present
+            SUM(CASE WHEN a.status='Present' THEN 1 ELSE 0 END) AS present
         FROM students s
         LEFT JOIN attendance a
             ON s.user_id = a.student_id
@@ -161,8 +176,8 @@ if ($action == "report") {
 
     while ($row = $res->fetch_assoc()) {
 
-        $present = (int)$row['present'];
-        $total = (int)$row['total'];
+        $present = (int) $row['present'];
+        $total = (int) $row['total'];
 
         $percentage = 0;
 
@@ -189,6 +204,6 @@ INVALID ACTION
 =================================================== */
 
 echo json_encode([
-    "status"=>false,
-    "message"=>"Invalid Action"
+    "status" => false,
+    "message" => "Invalid Action"
 ]);

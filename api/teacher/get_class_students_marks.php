@@ -1,4 +1,5 @@
 <?php
+//get_class_students_marks.php
 require_once("../config.php");
 require_once("../api_guard.php");
 
@@ -47,12 +48,17 @@ WHERE student_id=? AND subject=? AND exam_type=? AND class=?
     $marksStmt->execute();
     $marksRes = $marksStmt->get_result();
 
-    $marks = null;
+   $marks = null;
 $status = "draft";
 
 if ($marksRes->num_rows > 0) {
     $data = $marksRes->fetch_assoc();
-    $marks = $data['obtained_marks'];  // may be NULL
+
+    $marks = $data['obtained_marks'];
+    if ($marks === null) {
+        $marks = null;
+    }
+
     $status = $data['status'];
 }
 

@@ -1,10 +1,12 @@
 <?php
+//get_classes.php
 require_once("../config.php");
 require_once("../api_guard.php");
 
 header("Content-Type: application/json");
 
 $teacherUserId = $currentUserId;
+
 
 $stmt = $conn->prepare("
     SELECT DISTINCT class 
