@@ -1,4 +1,5 @@
 <?php
+//enter_marks.php
 require_once("../config.php");
 require_once("../api_guard.php");
 
@@ -116,17 +117,17 @@ foreach ($marksList as $item) {
         WHERE student_id=? AND subject=? AND exam_type=? AND class=?
         ");
 
-        $update->bind_param(
-          "sississs",
-            $obtainedMarks,
-            $totalMarks,
-            $semester,
-            $status,
-            $studentUserId,
-            $subject,
-            $examType,
-            $class
-        );
+$update->bind_param(
+"iiisisss",
+$obtainedMarks,
+$totalMarks,
+$semester,
+$status,
+$studentUserId,
+$subject,
+$examType,
+$class
+);
 
         $update->execute();
 
@@ -141,7 +142,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 ");
 
 $insert->bind_param(
-"iisssssis",
+"iissssiis",
 $studentUserId,
 $currentUserId,
 $class,
