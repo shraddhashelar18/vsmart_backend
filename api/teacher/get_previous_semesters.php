@@ -1,4 +1,5 @@
 <?php
+//get_previous_semesters.php
 require_once("../config.php");
 require_once("../api_guard.php");
 require_once("../cors.php");
@@ -16,14 +17,24 @@ $response = [];
 # STEP 1 : GET CURRENT SEMESTER
 # ------------------------------------
 
-$semQuery = $conn->query("
+$stmt = $conn->prepare("
 SELECT current_semester, roll_no
 FROM students
-WHERE user_id='$student_id'
+WHERE user_id=?
 ");
 
-$semRow = $semQuery->fetch_assoc();
+$stmt->bind_param("i",$student_id);
+$stmt->execute();
+$semQuery = $stmt->get_result();
 
+$semRow = $semQuery->fetch_assoc();
+if(!$semRow){
+ echo json_encode([
+   "status"=>"error",
+   "message"=>"Student not found"
+ ]);
+ exit;
+}
 $current_semester = $semRow['current_semester'];
 $rollNo = $semRow['roll_no'];
 
@@ -39,13 +50,15 @@ $semesterData = new stdClass();
 # STEP 3 : FETCH SUBJECT MARKS
 # ------------------------------------
 
-$marksQuery = $conn->query("
+$stmt = $conn->prepare("
 SELECT subject,exam_type,obtained_marks,total_marks
 FROM marks
-WHERE student_id='$student_id'
-AND semester='$sem'
-AND status='published'
+WHERE student_id=? AND semester=? AND status='published'
 ");
+
+$stmt->bind_param("ii", $student_id, $sem);
+$stmt->execute();
+$marksQuery = $stmt->get_result();
 
 $totalObtained=0;
 $totalMax=0;
@@ -63,8 +76,10 @@ if(!isset($subjects[$subject])){
 
 $subjects[$subject][$exam]=$row['obtained_marks'];
 
-$totalObtained+=$row['obtained_marks'];
-$totalMax+=$row['total_marks'];
+$obt = $row['obtained_marks'] ?? 0;
+
+$totalObtained += $obt;
+$totalMax += $row['total_marks'];
 
 }
 
@@ -92,12 +107,15 @@ $status="PASS";
 # STEP 6 : ATTENDANCE %
 # ------------------------------------
 
-$attendanceQuery = $conn->query("
+$stmt = $conn->prepare("
 SELECT status
 FROM attendance
-WHERE student_id='$student_id'
-AND semester='$sem'
+WHERE student_id=? AND semester=?
 ");
+
+$stmt->bind_param("ii", $student_id, $sem);
+$stmt->execute();
+$attendanceQuery = $stmt->get_result();
 
 $totalDays=$attendanceQuery->num_rows;
 $presentDays=0;
@@ -120,16 +138,19 @@ $attendancePercent=round(($presentDays/$totalDays)*100,2);
 # STEP 7 : MONTHLY ATTENDANCE TREND
 # ------------------------------------
 
-$trendQuery = $conn->query("
+$stmt = $conn->prepare("
 SELECT MONTHNAME(date) as month,
 SUM(CASE WHEN status='P' THEN 1 ELSE 0 END) as present,
 COUNT(*) as total
 FROM attendance
-WHERE student_id='$student_id'
-AND semester='$sem'
+WHERE student_id=? AND semester=?
 GROUP BY MONTH(date)
 ORDER BY MONTH(date)
 ");
+
+$stmt->bind_param("ii", $student_id, $sem);
+$stmt->execute();
+$trendQuery = $stmt->get_result();
 
 $trend=new stdClass();
 
@@ -145,12 +166,15 @@ $trend->$month=round(($t['present']/$t['total'])*100,2);
 # BUILD SEMESTER DATA
 # ------------------------------------
 
-$marksheetQuery = $conn->query("
+$stmt = $conn->prepare("
 SELECT marksheet_pdf
 FROM semester_results
-WHERE student_id='$student_id'
-AND semester='$sem'
+WHERE student_id=? AND semester=?
 ");
+
+$stmt->bind_param("ii",$student_id,$sem);
+$stmt->execute();
+$marksheetQuery = $stmt->get_result();
 
 $marksheetPdf = null;
 
