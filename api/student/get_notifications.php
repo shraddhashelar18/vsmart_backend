@@ -46,7 +46,7 @@ $stmt = $conn->prepare("
     FROM notifications n
     INNER JOIN notification_receivers nr 
         ON n.id = nr.notification_id
-    WHERE nr.student_id = ?
+    WHERE nr.receiver_user_id = ?
     ORDER BY n.created_at DESC
 ");
 
