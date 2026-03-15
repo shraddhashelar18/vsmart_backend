@@ -1,260 +1,413 @@
 <?php
-require_once "../auth.php";
-require_once "../db.php";
+require_once("../auth.php");
+require_once("../db.php");
 
-$user_id = $_GET['id'] ?? '';
-
-if(empty($user_id)){
-    die("Invalid Teacher ID");
+if(!isset($_GET['id'])){
+die("Teacher ID missing");
 }
 
-/* ===============================
-   FETCH TEACHER INFO
-=================================*/
-$stmt = $conn->prepare("
-    SELECT u.email, t.full_name
-    FROM users u
-    JOIN teachers t ON u.user_id = t.user_id
-    WHERE u.user_id=?
-");
-$stmt->bind_param("i",$user_id);
-$stmt->execute();
-$teacher = $stmt->get_result()->fetch_assoc();
+$user_id=$_GET['id'];
 
-$name = $teacher['full_name'];
-$email = $teacher['email'];
+/* GET TEACHER */
 
+$teacher=$conn->query("
+SELECT *
+FROM teachers
+WHERE user_id='$user_id'
+")->fetch_assoc();
 
-/* ===============================
-   GET ACTIVE SEMESTER
-=================================*/
-$set = $conn->query("SELECT active_semester FROM settings LIMIT 1")->fetch_assoc();
-$activeSemester = $set['active_semester']; // 1=even, 0=odd
+$name=$teacher['full_name'];
 
+/* GET EMAIL */
 
-/* ===============================
-   FETCH CLASSES (ACTIVE SEM)
-=================================*/
-if($activeSemester == 1){
-    $classQuery = $conn->prepare("
-        SELECT class_name, department 
-        FROM classes 
-        WHERE semester % 2 = 0
-        ORDER BY semester ASC
-    ");
-}else{
-    $classQuery = $conn->prepare("
-        SELECT class_name, department 
-        FROM classes 
-        WHERE semester % 2 != 0
-        ORDER BY semester ASC
-    ");
-}
-$classQuery->execute();
-$classResult = $classQuery->get_result();
+$user=$conn->query("
+SELECT email
+FROM users
+WHERE user_id='$user_id'
+")->fetch_assoc();
 
-$allClasses = [];
-while($row = $classResult->fetch_assoc()){
-    $allClasses[] = $row;
-}
+$email=$user['email'] ?? "";
 
-
-/* ===============================
-   FETCH CURRENT ASSIGNMENTS
-=================================*/
-$assignQuery = $conn->prepare("
-    SELECT department, class, subject 
-    FROM teacher_assignments 
-    WHERE user_id=? AND status='active'
-");
-$assignQuery->bind_param("i",$user_id);
-$assignQuery->execute();
-$assignRes = $assignQuery->get_result();
+/* GET ASSIGNED DATA */
 
 $assigned = [];
-while($row = $assignRes->fetch_assoc()){
-    $assigned[$row['class']][] = $row['subject'];
+$assignedClasses = [];
+$departments = [];
+
+$res=$conn->query("
+SELECT class,subject
+FROM teacher_assignments
+WHERE user_id='$user_id'
+AND status='active'
+");
+
+while($row=$res->fetch_assoc()){
+
+$class = $row['class'];
+
+$assignedClasses[$class] = true;
+
+$baseClass = substr($class,0,4);
+
+$assigned[$baseClass][]=$row['subject'];
+
+/* detect department */
+
+$departments[substr($class,0,2)] = true;
+
 }
+/* ALL DEPARTMENTS */
 
+$allDepartments=['IF','CO','EJ'];
 
-/* ===============================
-   UPDATE LOGIC
-=================================*/
-if($_SERVER['REQUEST_METHOD']=='POST'){
+/* GET ALL CLASSES */
 
-    $newName = $_POST['name'];
-    $subjects = $_POST['subjects'] ?? [];
+$classes=$conn->query("
+SELECT class_name
+FROM classes
+");
 
-    // Update name
-    $up = $conn->prepare("UPDATE teachers SET full_name=? WHERE user_id=?");
-    $up->bind_param("si",$newName,$user_id);
-    $up->execute();
+/* GET SUBJECTS */
 
-    // Remove old assignments
-    $del = $conn->prepare("DELETE FROM teacher_assignments WHERE user_id=?");
-    $del->bind_param("i",$user_id);
-    $del->execute();
+$subjects=[];
 
-    // Insert new assignments
-    foreach($subjects as $class => $subList){
+$res=$conn->query("
+SELECT class,subject_name
+FROM semester_subjects
+");
 
-        $dept = $_POST['class_department'][$class];
-
-        foreach($subList as $subject){
-
-            $insert = $conn->prepare("
-                INSERT INTO teacher_assignments 
-                (user_id,department,class,subject,status)
-                VALUES (?,?,?,?, 'active')
-            ");
-            $insert->bind_param("isss",$user_id,$dept,$class,$subject);
-            $insert->execute();
-        }
-    }
-
-    header("Location: manage_teachers.php");
-    exit;
+while($row=$res->fetch_assoc()){
+$subjects[$row['class']][]=$row['subject_name'];
 }
 ?>
 
 <!DOCTYPE html>
 <html>
 <head>
+
 <title>Edit Teacher</title>
+
 <style>
-body{background:#f5f5f5;font-family:sans-serif;margin:0;}
-.header{
-    background:#138808;
-    color:white;
-    padding:20px;
-    font-size:20px;
+
+body{
+font-family:Segoe UI;
+background:#f4f6f9;
+margin:0;
 }
-.container{
-    padding:20px;
+
+.topbar{
+background:#009846;
+color:white;
+padding:18px 25px;
+font-size:22px;
 }
-input[type=text], input[type=email]{
-    width:100%;
-    padding:12px;
-    margin:10px 0;
-    border-radius:10px;
-    border:1px solid #ddd;
+
+.wrapper{
+max-width:900px;
+margin:30px auto;
 }
-.class-box{
-    margin:15px 0;
-    padding:15px;
-    background:white;
-    border-radius:12px;
-    box-shadow:0 2px 6px rgba(0,0,0,0.05);
+
+.input{
+background:#eee;
+padding:14px;
+border-radius:10px;
+margin-top:6px;
+margin-bottom:18px;
+border:none;
+width:100%;
 }
-.subject-box{
-    margin-left:20px;
-    margin-top:10px;
+
+.back{
+color:white;
+text-decoration:none;
+font-size:26px;
 }
-.save-btn{
-    background:#138808;
-    color:white;
-    border:none;
-    padding:15px;
-    width:100%;
-    border-radius:12px;
-    margin-top:25px;
-    font-size:16px;
-    cursor:pointer;
+
+
+.chip{
+display:inline-block;
+padding:10px 18px;
+border-radius:20px;
+border:1px solid #ccc;
+margin:6px;
+cursor:pointer;
+background:white;
 }
-.disabled{
-    color:#aaa;
+
+.chip.selected{
+background:#dcd3ff;
+border-color:#b8a8ff;
 }
+
+.chip.selected::before{
+content:"✔ ";
+}
+
+.chip input{
+display:none;
+}
+
+.subject-section{
+display:none;
+margin-top:15px;
+}
+
+.save{
+width:100%;
+padding:14px;
+background:#009846;
+color:white;
+border:none;
+border-radius:12px;
+font-size:18px;
+margin-top:25px;
+cursor:pointer;
+}
+
 </style>
+
 </head>
+
 <body>
 
-<div class="header">Edit Teacher</div>
-
-<div class="container">
-<form method="POST">
-
-<!-- NAME -->
-<input type="text" name="name" value="<?= htmlspecialchars($name) ?>" required>
-
-<!-- EMAIL (ONLY DISABLED FIELD) -->
-<input type="email" value="<?= htmlspecialchars($email) ?>" disabled>
-
-<h3>Assign Classes & Subjects</h3>
-
-<?php foreach($allClasses as $classRow): 
-
-    $class = $classRow['class_name'];
-    $dept  = $classRow['department'];
-
-    // Preselect class if any subject assigned
-    $isClassSelected = !empty($assigned[$class]);
-?>
-
-<div class="class-box">
-
-<label>
-<input type="checkbox"
-       name="class_select[]"
-       value="<?= $class ?>"
-       <?= $isClassSelected ? 'checked' : '' ?>>
-<?= $class ?> (<?= $dept ?>)
-</label>
-
-<input type="hidden" name="class_department[<?= $class ?>]" value="<?= $dept ?>">
-
-<div class="subject-box">
-
-<?php
-$subQuery = $conn->prepare("SELECT subject_name FROM semester_subjects WHERE class=?");
-$subQuery->bind_param("s",$class);
-$subQuery->execute();
-$subRes = $subQuery->get_result();
-
-while($sub = $subRes->fetch_assoc()){
-
-    $subject = $sub['subject_name'];
-
-    // Check if subject assigned to another teacher
-    $check = $conn->prepare("
-        SELECT user_id FROM teacher_assignments 
-        WHERE class=? AND subject=? AND status='active'
-    ");
-    $check->bind_param("ss",$class,$subject);
-    $check->execute();
-    $checkRes = $check->get_result();
-
-    $assignedToOther = false;
-
-    if($checkRes->num_rows>0){
-        $row = $checkRes->fetch_assoc();
-        if($row['user_id'] != $user_id){
-            $assignedToOther = true;
-        }
-    }
-
-    $isSubSelected = isset($assigned[$class]) && in_array($subject,$assigned[$class]);
-?>
-
-<label class="<?= $assignedToOther ? 'disabled' : '' ?>">
-<input type="checkbox"
-       name="subjects[<?= $class ?>][]"
-       value="<?= $subject ?>"
-       <?= $isSubSelected ? 'checked' : '' ?>
-       <?= $assignedToOther ? 'disabled' : '' ?>>
-<?= $subject ?>
-</label>
-
-<?php } ?>
-
+<div class="topbar">
+<a href="manage_teachers.php" class="back">←</a>
+Edit Teacher
 </div>
-</div>
+
+<div class="wrapper">
+
+<label>Teacher Name</label>
+<input class="input" value="<?= $name ?>" readonly>
+
+<label>Email</label>
+<input class="input" value="<?= $email ?>" readonly>
+
+<label>Departments</label>
+<br>
+
+<?php foreach($allDepartments as $dept): ?>
+
+<label class="chip dept-chip <?= isset($departments[$dept])?'selected':'' ?>" 
+onclick="toggleDepartment(this,'<?= $dept ?>')">
+
+<input type="checkbox" name="departments[]" value="<?= $dept ?>" 
+<?= isset($departments[$dept])?'checked':'' ?>>
+
+<?= $dept ?>
+
+</label>
 
 <?php endforeach; ?>
 
-<button class="save-btn">Update Teacher</button>
 
-</form>
+<h4>Assign Classes</h4>
+
+<?php
+$departmentsList = ['IF','CO','EJ'];
+
+foreach($departmentsList as $dept):
+
+echo "<h4 id='heading-$dept'>".$dept." Department</h4>";
+
+$cls=$conn->query("
+SELECT class_name
+FROM classes
+WHERE department='$dept'
+");
+
+while($row=$cls->fetch_assoc()):
+
+$class=$row['class_name'];
+$isSelected=isset($assignedClasses[$class]);
+?>
+
+<label class="chip class-chip dept-<?= $dept ?> <?= $isSelected?'selected':'' ?>"
+onclick="selectClass(this,'<?= $class ?>')">
+
+<input type="checkbox" name="classes[]" value="<?= $class ?>" <?= $isSelected?'checked':'' ?>>
+
+<?= $class ?>
+
+</label>
+
+<?php endwhile; ?>
+
+<?php endforeach; ?>
+
+<h4>Subjects</h4>
+
+<?php foreach($subjects as $class=>$subs): ?>
+
+<div id="subjects_<?= $class ?>" class="subject-section">
+
+<b><?= $class ?></b>
+<br>
+
+<?php foreach($subs as $sub):
+
+$isAssigned = in_array(
+strtolower(trim($sub)),
+array_map(function($s){
+    return strtolower(trim($s));
+}, $assigned[$class] ?? [])
+);
+
+?>
+
+<label class="chip <?= $isAssigned ? 'selected' : '' ?>">
+
+<input
+type="checkbox"
+name="subjects[<?= $class ?>][]"
+value="<?= $sub ?>"
+<?= $isAssigned ? 'checked' : '' ?>>
+
+<?= $sub ?>
+
+</label>
+
+<?php endforeach; ?>
+
 </div>
+
+<?php endforeach; ?>
+<button class="save">
+Update Teacher
+</button>
+
+</div>
+<script>
+
+document.querySelectorAll(".chip").forEach(function(chip){
+
+chip.addEventListener("click",function(e){
+
+/* ignore class chips (they use selectClass) */
+
+if(chip.classList.contains("class-chip")) return;
+
+let checkbox = chip.querySelector("input");
+
+if(!checkbox) return;
+
+if(checkbox.disabled) return;
+
+checkbox.checked = !checkbox.checked;
+
+if(checkbox.checked){
+chip.classList.add("selected");
+}else{
+chip.classList.remove("selected");
+}
+
+});
+
+});
+
+</script>
+<script>
+
+/* DEPARTMENT TOGGLE */
+
+function toggleDepartment(element, dept){
+
+let checkbox = element.querySelector("input");
+
+/* toggle checkbox */
+
+checkbox.checked = !checkbox.checked;
+
+/* toggle UI */
+
+if(checkbox.checked){
+element.classList.add("selected");
+}else{
+element.classList.remove("selected");
+}
+
+/* show/hide class sections */
+
+document.querySelectorAll(".dept-"+dept).forEach(cls=>{
+cls.style.display = checkbox.checked ? "inline-block" : "none";
+});
+
+/* show/hide department heading */
+
+let heading = document.getElementById("heading-"+dept);
+
+if(heading){
+heading.style.display = checkbox.checked ? "block" : "none";
+}
+
+}
+
+/* CLASS SELECT */
+
+function selectClass(element,className){
+
+let checkbox = element.querySelector("input");
+
+/* toggle checkbox */
+
+checkbox.checked = !checkbox.checked;
+
+if(checkbox.checked){
+element.classList.add("selected");
+}else{
+element.classList.remove("selected");
+}
+
+/* IF6KA → IF6K */
+
+let baseClass = className.substring(0,4);
+
+let section = document.getElementById("subjects_"+baseClass);
+
+if(section){
+
+/* toggle subjects instead of hiding others */
+
+if(checkbox.checked){
+section.style.display="block";
+}else{
+section.style.display="none";
+}
+
+}
+
+}
+
+document.addEventListener("DOMContentLoaded", function(){
+
+document.querySelectorAll(".class-chip input:checked").forEach(function(ch){
+
+let baseClass = ch.value.substring(0,4);
+
+let section = document.getElementById("subjects_"+baseClass);
+
+if(section){
+section.style.display="block";
+}
+
+});
+
+});
+
+document.querySelectorAll(".class-chip.selected").forEach(function(el){
+
+let className = el.querySelector("input").value;
+let baseClass = className.substring(0,4);
+
+let section = document.getElementById("subjects_"+baseClass);
+
+if(section){
+section.style.display="block";
+}
+
+});
+
+</script>
 
 </body>
 </html>

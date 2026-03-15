@@ -1,55 +1,116 @@
-<?php 
-require_once "../auth.php";
- ?>
+<?php require_once("../auth.php"); ?>
+
 <!DOCTYPE html>
 <html>
+
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>Select Department</title>
+
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
 <style>
-body{margin:0;font-family:Arial;background:#f3f3f3;}
-.header{
-    background:#0a8f3c;
-    color:white;
-    padding:20px;
-    border-bottom-left-radius:25px;
-    border-bottom-right-radius:25px;
-    font-size:20px;
-    display:flex;
-    align-items:center;
+
+/* BODY */
+
+body{
+margin:0;
+font-family:Segoe UI;
+background:#f4f6f9;
 }
+
+/* TOP BAR */
+
+.topbar{
+background:#009846;
+color:white;
+padding:20px 30px;
+font-size:24px;
+display:flex;
+align-items:center;
+gap:15px;
+}
+
+/* BACK BUTTON */
+
 .back{
-    margin-right:15px;
-    color:white;
-    text-decoration:none;
-    font-size:22px;
+color:white;
+text-decoration:none;
+font-size:26px;
 }
-.container{padding:20px;}
+
+/* MAIN CONTAINER */
+
+.container{
+max-width:900px;
+margin:auto;
+padding:40px;
+}
+
+/* DEPARTMENT CARD */
+
 .card{
-    background:white;
-    padding:20px;
-    border-radius:15px;
-    margin-bottom:20px;
-    box-shadow:0 4px 10px rgba(0,0,0,0.1);
-    display:flex;
-    justify-content:space-between;
-    text-decoration:none;
-    color:black;
-    font-size:18px;
+background:white;
+padding:28px 35px;
+border-radius:18px;
+margin-bottom:22px;
+display:flex;
+justify-content:space-between;
+align-items:center;
+text-decoration:none;
+color:#333;
+font-size:22px;
+box-shadow:0 6px 15px rgba(0,0,0,0.08);
+transition:0.2s;
 }
+
+/* HOVER EFFECT */
+
+.card:hover{
+transform:translateY(-3px);
+box-shadow:0 8px 20px rgba(0,0,0,0.12);
+}
+
+/* ARROW ICON */
+
+.arrow{
+color:#777;
+font-size:28px;
+}
+
 </style>
+
 </head>
+
 <body>
 
-<div class="header">
-<a href="dashboard.php" class="back">←</a>
+<div class="topbar">
+
+<a href="../dashboard.php" class="back">
+←
+</a>
+
 Select Department
+
 </div>
 
 <div class="container">
-<a href="manage_teachers.php?dept=IF" class="card">IF Department →</a>
-<a href="manage_teachers.php?dept=CO" class="card">CO Department →</a>
-<a href="manage_teachers.php?dept=EJ" class="card">EJ Department →</a>
+
+<a class="card" href="manage_teachers.php?department=IF">
+IF Department
+<span class="material-icons arrow">chevron_right</span>
+</a>
+
+<a class="card" href="manage_teachers.php?department=CO">
+CO Department
+<span class="material-icons arrow">chevron_right</span>
+</a>
+
+<a class="card" href="manage_teachers.php?department=EJ">
+EJ Department
+<span class="material-icons arrow">chevron_right</span>
+</a>
+
 </div>
 
 </body>

@@ -96,17 +96,17 @@ Select Department
 
 <div class="container">
 
-<a class="card" href="select_class.php?department=IF">
+<a class="card" href="manage_classes.php?department=IF">
 IF Department
 <span class="material-icons arrow">chevron_right</span>
 </a>
 
-<a class="card" href="select_class.php?department=CO">
+<a class="card" href="manage_classes.php?department=CO">
 CO Department
 <span class="material-icons arrow">chevron_right</span>
 </a>
 
-<a class="card" href="select_class.php?department=EJ">
+<a class="card" href="manage_classes.php?department=EJ">
 EJ Department
 <span class="material-icons arrow">chevron_right</span>
 </a>

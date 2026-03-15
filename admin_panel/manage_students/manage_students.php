@@ -2,113 +2,176 @@
 require_once("../auth.php");
 require_once("../db.php");
 
-if(!isset($_GET['class'])){
-    echo "Class not selected";
-    exit;
-}
+$class = $_GET['class'];
 
-$class=$_GET['class'];
-
-$stmt=$conn->prepare("
-SELECT s.full_name,s.mobile_no,s.class,u.email,u.user_id
+$result = $conn->query("
+SELECT s.*, u.email
 FROM students s
-JOIN users u ON s.user_id=u.user_id
-WHERE s.class=?
+JOIN users u ON u.user_id=s.user_id
+WHERE s.class='$class'
 ");
-
-$stmt->bind_param("s",$class);
-$stmt->execute();
-$result=$stmt->get_result();
 ?>
 
 <!DOCTYPE html>
 <html>
+
 <head>
 
 <title>Manage Students</title>
-
-<link rel="stylesheet" href="/vsmart/admin_panel/assets/style.css">
 
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
 <style>
 
-.search-box{
-width:100%;
-padding:15px;
-border:none;
-border-radius:12px;
-background:#f1f3f5;
-margin-top:20px;
-font-size:15px;
+/* GLOBAL */
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Arial, sans-serif;
 }
+
+body{
+background:#f5f7f9;
+}
+
+/* TOPBAR */
+
+.topbar{
+background:#009846;
+color:white;
+padding:18px 25px;
+font-size:20px;
+display:flex;
+align-items:center;
+gap:12px;
+}
+
+.back{
+color:white;
+text-decoration:none;
+font-size:24px;
+}
+
+/* PAGE WRAPPER */
+
+.students-wrapper{
+width:1000px;
+margin-left:8px;
+margin-top:40px;
+}
+
+/* SEARCH BOX */
+
+.search-box{
+display:flex;
+align-items:center;
+background:#eeeeee;
+border-radius:30px;
+padding:18px 20px;
+margin-bottom:20px;
+width:900px;         /* larger search bar */
+box-shadow:0 4px 10px rgba(0,0,0,0.08);
+}
+
+
+.search-box input{
+border:none;
+outline:none;
+background:transparent;
+width:100%;
+font-size:18px;      /* larger text */
+margin-left:10px;
+}
+
+
+/* STUDENT COUNT */
+
+.student-count{
+font-size:14px;
+color:#777;
+margin-bottom:20px;
+}
+
+/* STUDENT CARD */
 
 .student-card{
-background:#f5f5f5;
-border-radius:14px;
-padding:18px;
-margin-top:15px;
+background:white;
+border-radius:16px;
+padding:22px;
+margin-bottom:20px;
 display:flex;
+align-items:center;
 justify-content:space-between;
-align-items:center;
+box-shadow:0 6px 15px rgba(0,0,0,0.08);
+width:80%;
 }
+/* AVATAR */
 
-.student-left{
-display:flex;
-align-items:center;
-}
-
-.avatar{
-width:42px;
-height:42px;
+.student-avatar{
+background:#e8f5ec;
+padding:12px;
 border-radius:50%;
-background:#EAF7F1;
-display:flex;
-align-items:center;
-justify-content:center;
-margin-right:12px;
+color:#009846;
+margin-right:14px;
 }
 
-.avatar i{
-color:#009846;
-}
+/* INFO */
 
 .student-info{
-font-size:14px;
+flex:1;
 }
 
 .student-info b{
-font-size:16px;
+font-size:17px;
+display:block;
+margin-bottom:4px;
 }
 
-.actions i{
-font-size:22px;
-margin-left:10px;
-cursor:pointer;
+.student-info p{
+font-size:14px;
+color:#555;
+margin:2px 0;
 }
 
-.edit{
-color:#2196F3;
+/* ACTION ICONS */
+
+.student-actions{
+display:flex;
+gap:12px;
 }
 
-.delete{
-color:#F44336;
+.student-actions .edit{
+color:#2196f3;
 }
 
-.add-btn{
+.student-actions .delete{
+color:red;
+}
+
+/* FLOAT BUTTON */
+
+.fab{
 position:fixed;
 bottom:30px;
 right:30px;
+width:70px;
+height:70px;
 background:#009846;
-width:60px;
-height:60px;
-border-radius:50%;
+color:white;
+font-size:36px;
+border:none;
+border-radius:18px;
+cursor:pointer;
 display:flex;
 align-items:center;
 justify-content:center;
-color:white;
-text-decoration:none;
-box-shadow:0 4px 10px rgba(0,0,0,0.2);
+box-shadow:0 6px 15px rgba(0,0,0,0.25);
+}
+
+.fab:hover{
+background:#007a38;
 }
 
 </style>
@@ -117,107 +180,94 @@ box-shadow:0 4px 10px rgba(0,0,0,0.2);
 
 <body>
 
-<div class="header">
-<h1>Manage Students - <?php echo $class; ?></h1>
+<div class="topbar">
+
+<a href="select_class.php" class="back">←</a>
+
+Manage Students - <?= $class ?>
+
 </div>
 
-<div class="container">
 
-<input 
-type="text"
-id="search"
-class="search-box"
-placeholder="Search by name, email, phone or ID..."
-onkeyup="searchStudents()"
->
+<div class="students-wrapper">
 
-<p id="count" style="color:grey;margin-top:10px;">
-<?php echo $result->num_rows;?> students found
+
+<div class="search-box">
+
+<span class="material-icons">search</span>
+
+<input type="text" placeholder="Search by name, email, phone or ID...">
+
+</div>
+
+
+<p class="student-count">
+
+<?= $result->num_rows ?> students found
+
 </p>
 
-<div id="studentList">
 
-<?php while($row=$result->fetch_assoc()){ ?>
+<?php while($row=$result->fetch_assoc()): ?>
 
-<div class="student-card"
-data-search="<?php echo strtolower($row['full_name']." ".$row['email']." ".$row['mobile_no']." ".$row['class']); ?>">
+<div class="student-card">
 
-<div class="student-left">
 
-<div class="avatar">
-<i class="material-icons">person</i>
+<div class="student-avatar">
+
+<span class="material-icons">person</span>
+
 </div>
+
 
 <div class="student-info">
 
-<b><?php echo $row['full_name']; ?></b><br>
+<b><?= $row['full_name'] ?></b>
 
-<?php echo $row['email']; ?><br>
+<p><?= $row['email'] ?></p>
 
-<?php echo $row['mobile_no']; ?><br>
+<p><?= $row['mobile_no'] ?></p>
 
-<?php echo $row['class']; ?>
-
-</div>
+<p><?= $row['class'] ?></p>
 
 </div>
 
-<div class="actions">
 
-<a href="edit_student.php?id=<?php echo $row['user_id']; ?>">
-<i class="material-icons edit">edit</i>
+<div class="student-actions">
+
+<a href="edit_student.php?id=<?= $row['user_id'] ?>" class="edit">
+
+<span class="material-icons">edit</span>
+
 </a>
 
-<a href="delete_student.php?id=<?php echo $row['user_id']; ?>">
-<i class="material-icons delete">delete</i>
+
+<a href="delete_student.php?id=<?= $row['user_id'] ?>" 
+class="delete"
+onclick="return confirm('Delete this student?')">
+
+<span class="material-icons">delete</span>
+
 </a>
 
 </div>
 
 </div>
 
-<?php } ?>
+<?php endwhile; ?>
+
+
+<button class="fab"
+
+onclick="location.href='add_student.php?class=<?= $class ?>'">
+
++
+
+</button>
+
 
 </div>
-
-</div>
-
-<a href="add_student.php?class=<?php echo $class; ?>" class="add-btn">
-<i class="material-icons">add</i>
-</a>
-
-<script>
-
-function searchStudents(){
-
-let input=document.getElementById("search").value.toLowerCase();
-
-let cards=document.querySelectorAll(".student-card");
-
-let count=0;
-
-cards.forEach(card=>{
-
-let text=card.getAttribute("data-search");
-
-if(text.includes(input)){
-
-card.style.display="flex";
-count++;
-
-}else{
-
-card.style.display="none";
-
-}
-
-});
-
-document.getElementById("count").innerText=count+" students found";
-
-}
-
-</script>
 
 </body>
+
 </html>
