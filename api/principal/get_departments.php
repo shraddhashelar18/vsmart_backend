@@ -1,5 +1,6 @@
 <?php
 require_once("../config.php");
+require_once "../cors.php"; 
 require_once("../api_guard.php");
 
 header("Content-Type: application/json");
@@ -16,7 +17,7 @@ if ($currentRole != 'principal') {
 /* Get distinct departments */
 $result = $conn->query("
     SELECT DISTINCT department
-    FROM classes
+    FROM teacher_assignments
     WHERE status = 'active'
     ORDER BY department
 ");

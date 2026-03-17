@@ -1,5 +1,7 @@
 <?php
 
+require_once "../config.php"; // ✅ IMPORTANT
+
 header("Content-Type: application/json");
 
 /* ======================
@@ -16,8 +18,9 @@ if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
 /* Method 2 */
 elseif (function_exists('apache_request_headers')) {
     $headers = apache_request_headers();
-    if (isset($headers['Authorization'])) {
-        $authHeader = $headers['Authorization'];
+
+    if (isset($headers['Authorization']) || isset($headers['authorization'])) {
+        $authHeader = $headers['Authorization'] ?? $headers['authorization'];
     }
 }
 
@@ -37,7 +40,15 @@ if (!$authHeader) {
    EXTRACT TOKEN
 ====================== */
 
-$token = str_replace("Bearer ", "", $authHeader);
+if (!str_starts_with($authHeader, "Bearer ")) {
+    echo json_encode([
+        "status" => false,
+        "message" => "Invalid Authorization format"
+    ]);
+    exit;
+}
+
+$token = substr($authHeader, 7);
 
 /* ======================
    VALIDATE TOKEN

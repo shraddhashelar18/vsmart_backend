@@ -1,7 +1,16 @@
 <?php
 require_once("../config.php");
+require_once "../cors.php"; 
 require_once("../api_guard.php");
-require_once("../cors.php");
+
+/* ================= ROLE CHECK ================= */
+if ($currentRole != 'student') {
+    echo json_encode([
+        "status" => false,
+        "message" => "Access Denied"
+    ]);
+    exit;
+}
 
 $student_id = $_GET['user_id'];
 $semester = $_GET['semester'];
@@ -22,10 +31,9 @@ if ($result) {
     $response["percentage"] = $result["percentage"];
 
     if (!empty($result["marksheet_pdf"])) {
-    $response["marksheetPdf"] =
-        "http://192.168.0.102:8080/vsmart_backend/uploads/marksheets/" . $result["marksheet_pdf"];
-}else
-{
+        $response["marksheetPdf"] =
+            "http://192.168.0.102:8080/vsmart_backend/uploads/marksheets/" . $result["marksheet_pdf"];
+    } else {
         $response["marksheetPdf"] = null;
     }
 

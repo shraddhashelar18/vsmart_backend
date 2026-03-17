@@ -1,7 +1,20 @@
 <?php
 //get_grades.php
-header("Content-Type: application/json");
+
 require_once "../config.php";
+require_once "../cors.php"; 
+require_once "../api_guard.php"; // ✅ ADDED
+
+header("Content-Type: application/json");
+
+/* ================= ROLE CHECK ================= */
+if ($currentRole != 'parent') {
+    echo json_encode([
+        "status" => false,
+        "message" => "Access Denied"
+    ]);
+    exit;
+}
 
 $data = json_decode(file_get_contents("php://input"), true);
 
