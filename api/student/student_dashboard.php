@@ -98,7 +98,7 @@ while ($row = $attRes->fetch_assoc()) {
    4️⃣ PERFORMANCE TREND (Last 6 Months)
 ========================================= */
 
-$performanceTrend = [];
+$$performanceTrend = [];
 
 for ($i = 5; $i >= 0; $i--) {
 
@@ -118,21 +118,16 @@ for ($i = 5; $i >= 0; $i--) {
     $trendRes = $trendStmt->get_result();
 
     $present = 0;
-    $total = 0;
 
     while ($r = $trendRes->fetch_assoc()) {
-        $total++;
 
         if ($r['status'] == 'present' || $r['status'] == 'late') {
             $present++;
         }
     }
 
-    $percent = $total > 0 ? round(($present / $total) * 100, 2) : 0;
-
-    $performanceTrend[] = $percent;
+    $performanceTrend[] = $present;
 }
-
 /* =========================================
    5️⃣ SUBJECT-WISE PERFORMANCE (CT1 + CT2)
    Total CT per subject = 60

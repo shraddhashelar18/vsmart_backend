@@ -2,20 +2,25 @@
 require_once("../auth.php");
 require_once("../db.php");
 
-$dept = $_GET['dept'];
+$department = $_GET['department'] ?? '';
 
+/* get active semester from settings */
 $set = $conn->query("SELECT active_semester FROM settings LIMIT 1")->fetch_assoc();
 
-if($set['active_semester']=="even"){
-$condition="semester % 2 = 1";
+/* EVEN / ODD logic */
+if($set['active_semester'] == "EVEN"){
+    // show semesters 2,4,6
+    $condition = "semester % 2 = 0";
 }else{
-$condition="semester % 2 = 0";
+    // show semesters 1,3,5
+    $condition = "semester % 2 = 1";
 }
 
-$classes=$conn->query("
+/* fetch classes */
+$classes = $conn->query("
 SELECT class_name
 FROM classes
-WHERE department='$dept'
+WHERE department='$department'
 AND $condition
 ORDER BY semester
 ");
@@ -23,30 +28,81 @@ ORDER BY semester
 
 <!DOCTYPE html>
 <html>
+
 <head>
+
 <link rel="stylesheet" href="../assets/style.css">
-<title>Select Class</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+<style>
+
+body{
+display:block;
+background:#f4f6f9;
+margin:0;
+font-family:Segoe UI;
+}
+
+.topbar{
+background:#009846;
+color:white;
+padding:22px;
+font-size:24px;
+display:flex;
+align-items:center;
+gap:10px;
+}
+
+.container{
+max-width:700px;
+margin:auto;
+padding:40px 20px;
+}
+
+.card{
+background:white;
+padding:25px 30px;
+border-radius:18px;
+margin-bottom:20px;
+display:flex;
+justify-content:space-between;
+align-items:center;
+text-decoration:none;
+color:black;
+font-size:20px;
+box-shadow:0 6px 15px rgba(0,0,0,0.1);
+}
+
+</style>
+
 </head>
 
 <body>
 
-<div class="header">
-<h1>Select Class</h1>
+<div class="topbar">
+
+<a href="select_department.php" style="color:white;text-decoration:none;font-size:22px;">
+←
+</a>
+
+Select Class
+
 </div>
 
 <div class="container">
 
-<?php while($c=$classes->fetch_assoc()){ ?>
+<?php while($row=$classes->fetch_assoc()): ?>
 
-<a href="manage_students.php?class=<?=$c['class_name']?>">
+<a class="card"
+href="manage_students.php?class=<?= $row['class_name'] ?>">
 
-<button class="action-btn">
-<?=$c['class_name']?> →
-</button>
+<?= $row['class_name'] ?>
+
+<span class="material-icons">chevron_right</span>
 
 </a>
 
-<?php } ?>
+<?php endwhile; ?>
 
 </div>
 

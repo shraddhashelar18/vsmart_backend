@@ -3,55 +3,90 @@ require_once("../config.php");
 require_once("../api_guard.php");
 require_once("../cors.php");
 
-$student_id=$_GET['user_id'];
-$semester=$_GET['semester'];
+$student_id = $_GET['user_id'];
+$semester = $_GET['semester'];
 
-$response=[];
+$response = [];
 
 # RESULT SUMMARY
 
-$result=$conn->query("
+$result = $conn->query("
 SELECT percentage, marksheet_pdf
 FROM semester_results
 WHERE student_id='$student_id'
 AND semester='$semester'
 ")->fetch_assoc();
 
-if($result){
-$response["percentage"]=$result["percentage"];
-$response["marksheetPdf"]=$result["marksheet_pdf"];
-$response["status"]=($result["percentage"]>=40)?"PASS":"FAIL";
-}else{
-$response["percentage"]=0;
-$response["marksheetPdf"]=null;
-$response["status"]="RESULT_NOT_DECLARED";
+if ($result) {
+
+    $response["percentage"] = $result["percentage"];
+
+    $response["marksheetPdf"] = "http://10.0.2.2/vsmart_backend/" . $result["marksheet_pdf"];
+
+    $response["status"] = ($result["percentage"] >= 40) ? "PASS" : "FAIL";
+
+} else {
+
+    $response["percentage"] = 0;
+    $response["marksheetPdf"] = null;
+    $response["status"] = "RESULT_NOT_DECLARED";
+
 }
 
 # ATTENDANCE %
 
-$att=$conn->query("
-SELECT status FROM attendance
+$att = $conn->query("
+SELECT status
+FROM attendance
 WHERE student_id='$student_id'
+AND semester='$semester'
 ");
 
-$total=$att->num_rows;
-$present=0;
+$total = $att->num_rows;
+$present = 0;
 
-while($r=$att->fetch_assoc()){
-if($r['status']=="P")$present++;
+while ($r = $att->fetch_assoc()) {
+    if ($r['status'] == "P")
+        $present++;
 }
 
-if($total>0){
-$attendancePercent=($present/$total)*100;
-}else{
-$attendancePercent=0;
+$attendancePercent = 0;
+
+if ($total > 0) {
+    $attendancePercent = ($present / $total) * 100;
 }
 
-$response["attendance"]=round($attendancePercent);
+$response["attendance"] = round($attendancePercent);
+
+# ATTENDANCE TREND
+
+$trendQuery = $conn->query("
+SELECT 
+MONTHNAME(date) as month,
+SUM(CASE WHEN status='P' THEN 1 ELSE 0 END) as present,
+COUNT(*) as total
+FROM attendance
+WHERE student_id='$student_id'
+AND semester='$semester'
+GROUP BY MONTH(date)
+ORDER BY MONTH(date)
+");
+
+$trend = new stdClass();
+
+while ($t = $trendQuery->fetch_assoc()) {
+
+    $month = $t['month'];
+
+    $trend->$month = round(($t['present'] / $t['total']) * 100, 2);
+
+}
+
+$response["attendanceTrend"] = $trend;
 
 # MARKS
 
-$marksQuery=$conn->query("
+$marksQuery = $conn->query("
 SELECT subject,exam_type,obtained_marks
 FROM marks
 WHERE student_id='$student_id'
@@ -59,19 +94,21 @@ AND semester='$semester'
 AND status='published'
 ");
 
-$subjects=[];
+$subjects = [];
 
-while($row=$marksQuery->fetch_assoc()){
+while ($row = $marksQuery->fetch_assoc()) {
 
-$subject=$row['subject'];
-$exam=$row['exam_type'];
+    $subject = $row['subject'];
+    $exam = $row['exam_type'];
 
-$subjects[$subject][$exam]=$row['obtained_marks'];
+    $subjects[$subject][$exam] = $row['obtained_marks'];
 
 }
 
-$response["marks"]=$subjects;
+$response["marks"] = $subjects;
 
-echo json_encode($response);
-
+echo json_encode([
+    "status" => true,
+    "data" => $response
+]);
 ?>

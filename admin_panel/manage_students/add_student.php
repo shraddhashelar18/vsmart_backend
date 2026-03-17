@@ -2,83 +2,130 @@
 require_once("../auth.php");
 require_once("../db.php");
 
-if(!isset($_GET['class'])){
-    echo "Class not selected";
-    exit;
-}
-
-$class=$_GET['class'];
+$class = $_GET['class'];
 $error="";
 
 if(isset($_POST['save'])){
 
-$name=trim($_POST['name']);
-$email=trim($_POST['email']);
-$password=trim($_POST['password']);
-$mobile=trim($_POST['mobile']);
-$parent_mobile=trim($_POST['parent_mobile']);
-$roll=trim($_POST['roll']);
-$enrollment=trim($_POST['enrollment']);
+$name = trim($_POST['name']);
+$email = trim($_POST['email']);
+$password = $_POST['password'];
+$phone = $_POST['phone'];
+$parentPhone = $_POST['parentPhone'];
+$roll = $_POST['roll'];
+$enrollment = $_POST['enrollment'];
 
-if($name==""){
-$error="Full name required";
+if(
+empty($name) ||
+empty($email) ||
+empty($password) ||
+empty($phone) ||
+empty($parentPhone) ||
+empty($roll) ||
+empty($enrollment)
+){
+$error="All fields required";
+}
+
+elseif(!preg_match("/^[A-Za-z0-9]{10}$/",$roll)){
+$error="Roll must be exactly 10 alphanumeric characters";
+}
+
+elseif(!preg_match("/^[0-9]{10}$/",$phone)){
+$error="Mobile number must be 10 digits";
+}
+
+elseif(!preg_match("/^[0-9]{10}$/",$parentPhone)){
+$error="Parent mobile must be 10 digits";
 }
 
 elseif(!filter_var($email,FILTER_VALIDATE_EMAIL)){
 $error="Invalid email";
 }
 
-elseif(strlen($password)<6){
-$error="Password must be minimum 6 characters";
-}
-
-elseif(!preg_match('/^[0-9]{10}$/',$mobile)){
-$error="Mobile must be 10 digits";
-}
-
-elseif(!preg_match('/^[0-9]{10}$/',$parent_mobile)){
-$error="Parent mobile must be 10 digits";
-}
-
-else{
-
-$check=$conn->prepare("SELECT user_id FROM users WHERE email=?");
-$check->bind_param("s",$email);
-$check->execute();
-$check->store_result();
-
-if($check->num_rows>0){
-$error="Email already exists";
-}
-
 else{
 
 $conn->begin_transaction();
 
-$hash=password_hash($password,PASSWORD_BCRYPT);
+try{
 
-$user=$conn->prepare("
+$checkEmail=$conn->prepare("SELECT user_id FROM users WHERE email=?");
+$checkEmail->bind_param("s",$email);
+$checkEmail->execute();
+$checkEmail->store_result();
+
+if($checkEmail->num_rows>0){
+throw new Exception("Email already exists");
+}
+
+$checkEnroll=$conn->prepare("SELECT enrollment_no FROM students WHERE enrollment_no=?");
+$checkEnroll->bind_param("s",$enrollment);
+$checkEnroll->execute();
+$checkEnroll->store_result();
+
+if($checkEnroll->num_rows>0){
+throw new Exception("Enrollment already exists");
+}
+
+$hashedPassword=password_hash($password,PASSWORD_DEFAULT);
+
+$stmtUser=$conn->prepare("
 INSERT INTO users(email,password,role,status)
-VALUES(?,?, 'student','approved')
+VALUES(?,?,'student','approved')
 ");
 
-$user->bind_param("ss",$email,$hash);
-$user->execute();
+$stmtUser->bind_param("ss",$email,$hashedPassword);
+$stmtUser->execute();
 
 $user_id=$conn->insert_id;
 
-$student=$conn->prepare("
-INSERT INTO students(user_id,full_name,mobile_no,parent_mobile_no,roll_no,enrollment_no,class)
-VALUES(?,?,?,?,?,?,?)
+$department=substr($class,0,2);
+
+preg_match('/\d+/',$class,$match);
+$semester="SEM".($match[0] ?? "1");
+
+$stmtStudent=$conn->prepare("
+INSERT INTO students
+(roll_no,user_id,full_name,class,
+mobile_no,parent_mobile_no,
+enrollment_no,department,
+current_semester,status)
+VALUES(?,?,?,?,?,?,?,?,?,'studying')
 ");
 
-$student->bind_param("issssss",$user_id,$name,$mobile,$parent_mobile,$roll,$enrollment,$class);
-$student->execute();
+$stmtStudent->bind_param(
+"sisssssss",
+$roll,
+$user_id,
+$name,
+$class,
+$phone,
+$parentPhone,
+$enrollment,
+$department,
+$semester
+);
+
+$stmtStudent->execute();
+
+$stmtParent=$conn->prepare("
+UPDATE parents
+SET enrollment_no=?
+WHERE mobile_no=?
+");
+
+$stmtParent->bind_param("ss",$enrollment,$parentPhone);
+$stmtParent->execute();
 
 $conn->commit();
 
-header("Location:manage_students.php?class=".$class);
+header("Location: manage_students.php?class=".$class);
 exit;
+
+}catch(Exception $e){
+
+$conn->rollback();
+$error=$e->getMessage();
 
 }
 
@@ -89,56 +136,108 @@ exit;
 
 <!DOCTYPE html>
 <html>
-
 <head>
 
-<link rel="stylesheet" href="/vsmart/admin_panel/assets/style.css">
+<title>Add Student</title>
+
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
 <style>
 
-.form-box{
-width:520px;
-margin:auto;
-margin-top:40px;
-background:white;
-padding:40px;
-border-radius:20px;
-box-shadow:0 8px 20px rgba(0,0,0,0.08);
+/* GLOBAL */
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Arial,sans-serif;
 }
 
-.input-box{
+body{
+background:#f5f7f9;
+}
+
+/* TOPBAR */
+
+.topbar{
+background:#009846;
+color:white;
+padding:18px 25px;
+font-size:20px;
+display:flex;
+align-items:center;
+gap:12px;
+}
+
+.back{
+color:white;
+text-decoration:none;
+font-size:24px;
+}
+
+/* FORM WRAPPER */
+
+.form-wrapper{
+display:flex;
+justify-content:center;
+margin-top:60px;
+}
+
+/* FORM CARD */
+
+.student-form{
+width:380px;
+background:white;
+padding:25px;
+border-radius:18px;
+box-shadow:0 6px 15px rgba(0,0,0,0.1);
+}
+
+/* INPUT GROUP */
+
+.input-group{
 display:flex;
 align-items:center;
 border:1px solid #ddd;
 border-radius:14px;
-padding:14px;
-margin-bottom:18px;
+padding:12px 14px;
+margin-bottom:14px;
+background:#f7f7f7;
 }
 
-.input-box i{
+.input-group span{
 margin-right:10px;
+color:#777;
 }
 
-.input-box input{
+.input-group input{
 border:none;
 outline:none;
 width:100%;
+background:transparent;
+font-size:15px;
 }
 
-.btn{
+/* BUTTON */
+
+.submit-btn{
 width:100%;
-background:#0A8F3E;
+background:#009846;
 color:white;
-padding:14px;
 border:none;
-border-radius:25px;
+padding:14px;
+border-radius:12px;
 font-size:16px;
 cursor:pointer;
 }
 
-.readonly{
-background:#f3f3f3;
+.submit-btn:hover{
+background:#007a38;
+}
+
+.error{
+color:red;
+margin-bottom:10px;
 }
 
 </style>
@@ -147,59 +246,58 @@ background:#f3f3f3;
 
 <body>
 
-<div class="header">
-<h1>Add Student</h1>
+<div class="topbar">
+<a href="manage_students.php?class=<?=$class?>" class="back">←</a>
+Add Student
 </div>
 
-<div class="form-box">
+<div class="form-wrapper">
 
-<?php if($error!=""){ ?>
-<p style="color:red;text-align:center"><?php echo $error; ?></p>
-<?php } ?>
+<form method="POST" class="student-form">
 
-<form method="POST">
+<?php if($error!="") echo "<p class='error'>$error</p>"; ?>
 
-<div class="input-box">
-<i class="material-icons">person</i>
-<input type="text" name="name" placeholder="Full Name">
+<div class="input-group">
+<span class="material-icons">person</span>
+<input name="name" placeholder="Full Name" required>
 </div>
 
-<div class="input-box">
-<i class="material-icons">email</i>
-<input type="text" name="email" placeholder="Email">
+<div class="input-group">
+<span class="material-icons">mail</span>
+<input name="email" type="email" placeholder="Email" required>
 </div>
 
-<div class="input-box">
-<i class="material-icons">lock</i>
-<input type="password" name="password" placeholder="Password">
+<div class="input-group">
+<span class="material-icons">lock</span>
+<input name="password" type="password" placeholder="Password" required>
 </div>
 
-<div class="input-box">
-<i class="material-icons">phone</i>
-<input type="text" name="mobile" placeholder="Mobile">
+<div class="input-group">
+<span class="material-icons">call</span>
+<input name="phone" placeholder="Mobile Number" maxlength="10" required>
 </div>
 
-<div class="input-box">
-<i class="material-icons">phone</i>
-<input type="text" name="parent_mobile" placeholder="Parent Mobile">
+<div class="input-group">
+<span class="material-icons">call</span>
+<input name="parentPhone" placeholder="Parent Mobile Number" maxlength="10" required>
 </div>
 
-<div class="input-box">
-<i class="material-icons">badge</i>
-<input type="text" name="roll" placeholder="Roll No">
+<div class="input-group">
+<span class="material-icons">badge</span>
+<input name="roll" placeholder="Roll Number" maxlength="10" required>
 </div>
 
-<div class="input-box">
-<i class="material-icons">tag</i>
-<input type="text" name="enrollment" placeholder="Enrollment">
+<div class="input-group">
+<span class="material-icons">tag</span>
+<input name="enrollment" placeholder="Enrollment Number" maxlength="11" required>
 </div>
 
-<div class="input-box readonly">
-<i class="material-icons">school</i>
-<input type="text" value="<?php echo $class; ?>" readonly>
+<div class="input-group">
+<span class="material-icons">school</span>
+<input value="<?=$class?>" readonly>
 </div>
 
-<button class="btn" name="save">Save Student</button>
+<button class="submit-btn" name="save">Add Student</button>
 
 </form>
 

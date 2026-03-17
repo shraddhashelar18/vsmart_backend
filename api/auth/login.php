@@ -189,11 +189,11 @@ if ($user['role'] == "student") {
 
     $sStmt = $conn->prepare("
        SELECT full_name,class,current_semester,department
-FROM students
-WHERE user_id = ?
+       FROM students
+       WHERE user_id = ?
     ");
 
-    $sStmt->bind_param("i",$user['user_id']);
+    $sStmt->bind_param("i", $user['user_id']);
     $sStmt->execute();
     $sRes = $sStmt->get_result();
 
@@ -202,22 +202,11 @@ WHERE user_id = ?
         $student = $sRes->fetch_assoc();
 
         $className = $student['class'];
-$name = $student['full_name'] ?? null;
-        $semester = (int) filter_var(
-            $student['current_semester'],
-            FILTER_SANITIZE_NUMBER_INT
-        );
+        $name = $student['full_name'] ?? $user['email'];
+        $semester = (int) ($student['current_semester'] ?? 0);
 
         if (!empty($student['department'])) {
             $departments[] = $student['department'];
-        }
-
-        if ($semester <= 0) {
-            echo json_encode([
-                "status"=>false,
-                "message"=>"Invalid semester"
-            ]);
-            exit;
         }
     }
 }

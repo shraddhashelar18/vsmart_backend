@@ -1,82 +1,302 @@
 <?php
+
 require_once("../config.php");
 require_once("../api_guard.php");
 require_once("../cors.php");
+require_once("../../vendor/autoload.php");
+
+use Smalot\PdfParser\Parser;
+
 header("Content-Type: application/json");
 
-if($currentRole!="student"){
-    echo json_encode(["status"=>false,"message"=>"Access denied"]);
+/* ================= ROLE CHECK ================= */
+
+if ($currentRole != "student") {
+    echo json_encode([
+        "status" => false,
+        "message" => "Access denied"
+    ]);
     exit;
 }
 
-$userId=$currentUserId;
+$student_id = $currentUserId;
 
-/* check upload allowed */
+/* ================= FILE CHECK ================= */
 
-$setting=$conn->query("SELECT allow_marksheet_upload FROM settings LIMIT 1");
-$row=$setting->fetch_assoc();
-
-if($row['allow_marksheet_upload']==0){
-    echo json_encode(["status"=>false,"message"=>"Upload not allowed"]);
+if (!isset($_FILES['marksheet'])) {
+    echo json_encode([
+        "status" => false,
+        "message" => "Marksheet required"
+    ]);
     exit;
 }
 
-/* prevent reupload */
+$file = $_FILES['marksheet'];
 
-$check=$conn->query("
-SELECT marks_uploaded,current_semester
-FROM students
-WHERE user_id='$userId'
-")->fetch_assoc();
-
-if($check['marks_uploaded']==1){
-    echo json_encode(["status"=>false,"message"=>"Already uploaded"]);
+if ($file['error'] !== 0) {
+    echo json_encode([
+        "status" => false,
+        "message" => "File upload failed"
+    ]);
     exit;
 }
 
-$semester="SEM".$check['current_semester'];
+/* ================= VALIDATION ================= */
 
-/* assume PDF parsed already */
+$ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
 
-$marks=[
- ["subject"=>"Machine Learning","marks"=>78],
- ["subject"=>"Computer Networks","marks"=>65],
- ["subject"=>"Operating System","marks"=>55]
+if ($ext != "pdf") {
+    echo json_encode([
+        "status" => false,
+        "message" => "Only PDF allowed"
+    ]);
+    exit;
+}
+
+if ($file['size'] > 5 * 1024 * 1024) {
+    echo json_encode([
+        "status" => false,
+        "message" => "File too large"
+    ]);
+    exit;
+}
+
+/* ================= SAVE FILE ================= */
+
+$uploadDir = "../uploads/marksheets/";
+
+if (!file_exists($uploadDir)) {
+    mkdir($uploadDir, 0777, true);
+}
+
+$fileName = $student_id . "_" . time() . ".pdf";
+$target = $uploadDir . $fileName;
+
+if (!move_uploaded_file($file['tmp_name'], $target)) {
+    echo json_encode([
+        "status" => false,
+        "message" => "Failed to save file"
+    ]);
+    exit;
+}
+
+/* ================= READ PDF ================= */
+
+try {
+
+    $parser = new Parser();
+    $pdf = $parser->parseFile($target);
+    $text = $pdf->getText();
+    file_put_contents("debug.txt", $text);
+
+} catch (Exception $e) {
+
+    echo json_encode([
+        "status" => false,
+        "message" => "Unable to read marksheet"
+    ]);
+    exit;
+}
+
+if (empty($text)) {
+    echo json_encode([
+        "status" => false,
+        "message" => "Marksheet text not readable"
+    ]);
+    exit;
+}
+
+/* ================= DETECT SEMESTER ================= */
+
+preg_match('/(FIRST|SECOND|THIRD|FOURTH|FIFTH|SIXTH)\s+SEMESTER/i', $text, $semMatch);
+
+$semesterMap = [
+    "FIRST" => 1,
+    "SECOND" => 2,
+    "THIRD" => 3,
+    "FOURTH" => 4,
+    "FIFTH" => 5,
+    "SIXTH" => 6
 ];
 
-foreach($marks as $m){
+if (!isset($semMatch[1])) {
+    echo json_encode([
+        "status" => false,
+        "message" => "Semester not detected"
+    ]);
+    exit;
+}
 
-    $stmt=$conn->prepare("
-        INSERT INTO marks
-        (student_id,semester,subject,exam_type,total_marks,obtained_marks)
-        VALUES (?,?,?,?,?,?)
+$semesterNumber = $semesterMap[strtoupper($semMatch[1])];
+
+/* ================= CHECK DUPLICATE ================= */
+
+$stmt = $conn->prepare("
+SELECT id FROM semester_results 
+WHERE student_id=? AND semester=?
+");
+
+$stmt->bind_param("ii", $student_id, $semesterNumber);
+$stmt->execute();
+$res = $stmt->get_result();
+
+if ($res->num_rows > 0) {
+
+    echo json_encode([
+        "status" => false,
+        "message" => "Marksheet already uploaded"
+    ]);
+    exit;
+}
+
+/* ================= DELETE OLD MARKS ================= */
+
+$stmt = $conn->prepare("
+DELETE FROM marks
+WHERE student_id=? AND semester=? AND exam_type='FINAL'
+");
+
+$stmt->bind_param("ii", $student_id, $semesterNumber);
+$stmt->execute();
+
+/* ================= GET SUBJECTS ================= */
+
+$subjects = [];
+
+$stmt = $conn->prepare("
+SELECT subject_name 
+FROM semester_subjects
+WHERE semester=?
+");
+
+$stmt->bind_param("i", $semesterNumber);
+$stmt->execute();
+$res = $stmt->get_result();
+
+/* ================= EXTRACT MARKS ================= */
+
+$subjectList = [];
+
+while ($row = $res->fetch_assoc()) {
+    $subjectList[] = $row['subject_name'];
+}
+
+$lines = preg_split("/\r\n|\n|\r/", $text);
+
+foreach ($lines as $line) {
+
+    foreach ($subjectList as $subject) {
+
+        if (stripos($line, $subject) !== false) {
+
+            preg_match_all('/\d+/', $line, $nums);
+
+            if (!empty($nums[0])) {
+
+                $numbers = $nums[0];
+
+                for ($i = 0; $i < count($numbers); $i++) {
+
+                    if ($numbers[$i] == 100 && isset($numbers[$i + 1])) {
+
+                        $marks = intval($numbers[$i + 1]);
+
+                        if ($marks <= 100) {
+                            $subjects[$subject] = $marks;
+                        }
+
+                        break;
+                    }
+
+                }
+            }
+        }
+    }
+}
+
+/* ================= SAVE MARKS ================= */
+
+foreach ($subjects as $subject => $marks) {
+
+    $stmt = $conn->prepare("
+    INSERT INTO marks
+    (student_id,teacher_user_id,class,semester,subject,exam_type,total_marks,obtained_marks,status)
+    VALUES (?,?,?,? ,?,'FINAL',100,?,'published')
     ");
 
-    $exam="FINAL";
-    $total=100;
+    $teacher = 0;
+    $class = "";
 
     $stmt->bind_param(
-        "isssii",
-        $userId,
-        $semester,
-        $m['subject'],
-        $exam,
-        $total,
-        $m['marks']
+        "iisssi",
+        $student_id,
+        $teacher,
+        $class,
+        $semesterNumber,
+        $subject,
+        $marks
     );
 
     $stmt->execute();
 }
 
-/* mark upload complete */
+/* ================= EXTRACT PERCENTAGE ================= */
+
+/* ================= EXTRACT PERCENTAGE ================= */
+
+/* ================= EXTRACT PERCENTAGE ================= */
+
+$percentage = 0;
+
+/* MSBTE style percentage detection */
+if (preg_match('/PERCENTAGE\s*[:\-]?\s*([0-9]+\.[0-9]+)/i', $text, $m)) {
+    $percentage = $m[1];
+}
+elseif (preg_match('/([0-9]{2,3}\.[0-9]{2})/', $text, $m)) {
+    $percentage = $m[1];
+}
+
+if ($percentage == 0) {
+    echo json_encode([
+        "status" => false,
+        "message" => "Percentage not detected"
+    ]);
+    exit;
+
+}
+/* ================= SAVE RESULT ================= */
+
+$stmt = $conn->prepare("
+INSERT INTO semester_results
+(student_id,semester,percentage,marksheet_pdf)
+VALUES (?,?,?,?)
+");
+
+$stmt->bind_param(
+    "iiss",
+    $student_id,
+    $semesterNumber,
+    $percentage,
+    $fileName
+);
+
+$stmt->execute();
+
+/* ================= UPDATE STUDENT ================= */
 
 $conn->query("
 UPDATE students
 SET marks_uploaded=1
-WHERE user_id='$userId'
+WHERE user_id='$student_id'
 ");
 
+/* ================= RESPONSE ================= */
+
 echo json_encode([
-    "status"=>true,
-    "message"=>"Marksheet uploaded"
+    "status" => true,
+    "message" => "Marksheet uploaded successfully",
+    "semester" => $semesterNumber,
+    "percentage" => $percentage
 ]);
+
+?>

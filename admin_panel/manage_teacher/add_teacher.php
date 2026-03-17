@@ -1,207 +1,368 @@
 <?php
-require_once "../auth.php";
-require_once "../db.php";
+require_once("../auth.php");
+require_once("../db.php");
 
-$department = $_GET['dept'] ?? '';
-
-if(empty($department)){
-    die("Department not selected.");
+if(!isset($_GET['department'])){
+die("Department missing");
 }
 
-/* ===============================
-   GET ACTIVE SEMESTER
-=================================*/
-$set = $conn->query("SELECT active_semester FROM settings LIMIT 1")->fetch_assoc();
-$activeSemester = $set['active_semester']; // 1=even, 0=odd
+$department=$_GET['department'];
 
+/* GET CLASSES OF DEPARTMENT */
 
-/* ===============================
-   FETCH CLASSES BASED ON SEMESTER
-=================================*/
-if($activeSemester == 1){
-    // EVEN
-    $classQuery = $conn->prepare("
-        SELECT class_name, semester 
-        FROM classes 
-        WHERE department=? AND semester % 2 = 0
-        ORDER BY semester ASC
-    ");
-} else {
-    // ODD
-    $classQuery = $conn->prepare("
-        SELECT class_name, semester 
-        FROM classes 
-        WHERE department=? AND semester % 2 != 0
-        ORDER BY semester ASC
-    ");
+$classes=$conn->query("
+SELECT class_name
+FROM classes
+WHERE department='$department'
+");
+
+/* GET SUBJECTS FROM semester_subjects */
+
+$subjects=[];
+
+$res=$conn->query("
+SELECT class,subject_name
+FROM semester_subjects
+");
+
+while($row=$res->fetch_assoc()){
+$subjects[$row['class']][]=$row['subject_name'];
 }
 
-$classQuery->bind_param("s",$department);
-$classQuery->execute();
-$classResult = $classQuery->get_result();
+/* GET ASSIGNED SUBJECTS */
 
-$classList = [];
-while($row = $classResult->fetch_assoc()){
-    $classList[] = $row['class_name'];
+$assigned=[];
+
+$res=$conn->query("
+SELECT class,subject
+FROM teacher_assignments
+WHERE status='active'
+");
+
+while($row=$res->fetch_assoc()){
+$baseClass = substr($row['class'],0,4);  // IF2KA → IF2K
+
+$assigned[$baseClass][]=$row['subject'];
 }
 
-/* ===============================
-   HANDLE FORM SUBMIT
-=================================*/
-if($_SERVER['REQUEST_METHOD'] == 'POST'){
-
-    $name = $_POST['name'];
-    $email = $_POST['email'];
-    $password = password_hash($_POST['password'], PASSWORD_BCRYPT);
-    $selectedClasses = $_POST['classes'] ?? [];
-    $selectedSubjects = $_POST['subjects'] ?? [];
-
-    // Insert into users
-    $stmt = $conn->prepare("INSERT INTO users (email,password,role,first_login) VALUES (?,?, 'teacher',1)");
-    $stmt->bind_param("ss",$email,$password);
-    $stmt->execute();
-    $user_id = $stmt->insert_id;
-
-    // Insert into teachers
-    $stmt2 = $conn->prepare("INSERT INTO teachers (user_id,full_name,department) VALUES (?,?,?)");
-    $stmt2->bind_param("iss",$user_id,$name,$department);
-    $stmt2->execute();
-
-    // Insert assignments
-    foreach($selectedSubjects as $class => $subjects){
-        foreach($subjects as $subject){
-
-            $assign = $conn->prepare("
-                INSERT INTO teacher_assignments 
-                (user_id,department,class,subject,status)
-                VALUES (?,?,?,?,'active')
-            ");
-            $assign->bind_param("isss",$user_id,$department,$class,$subject);
-            $assign->execute();
-        }
-    }
-
-    header("Location: manage_teachers.php?dept=".$department);
-    exit;
-}
 ?>
 
 <!DOCTYPE html>
 <html>
 <head>
+
 <title>Add Teacher</title>
-<link rel="stylesheet" href="assets/style.css">
+
 <style>
-body {background:#f5f5f5;font-family:sans-serif;}
-.header {
-    background:#138808;
-    color:white;
-    padding:20px;
-    font-size:20px;
+
+body{
+font-family:Segoe UI;
+background:#f4f6f9;
+margin:0;
 }
-.container {padding:20px;}
-input, select {
-    width:100%;
-    padding:12px;
-    margin:10px 0;
-    border-radius:10px;
-    border:1px solid #ddd;
+
+/* TOPBAR */
+
+.topbar{
+background:#009846;
+color:white;
+padding:18px 25px;
+font-size:22px;
 }
-.class-box, .subject-box {
-    display:inline-block;
-    padding:8px 14px;
-    margin:5px;
-    border-radius:20px;
-    border:1px solid #ccc;
-    cursor:pointer;
+
+/* WRAPPER */
+
+.wrapper{
+max-width:900px;
+margin:30px auto;
 }
-.save-btn {
-    background:#138808;
-    color:white;
-    border:none;
-    padding:15px;
-    width:100%;
-    border-radius:10px;
-    margin-top:20px;
+
+/* INPUT */
+
+.input{
+background:#eee;
+padding:14px;
+border-radius:10px;
+margin-top:6px;
+margin-bottom:18px;
+border:none;
+width:100%;
 }
-.disabled-subject {
-    background:#eee;
-    color:#999;
-    cursor:not-allowed;
+
+/* CHIP */
+
+.chip{
+display:inline-block;
+padding:10px 18px;
+border-radius:20px;
+border:1px solid #ccc;
+margin:6px;
+cursor:pointer;
+background:white;
+transition:0.2s;
 }
+
+.chip:hover{
+background:#f1f1f1;
+}
+
+.chip.selected{
+background:#dcd3ff;
+border-color:#b8a8ff;
+}
+
+.chip.disabled{
+background:#eee;
+color:#888;
+cursor:not-allowed;
+}
+
+.chip input{
+display:none;
+}
+
+
+
+/* SUBJECT SECTION */
+
+.subject-section{
+display:none;
+margin-top:15px;
+}
+
+/* SAVE BUTTON */
+
+.save{
+width:100%;
+padding:14px;
+background:#009846;
+color:white;
+border:none;
+border-radius:12px;
+font-size:18px;
+margin-top:25px;
+cursor:pointer;
+}
+
+.back{
+color:white;
+text-decoration:none;
+font-size:22px;
+margin-right:10px;
+}
+
 </style>
+
 </head>
+
 <body>
 
-<div class="header">
-    Add Teacher
+<div class="topbar">
+
+<a href="manage_teachers.php?department=<?= $department ?>" class="back">
+←
+</a>
+
+Add Teacher
+
 </div>
 
-<div class="container">
-<form method="POST">
+<div class="wrapper">
 
-<input type="text" name="name" placeholder="Enter full name" required>
+<form method="POST" action="save_teacher.php" id="teacherForm">
 
-<input type="email" name="email" placeholder="teacher@email.com" required>
+<label>Teacher Name</label>
 
-<input type="password" name="password" placeholder="Enter password" required>
+<input
+class="input"
+name="name"
+placeholder="Enter full name"
+required
+pattern="[A-Za-z ]+">
 
-<h3>Department</h3>
-<input type="text" value="<?= $department ?>" readonly>
+<label>Email</label>
 
-<h3>Assign Classes</h3>
+<input
+class="input"
+type="email"
+name="email"
+placeholder="teacher@email.com"
+required>
 
-<?php foreach($classList as $class): ?>
-    <div>
-        <label>
-            <input type="checkbox" name="classes[]" value="<?= $class ?>">
-            <?= $class ?>
-        </label>
-    </div>
+<label>Password</label>
 
-    <!-- Subjects -->
-    <div style="margin-left:20px;margin-bottom:10px;">
-    <?php
-        $subQuery = $conn->prepare("SELECT subject_name FROM semester_subjects WHERE class=?");
-        $subQuery->bind_param("s",$class);
-        $subQuery->execute();
-        $subRes = $subQuery->get_result();
+<input
+class="input"
+type="password"
+name="password"
+placeholder="Enter password"
+required
+minlength="6">
 
-        while($sub = $subRes->fetch_assoc()){
+<label>Departments</label>
 
-            $subjectName = $sub['subject_name'];
+<br>
 
-            // Check if already assigned
-            $check = $conn->prepare("
-                SELECT id FROM teacher_assignments 
-                WHERE class=? AND subject=? AND status='active'
-            ");
-            $check->bind_param("ss",$class,$subjectName);
-            $check->execute();
-            $checkRes = $check->get_result();
+<div class="chip selected">
+✔ <?= $department ?>
+</div>
 
-            $isAssigned = $checkRes->num_rows > 0;
-    ?>
+<input type="hidden" name="department" value="<?= $department ?>">
 
-        <label style="margin-right:10px;">
-            <input 
-                type="checkbox"
-                name="subjects[<?= $class ?>][]"
-                value="<?= $subjectName ?>"
-                <?= $isAssigned ? 'disabled' : '' ?>
-            >
-            <?= $subjectName ?>
-        </label>
+<h4>Assign Classes</h4>
 
-    <?php } ?>
-    </div>
+<?php while($row=$classes->fetch_assoc()): 
+
+$class=$row['class_name'];
+?>
+
+<label class="chip class-chip" onclick="selectClass(this,'<?= $class ?>')">
+
+<input
+type="radio"
+name="class"
+value="<?= $class ?>"
+style="display:none">
+
+<?= $class ?>
+
+</label>
+
+<?php endwhile; ?>
+
+<h4>Subjects</h4>
+
+<?php foreach($subjects as $class=>$subs): ?>
+
+<div id="subjects_<?= $class ?>" class="subject-section">
+
+<b><?= $class ?></b>
+
+<br>
+
+<?php foreach($subs as $sub):
+
+$isAssigned = in_array($sub,$assigned[$class] ?? []);
+
+?>
+
+<label class="chip <?= $isAssigned ? 'disabled selected' : '' ?>">
+
+<input
+type="checkbox"
+name="subjects[<?= $class ?>][]"
+value="<?= $sub ?>"
+<?= $isAssigned ? 'checked disabled' : '' ?>>
+
+<?= $sub ?>
+
+</label>
 
 <?php endforeach; ?>
 
-<button type="submit" class="save-btn">Save Teacher</button>
-
-</form>
 </div>
 
+<?php endforeach; ?>
+
+<button class="save">
+Save Teacher
+</button>
+
+</form>
+
+</div>
+
+<script>
+
+/* CLASS CLICK */
+
+function selectClass(element,className){
+
+document.querySelectorAll(".class-chip").forEach(c=>{
+c.classList.remove("selected");
+});
+
+element.classList.add("selected");
+
+element.querySelector("input").checked = true;
+
+document.querySelectorAll(".subject-section").forEach(sec=>{
+sec.style.display="none";
+});
+
+/* convert IF2KA → IF2K */
+
+let baseClass = className.substring(0,4);
+
+let section = document.getElementById("subjects_" + baseClass);
+
+if(section){
+section.style.display = "block";
+}
+
+}
+
+/* FORM VALIDATION */
+
+document.getElementById("teacherForm").onsubmit=function(){
+
+let classSelected=document.querySelector("input[name='class']:checked");
+
+if(!classSelected){
+alert("Please select a class");
+return false;
+}
+
+return true;
+
+}
+
+</script>
+<script>
+
+document.querySelectorAll(".chip").forEach(chip=>{
+
+chip.addEventListener("click",function(){
+
+let checkbox = this.querySelector("input");
+
+if(checkbox.disabled) return;
+
+checkbox.checked = !checkbox.checked;
+
+this.classList.toggle("selected");
+
+});
+
+});
+
+</script>
+<script>
+
+document.querySelectorAll(".chip").forEach(function(chip){
+
+chip.addEventListener("click",function(){
+
+let checkbox = chip.querySelector("input");
+
+if(checkbox.disabled) return;
+
+/* toggle checkbox */
+
+checkbox.checked = !checkbox.checked;
+
+/* toggle selected design */
+
+if(checkbox.checked){
+chip.classList.add("selected");
+}else{
+chip.classList.remove("selected");
+}
+
+});
+
+});
+
+</script>
 </body>
 </html>

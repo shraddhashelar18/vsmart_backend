@@ -1,4 +1,5 @@
 <?php
+//get_student_profile.php
 header("Content-Type: application/json");
 require_once "../config.php";
 
