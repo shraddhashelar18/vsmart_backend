@@ -63,7 +63,7 @@ if ($file['size'] > 5 * 1024 * 1024) {
 
 /* ================= SAVE FILE ================= */
 
-$uploadDir = "../uploads/marksheets/";
+$uploadDir = "../../uploads/marksheets/";
 
 if (!file_exists($uploadDir)) {
     mkdir($uploadDir, 0777, true);

@@ -48,25 +48,24 @@ $semester_type = ($semester_number % 2 == 0) ? "EVEN" : "ODD";
 
 $active_semester = $current_sem;
 
-/* Check if CT1 published for current semester */
+/* Check if marks exist for current semester */
 
 $check = $conn->prepare("
-SELECT COUNT(DISTINCT subject) as cnt
+SELECT COUNT(*) as cnt
 FROM marks
 WHERE student_id=? 
-AND semester=? 
-AND exam_type='CT1' 
-AND status='published'
+AND semester=?
 ");
 
-$check->bind_param("is", $student_id, $current_sem);
+$check->bind_param("ii", $student_id, $current_sem);
 $check->execute();
 $row = $check->get_result()->fetch_assoc();
 
-if ($row['cnt'] == 0) {
-    $active_semester = (string) ((int) $current_sem - 1);
-}
+/* If no marks in current semester → show previous semester */
 
+if ($row['cnt'] == 0 && $current_sem > 1) {
+    $active_semester = $current_sem - 1;
+}
 /* =====================================================
    3️⃣ GET SETTINGS
 ===================================================== */
@@ -81,7 +80,7 @@ $settings = $conn->query("SELECT * FROM settings LIMIT 1")->fetch_assoc();
    3️⃣ SUBJECT COUNT
 ===================================================== */
 
-$classPrefix = substr($current_class, 0, 4); // IF6K
+$classPrefix = $current_class;
 
 $subjectQuery = $conn->prepare("
 SELECT COUNT(id) as total_subjects
@@ -89,13 +88,16 @@ FROM semester_subjects
 WHERE semester=? AND class=?
 ");
 
-$subjectQuery->bind_param("is", $semester_number, $classPrefix);
+$subjectQuery->bind_param("is", $active_semester, $classPrefix);
 $subjectQuery->execute();
 
 $subjectRow = $subjectQuery->get_result()->fetch_assoc();
 $subjectCount = $subjectRow['total_subjects'];
 
-$total_ct_marks = $subjectCount * 30;
+
+/* =====================================================
+   5️⃣ CHECK CT1 / CT2 PUBLISH STATUS
+===================================================== */
 
 /* =====================================================
    5️⃣ CHECK CT1 / CT2 PUBLISH STATUS
@@ -106,15 +108,19 @@ SELECT COUNT(DISTINCT subject) as cnt
 FROM marks
 WHERE student_id=? 
 AND semester=? 
-AND exam_type='CT1' 
+AND exam_type='CT1'
 AND status='published'
 ");
 
-$ct1Check->bind_param("is", $student_id, $active_semester);
+$ct1Check->bind_param("ii", $student_id, $active_semester);
 $ct1Check->execute();
 $ct1Row = $ct1Check->get_result()->fetch_assoc();
 
-$ct1_published = ($ct1Row['cnt'] == $subjectCount) ? "1" : "0";
+if ($active_semester != $current_sem) {
+    $ct1_published = "1";
+} else {
+    $ct1_published = ($ct1Row['cnt'] > 0) ? "1" : "0";
+}
 
 
 $ct2Check = $conn->prepare("
@@ -122,16 +128,19 @@ SELECT COUNT(DISTINCT subject) as cnt
 FROM marks
 WHERE student_id=? 
 AND semester=? 
-AND exam_type='CT2' 
+AND exam_type='CT2'
 AND status='published'
 ");
 
-$ct2Check->bind_param("is", $student_id, $active_semester);
+$ct2Check->bind_param("ii", $student_id, $active_semester);
 $ct2Check->execute();
 $ct2Row = $ct2Check->get_result()->fetch_assoc();
 
-$ct2_published = ($ct2Row['cnt'] == $subjectCount) ? "1" : "0";
-
+if ($active_semester != $current_sem) {
+    $ct2_published = "1";
+} else {
+    $ct2_published = ($ct2Row['cnt'] > 0) ? "1" : "0";
+}
 /* =====================================================
    6️⃣ FETCH MARKS
 ===================================================== */
@@ -166,6 +175,7 @@ while ($row = $marksResult->fetch_assoc()) {
         $final_total += (int) $row['obtained_marks'];
 }
 
+$total_ct_marks = count($marksData) * 30;
 /* =====================================================
    7️⃣ PERCENTAGE CALCULATION
 ===================================================== */
@@ -246,8 +256,10 @@ $checkUpload->bind_param("i", $student_id);
 $checkUpload->execute();
 $row = $checkUpload->get_result()->fetch_assoc();
 
-if ($row['marks_uploaded'] == 1) {
-    $uploadAllowed = 0;
+$uploadAllowed = 0;
+
+if ($settings['allow_marksheet_upload'] == 1 && $row['marks_uploaded'] == 0) {
+    $uploadAllowed = 1;
 }
 /* =====================================================
    FINAL RESPONSE

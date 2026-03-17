@@ -21,7 +21,13 @@ if ($result) {
 
     $response["percentage"] = $result["percentage"];
 
-    $response["marksheetPdf"] = "http://10.0.2.2/vsmart_backend/" . $result["marksheet_pdf"];
+    if (!empty($result["marksheet_pdf"])) {
+    $response["marksheetPdf"] =
+        "http://192.168.0.102:8080/vsmart_backend/uploads/marksheets/" . $result["marksheet_pdf"];
+}else
+{
+        $response["marksheetPdf"] = null;
+    }
 
     $response["status"] = ($result["percentage"] >= 40) ? "PASS" : "FAIL";
 
@@ -62,7 +68,7 @@ $response["attendance"] = round($attendancePercent);
 
 $trendQuery = $conn->query("
 SELECT 
-MONTHNAME(date) as month,
+DATE_FORMAT(date,'%M') as month,
 SUM(CASE WHEN status='P' THEN 1 ELSE 0 END) as present,
 COUNT(*) as total
 FROM attendance
@@ -72,13 +78,13 @@ GROUP BY MONTH(date)
 ORDER BY MONTH(date)
 ");
 
-$trend = new stdClass();
+$trend = [];
 
 while ($t = $trendQuery->fetch_assoc()) {
 
     $month = $t['month'];
 
-    $trend->$month = round(($t['present'] / $t['total']) * 100, 2);
+    $trend[$month] = round(($t['present'] / $t['total']) * 100, 2);
 
 }
 

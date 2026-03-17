@@ -18,7 +18,7 @@ $userId = $currentUserId;   // student user_id
 $input = json_decode(file_get_contents("php://input"), true);
 
 if (isset($input['user_id']) && is_numeric($input['user_id'])) {
-    $userId = (int)$input['user_id'];
+    $userId = (int) $input['user_id'];
 }
 if (!$conn) {
     echo json_encode([
