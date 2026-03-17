@@ -3,43 +3,39 @@ require_once("../config.php");
 
 /* ================= DEPARTMENT ================= */
 
-$department = "IF";
+$department = "IF";   
 
 /* ================= GET ACTIVE SEMESTER ================= */
 
-$setting = $conn->query("
-SELECT active_semester
-FROM settings
-LIMIT 1
-");
-
-$active = $setting->fetch_assoc()['active_semester'];
+$setting = $conn->query("SELECT active_semester FROM settings LIMIT 1");
+$row = $setting->fetch_assoc();
+$active = $row['active_semester'];
 
 /* ================= FETCH CLASSES ================= */
 
-if($active == "EVEN"){
+if ($active == "EVEN") {
 
-$stmt = $conn->prepare("
-SELECT class_name
-FROM classes
-WHERE department = ?
-AND semester IN (2,4,6)
-ORDER BY semester,class_name
-");
+    $stmt = $conn->prepare("
+        SELECT class_name 
+        FROM classes
+        WHERE department = ?
+        AND semester IN (2,4,6)
+        ORDER BY semester
+    ");
 
-}else{
+} else {
 
-$stmt = $conn->prepare("
-SELECT class_name
-FROM classes
-WHERE department = ?
-AND semester IN (1,3,5)
-ORDER BY semester,class_name
-");
+    $stmt = $conn->prepare("
+        SELECT class_name 
+        FROM classes
+        WHERE department = ?
+        AND semester IN (1,3,5)
+        ORDER BY semester
+    ");
 
 }
 
-$stmt->bind_param("s",$department);
+$stmt->bind_param("s", $department);
 $stmt->execute();
 $result = $stmt->get_result();
 ?>
@@ -48,7 +44,6 @@ $result = $stmt->get_result();
 <html>
 
 <head>
-
 <title>Select Class</title>
 
 <style>
@@ -61,18 +56,14 @@ background:#e9e4ea;
 
 .header{
 background:#0a8f3c;
-color:white;
+color:#000;
 padding:18px;
 font-size:22px;
+font-weight:500;
 }
 
 .container{
 padding:15px;
-}
-
-.class-link{
-text-decoration:none;
-color:black;
 }
 
 .class-card{
@@ -87,8 +78,9 @@ align-items:center;
 font-size:18px;
 }
 
-.arrow{
-font-size:20px;
+a{
+text-decoration:none;
+color:black;
 }
 
 </style>
@@ -98,20 +90,20 @@ font-size:20px;
 <body>
 
 <div class="header">
-Promoted Student
+Select Class
 </div>
 
 <div class="container">
 
-<?php while($row = $result->fetch_assoc()){ ?>
+<?php while ($class = $result->fetch_assoc()) { ?>
 
-<a href="promoted_student.php?class=<?php echo $row['class_name']; ?>" class="class-link">
+<a href="student.php?class=<?php echo $class['class_name']; ?>">
 
 <div class="class-card">
 
-<div><?php echo $row['class_name']; ?></div>
-
-<div class="arrow">›</div>
+<div>
+<?php echo $class['class_name']; ?>
+</div>
 
 </div>
 

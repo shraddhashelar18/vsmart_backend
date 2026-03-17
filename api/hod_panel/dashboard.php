@@ -3,44 +3,71 @@
 require_once(__DIR__ . "/../config.php");
 require_once(__DIR__ . "/../promotion_helper.php");
 
-
 /* SET DEPARTMENT */
-$department = "IF";   // change department if needed (IT, CO, ME etc)
+$department = "IF";
+
+/* GET ACTIVE SEMESTER (ODD / EVEN) */
+
+$semSetting = $conn->query("SELECT active_semester FROM settings LIMIT 1");
+$activeSemester = $semSetting->fetch_assoc()['active_semester'];
 
 /* GET ATKT LIMIT */
+
 $setting = $conn->query("SELECT atkt_limit FROM settings LIMIT 1");
 $atktLimit = (int)$setting->fetch_assoc()['atkt_limit'];
 
-/* GET STUDENTS */
-$stmt = $conn->prepare("SELECT user_id FROM students WHERE class LIKE CONCAT(?, '%')");
+/* ================= GET STUDENTS BASED ON SEMESTER ================= */
+
+if($activeSemester == "EVEN"){
+
+$stmt = $conn->prepare("
+SELECT user_id
+FROM students
+WHERE class LIKE CONCAT(?, '%')
+AND CAST(SUBSTRING(class,3,1) AS UNSIGNED) IN (2,4,6)
+");
+
+}else{
+
+$stmt = $conn->prepare("
+SELECT user_id
+FROM students
+WHERE class LIKE CONCAT(?, '%')
+AND CAST(SUBSTRING(class,3,1) AS UNSIGNED) IN (1,3,5)
+");
+
+}
+
 $stmt->bind_param("s",$department);
 $stmt->execute();
 $result = $stmt->get_result();
+
+/* ================= PROMOTION COUNT ================= */
 
 $totalStudents = 0;
 $promoted = 0;
 $promotedWithBacklog = 0;
 $detained = 0;
 
-/* CALCULATE PROMOTION STATUS */
 while($row = $result->fetch_assoc()){
 
-    $totalStudents++;
+$totalStudents++;
 
-    $promotion = calculatePromotion($conn,$row['user_id'],$atktLimit);
+$promotion = calculatePromotion($conn,$row['user_id'],$atktLimit);
 
-    if($promotion['status']=="PROMOTED"){
-        $promoted++;
-    }
-    elseif($promotion['status']=="PROMOTED_WITH_ATKT"){
-        $promotedWithBacklog++;
-    }
-    elseif($promotion['status']=="DETAINED"){
-        $detained++;
-    }
+if($promotion['status']=="PROMOTED"){
+$promoted++;
+}
+elseif($promotion['status']=="PROMOTED_WITH_ATKT"){
+$promotedWithBacklog++;
+}
+elseif($promotion['status']=="DETAINED"){
+$detained++;
 }
 
-/* COUNT TEACHERS */
+}
+
+/* ================= COUNT TEACHERS ================= */
 
 $teacherStmt = $conn->prepare("
 SELECT COUNT(DISTINCT ta.user_id) AS totalTeachers
@@ -119,15 +146,29 @@ View Teachers
 </a>
 
 <a class="action-btn" href="promoted_classes.php">
-View Promoted List
+View Promoted List 
 </a>
 
-<a class="action-btn" href="atkt.php">
+<a class="action-btn" href="atkt_classes.php">
 View ATKT List
 </a>
 
-<a class="action-btn" href="detained.php">
+<a class="action-btn" href="detained_classes.php">
 View Detained List
+</a>
+
+</div>
+<!-- Bottom Navigation -->
+<div class="bottom-nav">
+
+<a href="dashboard.php" class="nav-item active">
+<div class="icon">📊</div>
+<div class="label">Dashboard</div>
+</a>
+
+<a href="settings.php" class="nav-item">
+<div class="icon">⚙️</div>
+<div class="label">Settings</div>
 </a>
 
 </div>

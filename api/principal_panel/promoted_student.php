@@ -1,5 +1,5 @@
 <?php
-require_once("db.php");
+require_once("../config.php");
 require_once("../promotion_helper.php");
 
 if(!isset($_GET['class'])){

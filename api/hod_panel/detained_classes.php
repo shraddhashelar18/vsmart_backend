@@ -98,14 +98,14 @@ font-size:20px;
 <body>
 
 <div class="header">
-Promoted Student
+Detained Students
 </div>
 
 <div class="container">
 
 <?php while($row = $result->fetch_assoc()){ ?>
 
-<a href="promoted_student.php?class=<?php echo $row['class_name']; ?>" class="class-link">
+<a href="detained_student.php?class=<?php echo $row['class_name']; ?>" class="class-link">
 
 <div class="class-card">
 
