@@ -6,13 +6,16 @@
 
 require_once(__DIR__ . "/../config.php");
 require_once(__DIR__ . "/../api_guard.php");
-require_once("../cors.php");
+require_once(__DIR__ . "/../../cors.php");
 /* =====================================
    SET RESPONSE TYPE
 ===================================== */
 
 header("Content-Type: application/json");
-
+if($currentRole != "admin"){
+    echo json_encode(["status"=>false,"message"=>"Access denied"]);
+    exit;
+}
 /* =====================================
    INITIALIZE VARIABLES
 ===================================== */

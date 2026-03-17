@@ -87,6 +87,8 @@ $subjects[$row['class']][]=$row['subject_name'];
 
 <title>Edit Teacher</title>
 
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
 <style>
 
 body{
@@ -100,6 +102,9 @@ background:#009846;
 color:white;
 padding:18px 25px;
 font-size:22px;
+display:flex;
+align-items:center;
+gap:10px;
 }
 
 .wrapper{
@@ -171,7 +176,9 @@ cursor:pointer;
 <body>
 
 <div class="topbar">
-<a href="manage_teachers.php" class="back">←</a>
+<a href="manage_teachers.php" class="back">
+<span class="material-icons">arrow_back</span>
+</a>
 Edit Teacher
 </div>
 

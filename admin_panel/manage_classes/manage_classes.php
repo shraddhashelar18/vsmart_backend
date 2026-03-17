@@ -58,9 +58,9 @@ font-size:24px;
 /* CENTER WRAPPER */
 
 .wrapper{
-max-width:900px;
-margin:40px auto;
-padding:0 20px;
+width:95%;        /* same desktop width */
+margin-left:80px;   /* left spacing */
+margin-top:40px;
 }
 
 /* CLASS CARD */
@@ -155,7 +155,9 @@ box-shadow:0 6px 15px rgba(0,0,0,0.25);
 
 <div class="topbar">
 
-<a href="select_department.php" class="back">←</a>
+<a href="select_department.php" class="back">
+<span class="material-icons">arrow_back</span>
+</a>
 
 Manage Classes - <?= $department ?>
 
@@ -196,9 +198,11 @@ href="edit_class.php?id=<?= $row['class_id'] ?>&department=<?= $department ?>">
 </a>
 
 <a class="delete"
-href="delete_class.php?id=<?= $row['class_id'] ?>&department=<?= $department ?>"
-onclick="return confirm('Delete class?')">
+href="delete_class.php?id=<?=$row['class_id']?>&department=<?=$department?>"
+onclick="return confirm('Are you sure you want to delete this class?')">
+
 <span class="material-icons">delete</span>
+
 </a>
 
 </div>

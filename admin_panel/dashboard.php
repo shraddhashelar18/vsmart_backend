@@ -29,25 +29,23 @@ background:#f4f6f9;
 .header{
 background:#009846;
 color:white;
-padding:40px;
-border-bottom-left-radius:35px;
-border-bottom-right-radius:35px;
+padding:20px 40px;
 }
 
 .header h1{
 margin:0;
-font-size:32px;
+font-size:26px;
 }
 
 .header p{
-margin-top:10px;
+margin-top:5px;
 opacity:0.9;
 }
 
 /* CONTAINER */
 
 .container{
-max-width:900px;
+width:95%;
 margin:auto;
 padding:30px;
 }
@@ -63,10 +61,10 @@ margin-bottom:40px;
 
 .card{
 background:white;
-padding:35px;
-border-radius:20px;
+padding:30px;
+border-radius:12px;
 text-align:center;
-box-shadow:0 6px 15px rgba(0,0,0,0.08);
+box-shadow:0 4px 12px rgba(0,0,0,0.08);
 }
 
 .icon{
@@ -78,7 +76,7 @@ display:flex;
 align-items:center;
 justify-content:center;
 margin:auto;
-margin-bottom:12px;
+margin-bottom:10px;
 color:#009846;
 font-size:30px;
 }
@@ -89,7 +87,7 @@ color:#666;
 }
 
 .card h2{
-font-size:30px;
+font-size:28px;
 margin-top:10px;
 }
 
@@ -101,13 +99,13 @@ margin-bottom:20px;
 
 .btn{
 width:100%;
-padding:18px;
-margin-bottom:15px;
+padding:16px;
+margin-bottom:12px;
 background:#009846;
 color:white;
 border:none;
-border-radius:12px;
-font-size:18px;
+border-radius:8px;
+font-size:16px;
 cursor:pointer;
 }
 
@@ -124,7 +122,7 @@ width:100%;
 background:white;
 display:flex;
 justify-content:space-around;
-padding:15px;
+padding:12px;
 box-shadow:0 -2px 10px rgba(0,0,0,0.1);
 }
 
@@ -143,6 +141,16 @@ font-size:22px;
 .bottom a.active{
 color:#009846;
 font-weight:bold;
+}
+
+/* RESPONSIVE */
+
+@media(max-width:700px){
+
+.cards{
+grid-template-columns:1fr;
+}
+
 }
 
 </style>
@@ -202,12 +210,11 @@ font-weight:bold;
 Manage Teachers
 </button>
 
-<button class="btn"
-onclick="location.href='manage_students/select_department.php'">
+<button class="btn" onclick="location.href='manage_students/select_department.php'">
 Manage Students
 </button>
 
-<button class="btn" onclick="location.href='manage_parents.php'">
+<button class="btn" onclick="location.href='manage_parents/select_department.php'">
 Manage Parents
 </button>
 

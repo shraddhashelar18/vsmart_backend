@@ -28,60 +28,72 @@ font-family:Segoe UI;
 background:#f5f7f9;
 }
 
-.fab{
-position:fixed;
-bottom:30px;
-right:30px;
-width:70px;
-height:70px;
-background:#009846;
-color:white;
-font-size:36px;
-border:none;
-border-radius:18px;
-cursor:pointer;
-display:flex;
-align-items:center;
-justify-content:center;
-box-shadow:0 6px 15px rgba(0,0,0,0.25);
-}
-
-.fab:hover{
-background:#007a38;
-}
-
 /* TOPBAR */
 
 .topbar{
 background:#009846;
 color:white;
-padding:18px 30px;
+padding:18px 40px;
 font-size:20px;
+display:flex;
+align-items:center;
+gap:10px;
 }
 
-/* WRAPPER */
-
-.wrapper{
-width:700px;
-margin-left:50px;
-margin-top:40px;
+.back{
+color:white;
+text-decoration:none;
+font-size:24px;
 }
+
+/* MAIN CONTAINER */
+
+.container{
+width:95%;
+margin:auto;
+margin-top:30px;
+}
+
+/* SEARCH BAR */
+
+.search-box{
+display:flex;
+align-items:center;
+background:#eceff1;
+border-radius:10px;
+margin-bottom:25px;
+padding:0 12px;
+}
+
+.search-icon{
+color:#777;
+margin-right:8px;
+}
+
+.search{
+width:100%;
+padding:14px;
+border:none;
+background:transparent;
+font-size:14px;
+outline:none;
+}
+
 
 /* TEACHER CARD */
 
 .teacher-card{
 background:white;
-border-radius:16px;
-padding:30px;
-margin-bottom:20px;
+border-radius:14px;
+padding:20px;
+margin-bottom:18px;
 display:flex;
 align-items:center;
 justify-content:space-between;
-box-shadow:0 6px 15px rgba(0,0,0,0.08);
-width:100%;
+box-shadow:0 4px 10px rgba(0,0,0,0.08);
 }
 
-/* LEFT SECTION */
+/* LEFT SIDE */
 
 .left{
 display:flex;
@@ -90,18 +102,11 @@ gap:15px;
 cursor:pointer;
 }
 
-.back{
-color:white;
-text-decoration:none;
-font-size:24px;
-margin-right:10px;
-}
-
 /* AVATAR */
 
 .avatar{
-width:45px;
-height:45px;
+width:50px;
+height:50px;
 border-radius:50%;
 background:#e8f5ec;
 display:flex;
@@ -126,8 +131,8 @@ color:#666;
 
 .actions{
 display:flex;
-gap:12px;
-font-size:20px;
+gap:15px;
+font-size:22px;
 }
 
 .edit{
@@ -140,6 +145,30 @@ color:red;
 text-decoration:none;
 }
 
+/* FLOAT ADD BUTTON */
+
+.fab{
+position:fixed;
+bottom:35px;
+right:35px;
+width:65px;
+height:65px;
+background:#009846;
+color:white;
+font-size:34px;
+border:none;
+border-radius:16px;
+cursor:pointer;
+display:flex;
+align-items:center;
+justify-content:center;
+box-shadow:0 6px 15px rgba(0,0,0,0.25);
+}
+
+.fab:hover{
+background:#007a38;
+}
+
 </style>
 
 </head>
@@ -147,21 +176,34 @@ text-decoration:none;
 <body>
 
 <div class="topbar">
-<a href="select_department.php"
-class="back">
-←
+
+<a href="select_department.php" class="back">
+<span class="material-icons">arrow_back</span>
 </a>
+
 Manage Teachers
+
 </div>
 
-<div class="wrapper">
+<div class="container">
+
+<div class="search-box">
+
+<span class="material-icons search-icon">search</span>
+
+<input 
+type="text" 
+class="search"
+placeholder="Search teacher...">
+
+</div>
 
 <?php while($row=$result->fetch_assoc()): ?>
 
 <div class="teacher-card">
 
 <div class="left"
-onclick="location.href='teacher_details.php?id=<?=$row['user_id'] ?>department=<?= $department ?>'">
+onclick="location.href='teacher_details.php?id=<?=$row['user_id']?>&department=<?=$department?>'">
 
 <div class="avatar">
 <span class="material-icons">person</span>
@@ -199,9 +241,11 @@ onclick="return confirm('Delete teacher?')">
 <?php endwhile; ?>
 
 </div>
+
 <button class="fab"
-onclick="location.href='add_teacher.php?department=<?= $department ?>'">
+onclick="location.href='add_teacher.php?department=<?=$department?>'">
 +
 </button>
+
 </body>
 </html>

@@ -1,9 +1,13 @@
 <?php
-
+require_once(__DIR__ . "/../../cors.php");
 require_once(__DIR__ . "/../../config.php");
 require_once(__DIR__ . "/../../api_guard.php");
 
 header("Content-Type: application/json");
+if($currentRole != "admin"){
+    echo json_encode(["status"=>false,"message"=>"Access denied"]);
+    exit;
+}
 
 $data = json_decode(file_get_contents("php://input"), true);
 $id = intval($data['id'] ?? 0);

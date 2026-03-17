@@ -109,7 +109,9 @@ font-weight:500;
 <body>
 
 <div class="topbar">
-<a href="manage_students.php?class=<?=$data['class']?>" class="back">←</a>
+<a href="manage_students.php?class=<?=$data['class']?>" class="back">
+<span class="material-icons">arrow_back</span>
+</a>
 Edit Student
 </div>
 

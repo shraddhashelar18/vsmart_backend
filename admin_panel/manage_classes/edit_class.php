@@ -2,11 +2,20 @@
 require_once("../auth.php");
 require_once("../db.php");
 
-if(!isset($_GET['department'])){
-die("Department missing");
+if(!isset($_GET['id'])){
+die("Class missing");
 }
 
+$id=$_GET['id'];
 $department=$_GET['department'];
+
+/* GET CLASS */
+
+$class=$conn->query("
+SELECT *
+FROM classes
+WHERE class_id='$id'
+")->fetch_assoc();
 
 /* GET AVAILABLE TEACHERS */
 
@@ -17,13 +26,14 @@ LEFT JOIN classes c
 ON c.class_teacher=t.user_id
 ORDER BY t.full_name
 ");
+
 ?>
 
 <!DOCTYPE html>
 <html>
 <head>
 
-<title>Add Class</title>
+<title>Edit Class</title>
 
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
@@ -35,16 +45,25 @@ font-family:Segoe UI;
 background:#f4f6f9;
 }
 
+.wrapper{
+max-width:650px;
+margin:120px auto 60px auto;   /* top right bottom left */
+background:white;
+padding:45px;
+border-radius:18px;
+box-shadow:0 8px 18px rgba(0,0,0,0.08);
+}
+
 /* TOPBAR */
 
 .topbar{
 background:#009846;
 color:white;
-padding:20px 30px;
+padding:22px 30px;
 font-size:22px;
 display:flex;
 align-items:center;
-gap:12px;
+gap:10px;
 }
 
 /* BACK BUTTON */
@@ -55,15 +74,12 @@ text-decoration:none;
 font-size:26px;
 }
 
-/* CENTER FORM */
+/* MAIN PAGE */
 
-.wrapper{
-max-width:650px;
-margin:80px auto;
-background:white;
-padding:45px;
-border-radius:18px;
-box-shadow:0 8px 18px rgba(0,0,0,0.08);
+.container{
+max-width:1000px;
+margin:40px auto;
+padding:0 30px;
 }
 
 /* LABEL */
@@ -71,45 +87,51 @@ box-shadow:0 8px 18px rgba(0,0,0,0.08);
 label{
 font-size:15px;
 font-weight:600;
+color:#444;
 }
 
-/* INPUT */
+/* INPUT BOX */
 
 .input{
 width:100%;
-padding:18px;
+padding:20px;
 margin-top:10px;
-margin-bottom:24px;
-border-radius:10px;
+margin-bottom:25px;
+border-radius:12px;
 border:1px solid #ddd;
 background:#f2f2f2;
-font-size:15px;
+font-size:16px;
+}
+
+/* DROPDOWN */
+
+select.input{
+appearance:none;
 }
 
 /* SAVE BUTTON */
 
 .save{
 width:100%;
-padding:16px;
+padding:18px;
 background:#009846;
 border:none;
 border-radius:12px;
 color:white;
-font-size:17px;
+font-size:18px;
 cursor:pointer;
-margin-top:5px;
 }
 
 /* CANCEL BUTTON */
 
 .cancel{
 width:100%;
-padding:16px;
+padding:18px;
 border-radius:12px;
 border:1px solid #bbb;
 background:white;
-margin-top:12px;
-font-size:15px;
+margin-top:15px;
+font-size:16px;
 cursor:pointer;
 }
 </style>
@@ -123,30 +145,29 @@ cursor:pointer;
 <span class="material-icons">arrow_back</span>
 </a>
 
-Add Class
+Edit Class
 
 </div>
 
 <div class="wrapper">
 
-<form method="POST" action="save_class.php">
+<form method="POST" action="update_class.php">
+
+<input type="hidden" name="id" value="<?=$id?>">
 
 <label>Class Name</label>
 
 <input
 class="input"
-name="class_name"
-placeholder="Enter class name (e.g. IF6KA)"
-required>
+value="<?=$class['class_name']?>"
+readonly>
 
 <label>Department</label>
 
 <input
 class="input"
-value="<?=$department?>"
+value="<?=$class['department']?>"
 readonly>
-
-<input type="hidden" name="department" value="<?=$department?>">
 
 <label>Class Teacher</label>
 
@@ -158,18 +179,21 @@ readonly>
 
 <option
 value="<?=$t['user_id']?>"
-<?= $t['class_name'] ? 'disabled' : '' ?>
+
+<?= $class['class_teacher']==$t['user_id'] ? "selected" : "" ?>
+
+<?= ($t['class_name'] && $class['class_teacher']!=$t['user_id']) ? "disabled" : "" ?>
 >
 
 <?=$t['full_name']?> 
-<?= $t['class_name'] ? "(Assigned to ".$t['class_name'].")" : "" ?>
+<?= ($t['class_name'] && $class['class_teacher']!=$t['user_id']) ? "(Assigned to ".$t['class_name'].")" : "" ?>
 
 </option>
 
 <?php endwhile; ?>
 
 </select>
-<button class="save">Save Class</button>
+<button class="save">Update Class</button>
 
 <button
 type="button"

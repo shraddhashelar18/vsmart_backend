@@ -8,7 +8,7 @@ die("Department missing");
 
 $department=$_GET['department'];
 
-/* GET CLASSES OF DEPARTMENT */
+/* GET CLASSES */
 
 $classes=$conn->query("
 SELECT class_name
@@ -16,7 +16,7 @@ FROM classes
 WHERE department='$department'
 ");
 
-/* GET SUBJECTS FROM semester_subjects */
+/* GET SUBJECTS */
 
 $subjects=[];
 
@@ -40,18 +40,19 @@ WHERE status='active'
 ");
 
 while($row=$res->fetch_assoc()){
-$baseClass = substr($row['class'],0,4);  // IF2KA → IF2K
-
+$baseClass = substr($row['class'],0,4);
 $assigned[$baseClass][]=$row['subject'];
 }
-
 ?>
 
 <!DOCTYPE html>
 <html>
+
 <head>
 
 <title>Add Teacher</title>
+
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
 <style>
 
@@ -68,6 +69,9 @@ background:#009846;
 color:white;
 padding:18px 25px;
 font-size:22px;
+display:flex;
+align-items:center;
+gap:10px;
 }
 
 /* WRAPPER */
@@ -112,16 +116,16 @@ border-color:#b8a8ff;
 }
 
 .chip.disabled{
-background:#eee;
+background:#e0e0e0;
 color:#888;
+border-color:#ccc;
 cursor:not-allowed;
+pointer-events:none;
 }
 
 .chip input{
 display:none;
 }
-
-
 
 /* SUBJECT SECTION */
 
@@ -148,7 +152,6 @@ cursor:pointer;
 color:white;
 text-decoration:none;
 font-size:22px;
-margin-right:10px;
 }
 
 </style>
@@ -160,7 +163,7 @@ margin-right:10px;
 <div class="topbar">
 
 <a href="manage_teachers.php?department=<?= $department ?>" class="back">
-←
+<span class="material-icons">arrow_back</span>
 </a>
 
 Add Teacher
@@ -214,15 +217,30 @@ minlength="6">
 <?php while($row=$classes->fetch_assoc()): 
 
 $class=$row['class_name'];
+$baseClass=substr($class,0,4);
+
+/* TOTAL SUBJECTS */
+
+$totalSubjects=count($subjects[$baseClass] ?? []);
+
+/* ASSIGNED SUBJECTS */
+
+$assignedSubjects=count($assigned[$baseClass] ?? []);
+
+/* DISABLE IF ALL ASSIGNED */
+
+$isDisabled=($totalSubjects>0 && $totalSubjects==$assignedSubjects);
+
 ?>
 
-<label class="chip class-chip" onclick="selectClass(this,'<?= $class ?>')">
+<label class="chip class-chip <?= $isDisabled ? 'disabled' : '' ?>"
+onclick="<?= $isDisabled ? '' : "selectClass(this,'$class')" ?>">
 
 <input
-type="radio"
-name="class"
+type="checkbox"
+name="classes[]"
 value="<?= $class ?>"
-style="display:none">
+<?= $isDisabled ? 'disabled' : '' ?>>
 
 <?= $class ?>
 
@@ -242,7 +260,12 @@ style="display:none">
 
 <?php foreach($subs as $sub):
 
-$isAssigned = in_array($sub,$assigned[$class] ?? []);
+$isAssigned = in_array(
+strtolower(trim($sub)),
+array_map(function($s){
+    return strtolower(trim($s));
+}, $assigned[substr($class,0,4)] ?? [])
+);
 
 ?>
 
@@ -274,84 +297,60 @@ Save Teacher
 
 <script>
 
-/* CLASS CLICK */
+/* CLASS SELECT */
 
 function selectClass(element,className){
 
-document.querySelectorAll(".class-chip").forEach(c=>{
-c.classList.remove("selected");
-});
+if(element.classList.contains("disabled")) return;
 
-element.classList.add("selected");
-
-element.querySelector("input").checked = true;
-
-document.querySelectorAll(".subject-section").forEach(sec=>{
-sec.style.display="none";
-});
-
-/* convert IF2KA → IF2K */
-
-let baseClass = className.substring(0,4);
-
-let section = document.getElementById("subjects_" + baseClass);
-
-if(section){
-section.style.display = "block";
-}
-
-}
-
-/* FORM VALIDATION */
-
-document.getElementById("teacherForm").onsubmit=function(){
-
-let classSelected=document.querySelector("input[name='class']:checked");
-
-if(!classSelected){
-alert("Please select a class");
-return false;
-}
-
-return true;
-
-}
-
-</script>
-<script>
-
-document.querySelectorAll(".chip").forEach(chip=>{
-
-chip.addEventListener("click",function(){
-
-let checkbox = this.querySelector("input");
-
-if(checkbox.disabled) return;
+let checkbox = element.querySelector("input");
 
 checkbox.checked = !checkbox.checked;
 
-this.classList.toggle("selected");
+/* TOGGLE PURPLE UI */
 
-});
+if(checkbox.checked){
+element.classList.add("selected");
+}else{
+element.classList.remove("selected");
+}
 
-});
+/* SHOW SUBJECT SECTION */
 
-</script>
-<script>
+let baseClass = className.substring(0,4);
 
-document.querySelectorAll(".chip").forEach(function(chip){
+let section = document.getElementById("subjects_"+baseClass);
+
+if(section){
+
+if(checkbox.checked){
+section.style.display="block";
+}else{
+section.style.display="none";
+}
+
+}
+
+}
+
+
+/* SUBJECT CHIP CLICK */
+
+document.querySelectorAll(".subject-section .chip").forEach(function(chip){
 
 chip.addEventListener("click",function(){
 
 let checkbox = chip.querySelector("input");
 
+if(!checkbox) return;
+
 if(checkbox.disabled) return;
 
-/* toggle checkbox */
+/* TOGGLE CHECK */
 
 checkbox.checked = !checkbox.checked;
 
-/* toggle selected design */
+/* TOGGLE PURPLE */
 
 if(checkbox.checked){
 chip.classList.add("selected");
@@ -363,6 +362,23 @@ chip.classList.remove("selected");
 
 });
 
+
+/* FORM VALIDATION */
+
+document.getElementById("teacherForm").onsubmit=function(){
+
+let classSelected=document.querySelector("input[name='classes[]']:checked");
+
+if(!classSelected){
+alert("Please select at least one class");
+return false;
+}
+
+return true;
+
+}
+
 </script>
+
 </body>
 </html>

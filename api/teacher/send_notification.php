@@ -3,9 +3,15 @@
 
 require_once("../config.php");
 require_once("../api_guard.php");
-
+require_once("../cors.php");
 header("Content-Type: application/json");
-
+if($currentRole != "teacher"){
+    echo json_encode([
+        "status" => false,
+        "message" => "Access denied"
+    ]);
+    exit;
+}
 $data = json_decode(file_get_contents("php://input"), true);
 
 $class = $data['class'] ?? '';

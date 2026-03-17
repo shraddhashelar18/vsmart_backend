@@ -24,8 +24,8 @@ background:#f4f6f9;
 .topbar{
 background:#009846;
 color:white;
-padding:20px 30px;
-font-size:24px;
+padding:18px 40px;
+font-size:22px;
 display:flex;
 align-items:center;
 gap:15px;
@@ -42,25 +42,25 @@ font-size:26px;
 /* MAIN CONTAINER */
 
 .container{
-max-width:900px;
+width:95%;
 margin:auto;
-padding:40px;
+margin-top:40px;
 }
 
 /* DEPARTMENT CARD */
 
 .card{
 background:white;
-padding:28px 35px;
-border-radius:18px;
-margin-bottom:22px;
+padding:25px 30px;
+border-radius:16px;
+margin-bottom:20px;
 display:flex;
 justify-content:space-between;
 align-items:center;
 text-decoration:none;
 color:#333;
-font-size:22px;
-box-shadow:0 6px 15px rgba(0,0,0,0.08);
+font-size:20px;
+box-shadow:0 4px 12px rgba(0,0,0,0.08);
 transition:0.2s;
 }
 
@@ -68,7 +68,7 @@ transition:0.2s;
 
 .card:hover{
 transform:translateY(-3px);
-box-shadow:0 8px 20px rgba(0,0,0,0.12);
+box-shadow:0 8px 18px rgba(0,0,0,0.12);
 }
 
 /* ARROW ICON */
@@ -87,7 +87,7 @@ font-size:28px;
 <div class="topbar">
 
 <a href="../dashboard.php" class="back">
-←
+<span class="material-icons">arrow_back</span>
 </a>
 
 Select Department

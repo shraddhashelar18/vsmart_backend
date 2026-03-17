@@ -247,7 +247,9 @@ margin-bottom:10px;
 <body>
 
 <div class="topbar">
-<a href="manage_students.php?class=<?=$class?>" class="back">←</a>
+<a href="manage_students.php?class=<?=$class?>" class="back">
+<span class="material-icons">arrow_back</span>
+</a>
 Add Student
 </div>
 

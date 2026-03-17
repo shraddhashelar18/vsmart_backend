@@ -27,17 +27,28 @@ AND status='active'
 <style>
 
 body{
-font-family:Arial;
-background:#f5f5f5;
+margin:0;
+font-family:Segoe UI;
+background:#f5f7f9;
 }
+
+/* TOPBAR */
 
 .topbar{
 background:#009846;
 color:white;
-padding:18px;
+padding:18px 40px;
 font-size:20px;
+display:flex;
+align-items:center;
+gap:10px;
 }
 
+.container{
+width:95%;
+margin:auto;
+margin-top:30px;
+}
 .wrapper{
 width:800px;
 margin:40px auto;
@@ -79,7 +90,7 @@ margin-right:10px;
 
 <div class="topbar">
 <A href="manage_teachers.php?department=<?= $department ?>" class="back">
-←
+<span class="material-icons">arrow_back</span>
 </A>
 <?= $teacher['full_name'] ?>
 </div>

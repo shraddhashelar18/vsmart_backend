@@ -2,7 +2,6 @@
 
 <!DOCTYPE html>
 <html>
-
 <head>
 
 <title>Select Department</title>
@@ -10,8 +9,6 @@
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
 <style>
-
-/* BODY */
 
 body{
 margin:0;
@@ -78,35 +75,32 @@ color:#777;
 font-size:28px;
 }
 
-</style>
 
+</style>
 </head>
 
 <body>
 
 <div class="topbar">
-
 <a href="../dashboard.php" class="back">
 <span class="material-icons">arrow_back</span>
 </a>
-
 Select Department
-
 </div>
 
 <div class="container">
 
-<a class="card" href="manage_classes.php?department=IF">
+<a class="card" href="classes.php?department=IF">
 IF Department
 <span class="material-icons arrow">chevron_right</span>
 </a>
 
-<a class="card" href="manage_classes.php?department=CO">
+<a class="card" href="classes.php?department=CO">
 CO Department
 <span class="material-icons arrow">chevron_right</span>
 </a>
 
-<a class="card" href="manage_classes.php?department=EJ">
+<a class="card" href="classes.php?department=EJ">
 EJ Department
 <span class="material-icons arrow">chevron_right</span>
 </a>

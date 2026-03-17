@@ -1,9 +1,14 @@
 <?php
 require_once("../../config.php");
+require_once("../../api_guard.php");
 require_once("../../cors.php");
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 header("Content-Type: application/json");
+if($currentRole != "admin"){
+    echo json_encode(["status"=>false,"message"=>"Access denied"]);
+    exit;
+}
 
 if (!isset($_GET['user_id'])) {
     echo json_encode([
