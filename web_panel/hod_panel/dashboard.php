@@ -1,7 +1,7 @@
 <?php
 
-require_once(__DIR__ . "/../config.php");
-require_once(__DIR__ . "/../promotion_helper.php");
+require_once("../config.php");
+require_once("../promotion_helper.php");
 
 /* SET DEPARTMENT */
 $department = "IF";
@@ -9,11 +9,19 @@ $department = "IF";
 /* GET ACTIVE SEMESTER (ODD / EVEN) */
 
 $semSetting = $conn->query("SELECT active_semester FROM settings LIMIT 1");
+
+if (!$semSetting) {
+    die("SQL ERROR: " . $conn->error);
+}
 $activeSemester = $semSetting->fetch_assoc()['active_semester'];
 
 /* GET ATKT LIMIT */
 
-$setting = $conn->query("SELECT atkt_limit FROM settings LIMIT 1");
+$semSetting = $conn->query("SELECT active_semester FROM settings LIMIT 1");
+
+if (!$semSetting) {
+    die("SQL ERROR: " . $conn->error);
+}
 $atktLimit = (int)$setting->fetch_assoc()['atkt_limit'];
 
 /* ================= GET STUDENTS BASED ON SEMESTER ================= */
