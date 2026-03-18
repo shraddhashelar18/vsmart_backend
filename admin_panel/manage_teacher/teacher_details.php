@@ -44,11 +44,6 @@ align-items:center;
 gap:10px;
 }
 
-.container{
-width:95%;
-margin:auto;
-margin-top:30px;
-}
 .wrapper{
 width:800px;
 margin:40px auto;

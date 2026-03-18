@@ -150,7 +150,7 @@ readonly>
 
 <label>Class Teacher</label>
 
-<select class="input" name="teacher">
+<select class="input" name="class_teacher">
 
 <option value="">Select class teacher</option>
 

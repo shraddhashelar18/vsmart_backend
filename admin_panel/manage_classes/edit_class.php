@@ -153,12 +153,13 @@ Edit Class
 
 <form method="POST" action="update_class.php">
 
-<input type="hidden" name="id" value="<?=$id?>">
+<input type="hidden" name="class_id" value="<?=$id?>">
 
 <label>Class Name</label>
 
 <input
 class="input"
+name="class_name"
 value="<?=$class['class_name']?>"
 readonly>
 
@@ -171,7 +172,8 @@ readonly>
 
 <label>Class Teacher</label>
 
-<select class="input" name="teacher">
+<select class="input" name="class_teacher">
+
 
 <option value="">Select class teacher</option>
 
@@ -201,7 +203,7 @@ class="cancel"
 onclick="location.href='manage_classes.php?department=<?=$department?>'">
 Cancel
 </button>
-
+<input type="hidden" name="department" value="<?= $department ?>">
 </form>
 
 </div>

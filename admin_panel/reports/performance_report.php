@@ -253,7 +253,6 @@ color:#e53935;
 <body>
 
 <div class="topbar">
-
 <a href="../reports.php" style="color:white;text-decoration:none;">
 <span class="material-icons">arrow_back</span>
 </a>
