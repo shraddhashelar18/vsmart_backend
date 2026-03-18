@@ -8,21 +8,16 @@ $department = "IF";
 
 /* GET ACTIVE SEMESTER (ODD / EVEN) */
 
-$semSetting = $conn->query("SELECT active_semester FROM settings LIMIT 1");
+$row = $conn->query("SELECT active_semester, atkt_limit FROM settings LIMIT 1");
 
-if (!$semSetting) {
-    die("SQL ERROR: " . $conn->error);
+if (!$row) {
+    die("SQL Error: " . $conn->error);
 }
-$activeSemester = $semSetting->fetch_assoc()['active_semester'];
 
-/* GET ATKT LIMIT */
+$data = $row->fetch_assoc();
 
-$semSetting = $conn->query("SELECT active_semester FROM settings LIMIT 1");
-
-if (!$semSetting) {
-    die("SQL ERROR: " . $conn->error);
-}
-$atktLimit = (int)$setting->fetch_assoc()['atkt_limit'];
+$activeSemester = $data['active_semester'];
+$atktLimit = (int)$data['atkt_limit'];
 
 /* ================= GET STUDENTS BASED ON SEMESTER ================= */
 
