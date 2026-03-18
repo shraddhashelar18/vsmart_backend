@@ -1,4 +1,9 @@
-<?php require_once("../../config.php"); ?>
+<?php 
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+require_once("../../config.php"); 
+echo "Connected";
+?>
 
 <!DOCTYPE html>
 <html>
