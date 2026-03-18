@@ -1,5 +1,5 @@
 <?php
-require_once("../config.php");
+require_once("../../config.php");
 
 /* CHECK DEPARTMENT */
 if(!isset($_GET['department']) || $_GET['department']==""){

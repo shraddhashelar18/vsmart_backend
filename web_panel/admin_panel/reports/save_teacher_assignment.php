@@ -1,6 +1,6 @@
 <?php
 
-require_once("../config.php");
+require_once("../../config.php");
 
 $user_id=$_POST['user_id'];
 $class=$_POST['class'];

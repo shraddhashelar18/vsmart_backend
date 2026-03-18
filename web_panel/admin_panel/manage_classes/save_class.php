@@ -1,5 +1,5 @@
 <?php
-require_once("../config.php");
+require_once("../../config.php");
 
 /* CHECK REQUEST */
 if($_SERVER['REQUEST_METHOD'] != "POST"){

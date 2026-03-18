@@ -1,5 +1,5 @@
 <?php
-require_once("../config.php");
+require_once("../../config.php");
 
 $user_id=$_GET['user_id'];
 
