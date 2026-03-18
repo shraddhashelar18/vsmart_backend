@@ -1,7 +1,20 @@
 <?php
 //get_parent_dashboard.php
-header("Content-Type: application/json");
+
 require_once "../config.php";
+require_once "../cors.php"; 
+require_once "../api_guard.php"; // ✅ ADDED
+
+header("Content-Type: application/json");
+
+/* ================= ROLE CHECK ================= */
+if ($currentRole != 'parent') {
+    echo json_encode([
+        "status" => false,
+        "message" => "Access Denied"
+    ]);
+    exit;
+}
 
 $data = json_decode(file_get_contents("php://input"), true);
 
@@ -46,7 +59,7 @@ SUM(CASE WHEN status='P' THEN 1 ELSE 0 END) as present_count
 FROM attendance 
 WHERE student_id=? AND semester=?
 ");
-$attendanceQuery->bind_param("is", $student_id, $semester);
+    $attendanceQuery->bind_param("is", $student_id, $semester);
     
     $attendanceQuery->execute();
     $attendanceData = $attendanceQuery->get_result()->fetch_assoc();
@@ -55,7 +68,7 @@ $attendanceQuery->bind_param("is", $student_id, $semester);
     if ($attendanceData['total'] > 0) {
         $present = $attendanceData['present_count'] ?? 0;
 
-$attendance = $present / $attendanceData['total'];
+        $attendance = $present / $attendanceData['total'];
     }
 
     # -------- WEAK SUBJECTS --------
@@ -64,7 +77,7 @@ $attendance = $present / $attendanceData['total'];
         FROM marks
         WHERE student_id=? AND semester=?
     ");
-   $marksQuery->bind_param("is", $student_id, $semester);
+    $marksQuery->bind_param("is", $student_id, $semester);
     $marksQuery->execute();
     $marksResult = $marksQuery->get_result();
 
@@ -88,28 +101,29 @@ $attendance = $present / $attendanceData['total'];
 
     $allSubjects = array_unique(array_merge(array_keys($ct1), array_keys($ct2)));
 
-foreach ($allSubjects as $subject) {
+    foreach ($allSubjects as $subject) {
 
-    $marks = [];
+        $marks = [];
 
-    if (isset($ct1[$subject])) {
-        $marks[] = $ct1[$subject];
-    }
+        if (isset($ct1[$subject])) {
+            $marks[] = $ct1[$subject];
+        }
 
-    if (isset($ct2[$subject])) {
-        $marks[] = $ct2[$subject];
-    }
+        if (isset($ct2[$subject])) {
+            $marks[] = $ct2[$subject];
+        }
 
-    if (count($marks) > 0) {
+        if (count($marks) > 0) {
 
-        $avg = array_sum($marks) / count($marks);
+            $avg = array_sum($marks) / count($marks);
 
-        if ($avg < 15) {
-            $weakSubjects[] = $subject;
+            if ($avg < 15) {
+                $weakSubjects[] = $subject;
+            }
         }
     }
-}
-$weakSubjects = array_unique($weakSubjects);
+
+    $weakSubjects = array_unique($weakSubjects);
 
     $children[] = [
         "enrollment" => $student['enrollment_no'],
@@ -121,10 +135,10 @@ $weakSubjects = array_unique($weakSubjects);
         "weakSubjects" => $weakSubjects
     ];
 }
+
 echo json_encode([
     "status" => true,
     "parent_name" => $parent['full_name'],
     "children" => $children
 ]);
 ?>
-

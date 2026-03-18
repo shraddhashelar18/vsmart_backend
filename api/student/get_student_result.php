@@ -2,7 +2,19 @@
 header("Content-Type: application/json");
 error_reporting(0);
 ini_set('display_errors', 0);
+
 require_once("../config.php");
+require_once "../cors.php"; 
+require_once "../api_guard.php"; // ✅ ADDED
+
+/* ================= ROLE CHECK ================= */
+if ($currentRole != 'student') {
+    echo json_encode([
+        "status" => false,
+        "message" => "Access Denied"
+    ]);
+    exit;
+}
 
 /* ==============================
    READ JSON BODY
@@ -66,6 +78,7 @@ $row = $check->get_result()->fetch_assoc();
 if ($row['cnt'] == 0 && $current_sem > 1) {
     $active_semester = $current_sem - 1;
 }
+
 /* =====================================================
    3️⃣ GET SETTINGS
 ===================================================== */
@@ -73,11 +86,7 @@ if ($row['cnt'] == 0 && $current_sem > 1) {
 $settings = $conn->query("SELECT * FROM settings LIMIT 1")->fetch_assoc();
 
 /* =====================================================
-   4️⃣ SUBJECT COUNT (FOR ACTIVE SEMESTER)
-===================================================== */
-
-/* =====================================================
-   3️⃣ SUBJECT COUNT
+   4️⃣ SUBJECT COUNT
 ===================================================== */
 
 $classPrefix = $current_class;
@@ -93,11 +102,6 @@ $subjectQuery->execute();
 
 $subjectRow = $subjectQuery->get_result()->fetch_assoc();
 $subjectCount = $subjectRow['total_subjects'];
-
-
-/* =====================================================
-   5️⃣ CHECK CT1 / CT2 PUBLISH STATUS
-===================================================== */
 
 /* =====================================================
    5️⃣ CHECK CT1 / CT2 PUBLISH STATUS
@@ -122,7 +126,6 @@ if ($active_semester != $current_sem) {
     $ct1_published = ($ct1Row['cnt'] > 0) ? "1" : "0";
 }
 
-
 $ct2Check = $conn->prepare("
 SELECT COUNT(DISTINCT subject) as cnt
 FROM marks
@@ -141,6 +144,7 @@ if ($active_semester != $current_sem) {
 } else {
     $ct2_published = ($ct2Row['cnt'] > 0) ? "1" : "0";
 }
+
 /* =====================================================
    6️⃣ FETCH MARKS
 ===================================================== */
@@ -176,6 +180,7 @@ while ($row = $marksResult->fetch_assoc()) {
 }
 
 $total_ct_marks = count($marksData) * 30;
+
 /* =====================================================
    7️⃣ PERCENTAGE CALCULATION
 ===================================================== */
@@ -215,9 +220,6 @@ if ($final_published == "1") {
         "percentage" => (float)$final_percent
     ];
 }
-/* =====================================================
-   8️⃣ ALL SEMESTER GRAPH
-===================================================== */
 
 /* =====================================================
    8️⃣ ALL SEMESTER GRAPH
@@ -244,6 +246,7 @@ while ($row = $allSemResult->fetch_assoc()) {
         "percentage" => (float) $row["percentage"]
     ];
 }
+
 $uploadAllowed = 1;
 
 $checkUpload = $conn->prepare("
@@ -261,6 +264,7 @@ $uploadAllowed = 0;
 if ($settings['allow_marksheet_upload'] == 1 && $row['marks_uploaded'] == 0) {
     $uploadAllowed = 1;
 }
+
 /* =====================================================
    FINAL RESPONSE
 ===================================================== */
@@ -288,9 +292,7 @@ echo json_encode([
     "current_sem_performance_graph" => $current_sem_graph,
     "all_semester_graph" => $allSemesterGraph,
 
-
-
-"allow_marksheet_upload" => $uploadAllowed,
+    "allow_marksheet_upload" => $uploadAllowed,
     "allow_reupload" => $settings['allow_reupload']
-
 ]);
+?>

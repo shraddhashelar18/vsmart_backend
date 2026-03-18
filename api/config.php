@@ -1,9 +1,9 @@
 <?php
 
-$host = "localhost";
-$user = "root";
-$pass = "";
-$db   = "vsmart";
+$host = "mysql.hostinger.in";
+$user = "u107985738_vsmart";
+$pass = "Vsmart@0568";
+$db   = "u107985738_vsmart";
 
 $conn = new mysqli($host, $user, $pass, $db);
 
@@ -15,4 +15,4 @@ if ($conn->connect_error) {
 }
 
 define("BASE_URL","http://192.168.1.138/vsmart_backend/");
-?> 
+?>

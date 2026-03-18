@@ -1,8 +1,18 @@
 <?php
 require_once("../config.php");
+require_once "../cors.php"; 
 require_once("../api_guard.php");
 
 header("Content-Type: application/json");
+
+/* ================= ROLE CHECK ================= */
+if ($currentRole != 'student') {
+    echo json_encode([
+        "status" => false,
+        "message" => "Access Denied"
+    ]);
+    exit;
+}
 
 /* ================= INPUT ================= */
 

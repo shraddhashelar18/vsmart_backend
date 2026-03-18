@@ -96,39 +96,8 @@ $newSem=$sem+1;
 $dept=substr($class,0,2);
 $div=substr($class,-2);
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-        $dept = substr($class,0,2);
-        $div = substr($class,-2);
-
-        $newClass = $dept.$newSem.$div;
-
-    }
-
-    /* SEMESTER 6 (FINAL) */
-
-    else{
-
-        /* Only fully passed students graduate */
-
-        if($promotion['status']=="PROMOTED"){
-            $promotion['status'] = "PASSED_OUT";
-        }
-
-        /* ATKT students remain in SEM6 */
-        else if($promotion['status']=="PROMOTED_WITH_ATKT"){
-            $promotion['status'] = "PROMOTED_WITH_ATKT";
-            $newSem = 6;
-            $newClass = $class;
-        }
-
-    }
-=======
 $newClass=$dept.$newSem.$div;
->>>>>>> 0bd6972add62d72da43eee285cf165c873b210c1
 
->>>>>>> e6a5f178130228e6f5e713abe60623585768e6a2
 }
 
 }
