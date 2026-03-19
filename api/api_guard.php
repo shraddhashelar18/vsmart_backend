@@ -5,28 +5,39 @@ require_once "../config.php"; // ✅ IMPORTANT
 header("Content-Type: application/json");
 
 /* ======================
-   GET AUTH HEADER
+   GET AUTH HEADER (FIXED)
 ====================== */
 
 $authHeader = null;
 
-/* Method 1 */
+/* Method 1: Standard */
 if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
     $authHeader = $_SERVER['HTTP_AUTHORIZATION'];
 }
 
-/* Method 2 */
-elseif (function_exists('apache_request_headers')) {
+/* Method 2: Apache fix */
+if (!$authHeader && function_exists('apache_request_headers')) {
     $headers = apache_request_headers();
 
-    if (isset($headers['Authorization']) || isset($headers['authorization'])) {
-        $authHeader = $headers['Authorization'] ?? $headers['authorization'];
+    foreach ($headers as $key => $value) {
+        if (strtolower($key) == 'authorization') {
+            $authHeader = $value;
+            break;
+        }
     }
+}
+
+/* Method 3: Fallback (IMPORTANT FOR LIVE SERVER) */
+if (!$authHeader && isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+    $authHeader = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
 }
 
 /* ======================
    CHECK HEADER
 ====================== */
+if (!$authHeader && isset($_GET['token'])) {
+    $authHeader = "Bearer " . $_GET['token'];
+}
 
 if (!$authHeader) {
     echo json_encode([

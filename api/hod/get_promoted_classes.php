@@ -1,4 +1,5 @@
 <?php
+//get_promoted_classes.php
 require_once("../config.php");
 require_once("../api_guard.php");
 require_once("../cors.php");

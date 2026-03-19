@@ -1,105 +1,44 @@
 <?php
-require_once("db.php");
+//get_classes.php
+require_once("../config.php");
+require_once("../api_guard.php");
+require_once("../cors.php");
 
-/* ================= DEPARTMENT ================= */
+header("Content-Type: application/json");
 
-$department = "IT";   // Change if needed
+$data = json_decode(file_get_contents("php://input"), true);
 
-/* ================= GET ACTIVE SEMESTER ================= */
-
-$setting = $conn->query("SELECT active_semester FROM settings LIMIT 1");
-$row = $setting->fetch_assoc();
-$active = $row['active_semester'];
-
-/* ================= FETCH CLASSES ================= */
-
-if ($active == "EVEN") {
-
-    $stmt = $conn->prepare("
-        SELECT class_name 
-        FROM classes
-        WHERE department = ?
-        AND semester IN (2,4,6)
-        ORDER BY semester
-    ");
-
-} else {
-
-    $stmt = $conn->prepare("
-        SELECT class_name 
-        FROM classes
-        WHERE department = ?
-        AND semester IN (1,3,5)
-        ORDER BY semester
-    ");
-
+if (!isset($data['department'])) {
+    echo json_encode(["status"=>false,"message"=>"Department required"]);
+    exit;
 }
 
-$stmt->bind_param("s", $department);
+$department = $data['department'];
+
+$setting = $conn->query("SELECT active_semester FROM settings LIMIT 1");
+$active = $setting->fetch_assoc()['active_semester'];
+
+if($active=="EVEN"){
+    $stmt = $conn->prepare("
+        SELECT class_name FROM classes
+        WHERE department=? AND semester IN (2,4,6)
+    ");
+}else{
+    $stmt = $conn->prepare("
+        SELECT class_name FROM classes
+        WHERE department=? AND semester IN (1,3,5)
+    ");
+}
+
+$stmt->bind_param("s",$department);
 $stmt->execute();
 $result = $stmt->get_result();
+
+$classes=[];
+
+while($row=$result->fetch_assoc()){
+    $classes[]=$row['class_name'];
+}
+
+echo json_encode(["status"=>true,"classes"=>$classes]);
 ?>
-
-<!DOCTYPE html>
-<html>
-
-<head>
-    <title>HOD Panel - Select Class</title>
-    <link rel="stylesheet" href="css/style.css">
-</head>
-
-<body>
-
-<div class="header">
-    Select Class
-</div>
-
-<table border="1" width="100%" cellpadding="10">
-
-<tr>
-    <th>Class</th>
-    <th>Actions</th>
-</tr>
-
-<?php while ($class = $result->fetch_assoc()) { ?>
-
-<tr>
-
-<td>
-    <?php echo $class['class_name']; ?>
-</td>
-
-<td>
-
-<a href="students.php?class=<?php echo $class['class_name']; ?>">
-    View Students
-</a>
-
-|
-
-<a href="promoted.php?class=<?php echo $class['class_name']; ?>">
-    Promoted Students
-</a>
-
-|
-
-<a href="atkt.php?class=<?php echo $class['class_name']; ?>">
-    Promoted With ATKT
-</a>
-
-|
-
-<a href="detained.php?class=<?php echo $class['class_name']; ?>">
-    Detained Students
-</a>
-
-</td>
-
-</tr>
-
-<?php } ?>
-
-</table>
-
-</body>
-</html>
