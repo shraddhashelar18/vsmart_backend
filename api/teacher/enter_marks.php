@@ -14,7 +14,7 @@ if($currentRole != "teacher"){
 $data = json_decode(file_get_contents("php://input"), true);
 
 $class = $data['class'] ?? '';
-$subject = $data['subject'] ?? '';
+$subject = trim($data['subject'] ?? '');
 $examType = $data['exam_type'] ?? '';
 $totalMarks = $data['total_marks'] ?? 30;
 $isDraft = $data['is_draft'] ?? true;
@@ -37,8 +37,8 @@ $prefix = substr($class, 0, 4); // IF6KA -> IF6K
 $subjectCheck = $conn->prepare("
 SELECT subject_name
 FROM semester_subjects
-WHERE class LIKE CONCAT(?, '%') 
-AND subject_name=?
+WHERE class = ?
+AND subject_name = ?
 ");
 
 $subjectCheck->bind_param("ss", $prefix, $subject);

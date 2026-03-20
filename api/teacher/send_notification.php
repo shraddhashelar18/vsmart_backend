@@ -15,7 +15,7 @@ if($currentRole != "teacher"){
 $data = json_decode(file_get_contents("php://input"), true);
 
 $class = $data['class'] ?? '';
-$subject = $data['subject'] ?? '';
+$subject = trim($data['subject'] ?? '');
 $message = trim($data['message'] ?? '');
 $sendTo = $data['send_to'] ?? '';
 $selectedRecipients = $data['students'] ?? [];

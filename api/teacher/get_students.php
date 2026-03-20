@@ -11,7 +11,8 @@ if($currentRole != "teacher"){
     ]);
     exit;
 }
-$class = $_GET['class'] ?? '';
+$data = json_decode(file_get_contents("php://input"), true);
+$class = $data['class'] ?? ($_GET['class'] ?? '');
 
 $stmt = $conn->prepare("
     SELECT user_id, full_name, roll_no 

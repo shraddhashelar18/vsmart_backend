@@ -16,7 +16,7 @@ $data = json_decode(file_get_contents("php://input"), true);
 $class = $data['class'] ?? '';
 preg_match('/\d+/', $class, $match);
 $semester = $match[0];
-$subject = $data['subject'] ?? '';
+$subject = trim($data['subject'] ?? '');
 $date = $data['date'] ?? '';
 $attendanceList = $data['attendance'] ?? [];
 
