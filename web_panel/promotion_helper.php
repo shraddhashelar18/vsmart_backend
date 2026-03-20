@@ -2,8 +2,6 @@
 
 function calculatePromotion($conn,$studentId,$atktLimit){
 
-/* get student's current semester */
-
 $semQuery = $conn->prepare("
 SELECT current_semester
 FROM students
@@ -15,8 +13,6 @@ $semQuery->execute();
 $semResult = $semQuery->get_result()->fetch_assoc();
 
 $currentSemester = "SEM".$semResult['current_semester'];
-
-/* calculate promotion only for that semester */
 
 $stmt=$conn->prepare("
 SELECT subject,
@@ -57,8 +53,6 @@ $ktSubjects[] = $row['subject'];
 
 }
 
-/* promotion logic */
-
 if($failCount == 0){
 $status="PROMOTED";
 }
@@ -68,8 +62,6 @@ $status="PROMOTED_WITH_ATKT";
 else{
 $status="DETAINED";
 }
-
-/* percentage only when no backlog */
 
 if($failCount==0 && $totalMarks>0){
 $percentage = round(($obtainedMarks/$totalMarks)*100,2);

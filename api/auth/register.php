@@ -1,388 +1,144 @@
 <?php
 require_once("../config.php");
-require_once("../cors.php");
 
-header("Content-Type: application/json");
-
-/* ===========================
-   REQUEST METHOD CHECK
-=========================== */
-
-if($_SERVER['REQUEST_METHOD'] !== 'POST'){
-    echo json_encode([
-        "status"=>false,
-        "message"=>"Only POST method allowed"
-    ]);
-    exit;
-}
+$message = "";
 
 /* ===========================
-   START TRANSACTION
+   FORM SUBMIT
 =========================== */
 
-$conn->begin_transaction();
+if($_SERVER['REQUEST_METHOD']=="POST"){
 
-$data = json_decode(file_get_contents("php://input"),true);
+$fullName = trim($_POST['fullName'] ?? "");
+$email = strtolower(trim($_POST['email'] ?? ""));
+$password = trim($_POST['password'] ?? "");
+$role = trim($_POST['role'] ?? "");
 
-if(!$data){
-    echo json_encode([
-        "status"=>false,
-        "message"=>"Invalid JSON"
-    ]);
-    exit;
-}
-/* ===========================
-   CHECK REGISTRATION STATUS
-=========================== */
-
-$settings = $conn->query("SELECT registration_open FROM settings WHERE id=1");
-$row = $settings->fetch_assoc();
-
-if ($row['registration_open'] == 0) {
-    echo json_encode([
-        "status" => false,
-        "message" => "Registration is currently closed by admin"
-    ]);
-    exit;
-}
-/* ===========================
-   COMMON FIELDS
-=========================== */
-
-$fullName = trim($data['fullName'] ?? "");
-$email = strtolower(trim($data['email'] ?? ""));
-$password = trim($data['password'] ?? "");
-$role = trim($data['selectedRole'] ?? "");
+/* VALIDATION */
 
 if($fullName=="" || $email=="" || $password=="" || $role==""){
-    echo json_encode([
-        "status"=>false,
-        "message"=>"Missing required fields"
-    ]);
-    exit;
+$message = "All fields required";
 }
 
-/* ===========================
-   NAME VALIDATION
-=========================== */
-
-if(preg_match('/[0-9]/',$fullName)){
-    echo json_encode([
-        "status"=>false,
-        "message"=>"Name cannot contain numbers"
-    ]);
-    exit;
+elseif(preg_match('/[0-9]/',$fullName)){
+$message = "Name cannot contain numbers";
 }
 
-/* ===========================
-   EMAIL VALIDATION
-=========================== */
-
-if(!filter_var($email,FILTER_VALIDATE_EMAIL)){
-    echo json_encode([
-        "status"=>false,
-        "message"=>"Invalid email"
-    ]);
-    exit;
+elseif(!filter_var($email,FILTER_VALIDATE_EMAIL)){
+$message = "Invalid email";
 }
 
-/* ===========================
-   PASSWORD VALIDATION
-=========================== */
-
-if(strlen($password) < 6){
-    echo json_encode([
-        "status"=>false,
-        "message"=>"Password must be minimum 6 characters"
-    ]);
-    exit;
+elseif(strlen($password) < 6){
+$message = "Password must be at least 6 characters";
 }
 
-/* ===========================
-   ROLE VALIDATION
-=========================== */
+else{
 
-$allowedRoles = ["student","teacher","parent"];
+/* CHECK REGISTRATION OPEN */
 
-if(!in_array($role,$allowedRoles)){
-    echo json_encode([
-        "status"=>false,
-        "message"=>"Invalid role"
-    ]);
-    exit;
-}
+$row = $conn->query("SELECT registration_open FROM settings WHERE id=1")->fetch_assoc();
 
-/* ===========================
-   DUPLICATE EMAIL CHECK
-=========================== */
+if($row['registration_open']==0){
+$message = "Registration closed by admin";
+}else{
 
-$checkEmail = $conn->prepare("SELECT user_id FROM users WHERE email=?");
-$checkEmail->bind_param("s",$email);
-$checkEmail->execute();
-$checkEmail->store_result();
+/* CHECK EMAIL */
 
-if($checkEmail->num_rows > 0){
-    echo json_encode([
-        "status"=>false,
-        "message"=>"Email already registered"
-    ]);
-    exit;
-}
+$check = $conn->prepare("SELECT user_id FROM users WHERE email=?");
+$check->bind_param("s",$email);
+$check->execute();
+$check->store_result();
 
-/* ===========================
-   CREATE USER
-=========================== */
+if($check->num_rows > 0){
+$message = "Email already exists";
+}else{
+
+/* CREATE USER */
 
 $hashedPassword = password_hash($password,PASSWORD_BCRYPT);
-
-$first_login = 0;
 $status = "pending";
 
-$userStmt = $conn->prepare("
-INSERT INTO users (email,password,first_login,role,status)
-VALUES (?,?,?,?,?)
+$stmt = $conn->prepare("
+INSERT INTO users (email,password,role,status)
+VALUES (?,?,?,?)
 ");
 
-$userStmt->bind_param("ssiss",
-$email,
-$hashedPassword,
-$first_login,
-$role,
-$status
-);
+$stmt->bind_param("ssss",$email,$hashedPassword,$role,$status);
 
-if(!$userStmt->execute()){
-    $conn->rollback();
-    echo json_encode([
-        "status"=>false,
-        "message"=>"User creation failed"
-    ]);
-    exit;
-}
+if($stmt->execute()){
 
 $userId = $conn->insert_id;
 
-/* ===========================
-   PHONE VALIDATOR
-=========================== */
+/* STUDENT */
 
-function validPhone($phone){
-    return preg_match('/^[0-9]{10}$/',$phone);
+if($role=="student"){
+
+$stmt = $conn->prepare("
+INSERT INTO students
+(user_id,full_name,roll_no,class,mobile_no,parent_mobile_no,enrollment_no)
+VALUES (?,?,?,?,?,?,?)
+");
+
+$stmt->bind_param("issssss",
+$userId,
+$fullName,
+$_POST['rollNo'],
+$_POST['studentClass'],
+$_POST['studentMobile'],
+$_POST['parentMobile'],
+$_POST['studentEnrollmentNo']
+);
+
+$stmt->execute();
 }
 
-########################################################
-# STUDENT REGISTRATION
-########################################################
+/* TEACHER */
 
-if($role == "student"){
+if($role=="teacher"){
 
-    $enroll = trim($data['studentEnrollmentNo'] ?? "");
-    $roll = trim($data['rollNo'] ?? "");
-    $class = trim($data['studentClass'] ?? "");
-    $mobile = trim($data['studentMobile'] ?? "");
-    $parentMobile = trim($data['parentMobile'] ?? "");
+$stmt = $conn->prepare("
+INSERT INTO teachers
+(user_id,full_name,employee_id,mobile_no)
+VALUES (?,?,?,?)
+");
 
-    if($enroll=="" || $roll=="" || $class=="" || $mobile=="" || $parentMobile==""){
-        echo json_encode([
-            "status"=>false,
-            "message"=>"Student fields missing"
-        ]);
-        exit;
-    }
+$stmt->bind_param("isss",
+$userId,
+$fullName,
+$_POST['employeeId'],
+$_POST['teacherMobile']
+);
 
-    if(!preg_match('/^[0-9]{11}$/',$enroll)){
-        echo json_encode([
-            "status"=>false,
-            "message"=>"Enrollment must be 11 digits"
-        ]);
-        exit;
-    }
-
-    if(!validPhone($mobile) || !validPhone($parentMobile)){
-        echo json_encode([
-            "status"=>false,
-            "message"=>"Invalid mobile number"
-        ]);
-        exit;
-    }
-
-    $stmt = $conn->prepare("
-    INSERT INTO students
-    (roll_no,user_id,full_name,class,mobile_no,parent_mobile_no,enrollment_no)
-    VALUES (?,?,?,?,?,?,?)
-    ");
-
-    $stmt->bind_param("sisssss",
-    $roll,
-    $userId,
-    $fullName,
-    $class,
-    $mobile,
-    $parentMobile,
-    $enroll
-    );
-
-    if(!$stmt->execute()){
-        $conn->rollback();
-        echo json_encode([
-            "status"=>false,
-            "message"=>"Student registration failed"
-        ]);
-        exit;
-    }
+$stmt->execute();
 }
 
-/* ======================================================
-                    TEACHER REGISTRATION
-====================================================== */
+/* PARENT */
 
-if ($role == "teacher") {
+if($role=="parent"){
 
-    if (!isset($data['employeeId']) || !isset($data['teacherMobile'])) {
-        $conn->rollback();
-        echo json_encode([
-            "status"=>false,
-            "message"=>"Employee ID and Teacher Mobile are required"
-        ]);
-        exit;
-    }
+$stmt = $conn->prepare("
+INSERT INTO parents
+(user_id,full_name,enrollment_no,mobile_no)
+VALUES (?,?,?,?)
+");
 
-    $employeeId = trim($data['employeeId']);
-    $teacherMobile = trim($data['teacherMobile']);
+$stmt->bind_param("isss",
+$userId,
+$fullName,
+$_POST['enrollmentNo'],
+$_POST['parentOwnMobile']
+);
 
-    /* EMPLOYEE ID VALIDATION */
-
-    if(!preg_match('/^[A-Za-z0-9]{10}$/', $employeeId)){
-        $conn->rollback();
-        echo json_encode([
-            "status"=>false,
-            "message"=>"Employee ID must be exactly 10 characters"
-        ]);
-        exit;
-    }
-
-    /* MOBILE VALIDATION */
-
-    if(!preg_match('/^[0-9]{10}$/',$teacherMobile)){
-        $conn->rollback();
-        echo json_encode([
-            "status"=>false,
-            "message"=>"Invalid mobile number"
-        ]);
-        exit;
-    }
-
-    /* CHECK DUPLICATE EMPLOYEE */
-
-    $checkTeacher = $conn->prepare(
-        "SELECT employee_id FROM teachers WHERE employee_id=?"
-    );
-
-    $checkTeacher->bind_param("s",$employeeId);
-    $checkTeacher->execute();
-    $checkTeacher->store_result();
-
-    if($checkTeacher->num_rows > 0){
-        $conn->rollback();
-        echo json_encode([
-            "status"=>false,
-            "message"=>"Teacher already exists"
-        ]);
-        exit;
-    }
-
-    /* INSERT TEACHER */
-
-    $stmt = $conn->prepare("
-        INSERT INTO teachers
-        (employee_id, user_id, full_name, mobile_no)
-        VALUES (?, ?, ?, ?)
-    ");
-
-    $stmt->bind_param(
-        "siss",
-        $employeeId,
-        $userId,
-        $fullName,
-        $teacherMobile
-    );
-
-    if(!$stmt->execute()){
-        $conn->rollback();
-        echo json_encode([
-            "status"=>false,
-            "message"=>"Teacher registration failed",
-            "error"=>$stmt->error
-        ]);
-        exit;
-    }
+$stmt->execute();
 }
 
-########################################################
-# PARENT REGISTRATION
-########################################################
-
-if($role == "parent"){
-
-    $enroll = trim($data['enrollmentNo'] ?? "");
-    $mobile = trim($data['parentOwnMobile'] ?? "");
-
-    if($enroll=="" || $mobile==""){
-        echo json_encode([
-            "status"=>false,
-            "message"=>"Parent fields missing"
-        ]);
-        exit;
-    }
-
-    if(!preg_match('/^[0-9]{11}$/',$enroll)){
-        echo json_encode([
-            "status"=>false,
-            "message"=>"Enrollment must be 11 digits"
-        ]);
-        exit;
-    }
-
-    if(!validPhone($mobile)){
-        echo json_encode([
-            "status"=>false,
-            "message"=>"Invalid mobile number"
-        ]);
-        exit;
-    }
-
-    $stmt = $conn->prepare("
-    INSERT INTO parents
-    (user_id,full_name,enrollment_no,mobile_no)
-    VALUES (?,?,?,?)
-    ");
-
-    $stmt->bind_param("isss",
-    $userId,
-    $fullName,
-    $enroll,
-    $mobile
-    );
-
-    if(!$stmt->execute()){
-        $conn->rollback();
-        echo json_encode([
-            "status"=>false,
-            "message"=>"Parent registration failed"
-        ]);
-        exit;
-    }
+$message = "✅ Registration Successful!";
+}else{
+$message = "❌ User creation failed";
 }
 
-/* ===========================
-   COMMIT
-=========================== */
-
-$conn->commit();
-
-echo json_encode([
-    "status"=>true,
-    "message"=>"Registration request sent to admin"
-]);
-
+}
+}
+}
+}
 ?>

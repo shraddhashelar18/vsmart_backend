@@ -1,45 +1,231 @@
+<?php
+require_once("../config.php");
+
+$message = "";
+$msgType = "";
+
+/* 🔥 DEBUG: confirm correct file */
+# echo "RUNNING THIS FILE"; exit;
+
+if($_SERVER['REQUEST_METHOD']=="POST"){
+
+$fullName = trim($_POST['fullName'] ?? "");
+$email = strtolower(trim($_POST['email'] ?? ""));
+$password = trim($_POST['password'] ?? "");
+$role = trim($_POST['role'] ?? "");
+
+/* VALIDATION */
+
+if($fullName=="" || $email=="" || $password=="" || $role==""){
+$message = "All fields required";
+$msgType = "error";
+}
+elseif(preg_match('/[0-9]/',$fullName)){
+$message = "Name cannot contain numbers";
+$msgType = "error";
+}
+elseif(!filter_var($email,FILTER_VALIDATE_EMAIL)){
+$message = "Invalid email";
+$msgType = "error";
+}
+elseif(strlen($password) < 6){
+$message = "Password must be at least 6 characters";
+$msgType = "error";
+}
+else{
+
+/* CHECK REGISTRATION */
+
+$res = $conn->query("SELECT registration_open FROM settings WHERE id=1");
+
+if(!$res){
+die("Settings error: ".$conn->error);
+}
+
+$row = $res->fetch_assoc();
+
+if($row && $row['registration_open']==0){
+$message = "Registration closed by admin";
+$msgType = "error";
+}
+else{
+
+/* CHECK EMAIL */
+
+$check = $conn->prepare("SELECT user_id FROM users WHERE email=?");
+
+if(!$check){
+die("Prepare error: ".$conn->error);
+}
+
+$check->bind_param("s",$email);
+$check->execute();
+$check->store_result();
+
+if($check->num_rows > 0){
+$message = "Email already exists";
+$msgType = "error";
+}
+else{
+
+/* INSERT USER (NO full_name) */
+
+$hashedPassword = password_hash($password,PASSWORD_BCRYPT);
+$status = "pending";
+
+$stmt = $conn->prepare("
+INSERT INTO users (email,password,role,status)
+VALUES (?,?,?,?)
+");
+
+if(!$stmt){
+die("User prepare error: ".$conn->error);
+}
+
+$stmt->bind_param("ssss",$email,$hashedPassword,$role,$status);
+
+if(!$stmt->execute()){
+die("User insert error: ".$stmt->error);
+}
+
+$userId = $conn->insert_id;
+
+/* ================= STUDENT ================= */
+
+if($role=="student"){
+
+$stmt = $conn->prepare("
+INSERT INTO students
+(user_id,full_name,roll_no,class,mobile_no,parent_mobile_no,enrollment_no)
+VALUES (?,?,?,?,?,?,?)
+");
+
+if(!$stmt){
+die("Student prepare error: ".$conn->error);
+}
+
+$stmt->bind_param("issssss",
+$userId,
+$fullName,
+$_POST['rollNo'],
+$_POST['studentClass'],
+$_POST['studentMobile'],
+$_POST['parentMobile'],
+$_POST['studentEnrollmentNo']
+);
+
+if(!$stmt->execute()){
+die("Student insert error: ".$stmt->error);
+}
+}
+
+/* ================= TEACHER ================= */
+
+if($role=="teacher"){
+
+$stmt = $conn->prepare("
+INSERT INTO teachers
+(user_id,full_name,employee_id,mobile_no)
+VALUES (?,?,?,?)
+");
+
+if(!$stmt){
+die("Teacher prepare error: ".$conn->error);
+}
+
+$stmt->bind_param("isss",
+$userId,
+$fullName,
+$_POST['employeeId'],
+$_POST['teacherMobile']
+);
+
+if(!$stmt->execute()){
+die("Teacher insert error: ".$stmt->error);
+}
+}
+
+/* ================= PARENT ================= */
+
+if($role=="parent"){
+
+$stmt = $conn->prepare("
+INSERT INTO parents
+(user_id,full_name,enrollment_no,mobile_no)
+VALUES (?,?,?,?)
+");
+
+if(!$stmt){
+die("Parent prepare error: ".$conn->error);
+}
+
+$stmt->bind_param("isss",
+$userId,
+$fullName,
+$_POST['enrollmentNo'],
+$_POST['parentOwnMobile']
+);
+
+if(!$stmt->execute()){
+die("Parent insert error: ".$stmt->error);
+}
+}
+
+$message = "✅ Registration Successful!";
+$msgType = "success";
+
+}
+}
+}
+}
+?>
 <!DOCTYPE html>
 <html>
 <head>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <title>Vsmart Register</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
 
 body{
-font-family:Arial;
-background:#f3f3f3;
+font-family: 'Segoe UI', sans-serif;
+background: linear-gradient(135deg,#e6f4ea,#f3f3f3);
 margin:0;
-padding:0;
 }
 
+/* CONTAINER */
 .container{
 width:360px;
 margin:auto;
-padding-top:40px;
+margin-top:40px;
+padding:25px;
+background:white;
+border-radius:20px;
+box-shadow:0 10px 30px rgba(0,0,0,0.1);
 }
 
+/* LOGO */
 .logo{
-width:80px;
-height:80px;
+width:90px;
+height:90px;
 background:#0a8f3c;
 border-radius:50%;
 margin:auto;
 display:flex;
 align-items:center;
 justify-content:center;
-}
-
-.logo i{
 color:white;
-font-size:32px;
+font-size:34px;
+box-shadow:0 5px 15px rgba(0,0,0,0.2);
 }
 
+/* TITLE */
 .title{
 text-align:center;
 color:#0a8f3c;
-font-size:26px;
-margin-top:10px;
+font-size:28px;
+margin-top:15px;
+font-weight:bold;
 }
 
 .subtitle{
@@ -49,15 +235,20 @@ font-size:14px;
 margin-bottom:20px;
 }
 
+/* INPUT BOX */
 .input-box{
-background:#e9e9e9;
+background:#f1f1f1;
 border-radius:12px;
-padding:12px;
+padding:14px;
 margin-top:12px;
+transition:0.3s;
 }
 
-.input-box input,
-.input-box select{
+.input-box:hover{
+background:#e7f5ec;
+}
+
+input,select{
 width:100%;
 border:none;
 background:transparent;
@@ -65,23 +256,47 @@ outline:none;
 font-size:15px;
 }
 
+/* BUTTON */
 button{
 width:100%;
 background:#0a8f3c;
-border:none;
 color:white;
 padding:14px;
+border:none;
 border-radius:12px;
 margin-top:20px;
 font-size:16px;
+cursor:pointer;
+transition:0.3s;
 }
 
+button:hover{
+background:#087531;
+}
+
+/* MESSAGE */
+.msg{
+text-align:center;
+margin-top:10px;
+font-weight:bold;
+}
+
+.success{ color:green; }
+.error{ color:red; }
+
+/* BACK LINK */
 .back{
 text-align:center;
 margin-top:15px;
-color:#0a8f3c;
 }
 
+.back a{
+color:#0a8f3c;
+text-decoration:none;
+font-weight:bold;
+}
+
+/* HIDDEN */
 .hidden{
 display:none;
 }
@@ -94,27 +309,27 @@ display:none;
 
 <div class="container">
 
-<div class="logo">
-<i class="fa-solid fa-graduation-cap"></i>
-</div>
+<div class="logo">🎓</div>
 
 <div class="title">Vsmart</div>
 <div class="subtitle">A Smart Academic Management Platform</div>
 
+<form method="POST">
+
 <div class="input-box">
-<input type="text" id="fullName" placeholder="Full Name">
+<input type="text" name="fullName" placeholder="Full Name" required>
 </div>
 
 <div class="input-box">
-<input type="email" id="email" placeholder="Email Address">
+<input type="email" name="email" placeholder="Email Address" required>
 </div>
 
 <div class="input-box">
-<input type="password" id="password" placeholder="Password">
+<input type="password" name="password" placeholder="Password" required>
 </div>
 
 <div class="input-box">
-<select id="role" onchange="showFields()">
+<select name="role" id="role" onchange="showFields()" required>
 <option value="">Select Role</option>
 <option value="student">Student</option>
 <option value="teacher">Teacher</option>
@@ -122,61 +337,60 @@ display:none;
 </select>
 </div>
 
-<!-- STUDENT FIELDS -->
-
+<!-- STUDENT -->
 <div id="studentFields" class="hidden">
 
 <div class="input-box">
-<input type="text" id="studentEnrollmentNo" placeholder="Enrollment No">
+<input name="studentEnrollmentNo" placeholder="Enrollment No">
 </div>
 
 <div class="input-box">
-<input type="text" id="rollNo" placeholder="Roll No">
+<input name="rollNo" placeholder="Roll No">
 </div>
 
 <div class="input-box">
-<input type="text" id="studentClass" placeholder="Class">
+<input name="studentClass" placeholder="Class">
 </div>
 
 <div class="input-box">
-<input type="text" id="studentMobile" placeholder="Mobile Number">
+<input name="studentMobile" placeholder="Mobile Number">
 </div>
 
 <div class="input-box">
-<input type="text" id="parentMobile" placeholder="Parent Mobile Number">
+<input name="parentMobile" placeholder="Parent Mobile">
 </div>
 
 </div>
 
-<!-- TEACHER FIELDS -->
-
+<!-- TEACHER -->
 <div id="teacherFields" class="hidden">
 
 <div class="input-box">
-<input type="text" id="employeeId" placeholder="Employee ID">
+<input name="employeeId" placeholder="Employee ID">
 </div>
 
 <div class="input-box">
-<input type="text" id="teacherMobile" placeholder="Mobile Number">
+<input name="teacherMobile" placeholder="Mobile Number">
 </div>
 
 </div>
 
-<!-- PARENT FIELDS -->
-
+<!-- PARENT -->
 <div id="parentFields" class="hidden">
 
 <div class="input-box">
-<input type="text" id="enrollmentNo" placeholder="Enrollment No">
+<input name="enrollmentNo" placeholder="Enrollment No">
 </div>
 
 <div class="input-box">
-<input type="text" id="parentOwnMobile" placeholder="Mobile Number">
+<input name="parentOwnMobile" placeholder="Mobile Number">
 </div>
 
 </div>
 
-<button onclick="register()">Register</button>
+<button type="submit">Register</button>
+
+</form>
 
 <div class="back">
 <a href="login.php">Back to Login</a>
@@ -185,9 +399,7 @@ display:none;
 </div>
 
 <script>
-
 function showFields(){
-
 let role=document.getElementById("role").value;
 
 document.getElementById("studentFields").style.display="none";
@@ -205,66 +417,7 @@ document.getElementById("teacherFields").style.display="block";
 if(role=="parent"){
 document.getElementById("parentFields").style.display="block";
 }
-
 }
-
-function register(){
-
-let data={
-fullName:document.getElementById("fullName").value,
-email:document.getElementById("email").value,
-password:document.getElementById("password").value,
-selectedRole:document.getElementById("role").value
-};
-
-if(data.selectedRole=="student"){
-
-data.studentEnrollmentNo=document.getElementById("studentEnrollmentNo").value;
-data.rollNo=document.getElementById("rollNo").value;
-data.studentClass=document.getElementById("studentClass").value;
-data.studentMobile=document.getElementById("studentMobile").value;
-data.parentMobile=document.getElementById("parentMobile").value;
-
-}
-
-if(data.selectedRole=="teacher"){
-
-data.employeeId=document.getElementById("employeeId").value;
-data.teacherMobile=document.getElementById("teacherMobile").value;
-
-}
-
-if(data.selectedRole=="parent"){
-
-data.enrollmentNo=document.getElementById("enrollmentNo").value;
-data.parentOwnMobile=document.getElementById("parentOwnMobile").value;
-
-}
-
-fetch("http://localhost/vsmart_backend/api/auth/register.php",{
-
-method:"POST",
-
-headers:{
-"Content-Type":"application/json"
-},
-
-body:JSON.stringify(data)
-
-})
-
-.then(res=>res.json())
-.then(response=>{
-
-alert(response.message);
-
-})
-.catch(err=>{
-alert("Server error");
-});
-
-}
-
 </script>
 
 </body>
