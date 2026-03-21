@@ -25,7 +25,19 @@ if (!isset($data['enrollment'])) {
 
 $enrollment = $data['enrollment'];
 
-$query = $conn->prepare("SELECT * FROM students WHERE enrollment_no=?");
+$query = $conn->prepare("
+SELECT 
+    s.enrollment_no,
+    s.full_name,
+    s.roll_no,
+    s.class,
+    s.mobile_no,
+    u.email
+FROM students s
+JOIN users u ON s.user_id = u.user_id
+WHERE s.enrollment_no=?
+");
+
 $query->bind_param("s", $enrollment);
 $query->execute();
 $result = $query->get_result();
@@ -43,6 +55,7 @@ echo json_encode([
     "name" => $student['full_name'],
     "roll" => $student['roll_no'],
     "class" => $student['class'],
-    "phone" => $student['mobile_no']
+    "phone" => $student['mobile_no'],
+    "email" => $student['email']   
 ]);
 ?>
