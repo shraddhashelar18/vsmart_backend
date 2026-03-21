@@ -1,187 +1,270 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
+session_start();
 require_once("../config.php");
 require_once("../promotion_helper.php");
 
-/* SET DEPARTMENT */
-$department = "IF";
-
-/* ================= GET SETTINGS ================= */
-
-$settingsQuery = $conn->query("SELECT active_semester, atkt_limit FROM settings LIMIT 1");
-
-if (!$settingsQuery) {
-    die("Settings Query Error: " . $conn->error);
+/* 🔒 CHECK LOGIN */
+if(!isset($_SESSION['user_id']) || $_SESSION['role'] != "hod"){
+    header("Location: https://mycollege.vpt.edu.in/vsmart/web_panel/auth_panel/login.php");
+    exit;
 }
 
-$settings = $settingsQuery->fetch_assoc();
+$userId = $_SESSION['user_id'];
 
-if (!$settings) {
-    die("No settings found");
+/* 🔥 GET HOD DEPARTMENT */
+$deptQuery = $conn->prepare("
+SELECT department 
+FROM hods 
+WHERE user_id = ?
+");
+
+$deptQuery->bind_param("i",$userId);
+$deptQuery->execute();
+$deptResult = $deptQuery->get_result()->fetch_assoc();
+
+if(!$deptResult){
+    die("Department not found");
 }
 
-$activeSemester = $settings['active_semester'];
-$atktLimit = (int)$settings['atkt_limit'];
+$department = $deptResult['department']; // IF / CO / EJ
 
-/* ================= GET STUDENTS ================= */
+/* ATKT LIMIT */
+$setting = $conn->query("SELECT atkt_limit FROM settings LIMIT 1");
+$atktLimit = (int)$setting->fetch_assoc()['atkt_limit'];
 
-if ($activeSemester == "EVEN") {
+/* STUDENTS */
+$stmt = $conn->prepare("
+SELECT user_id 
+FROM students 
+WHERE department=?
+");
 
-    $stmt = $conn->prepare("
-        SELECT user_id
-        FROM students
-        WHERE class COLLATE utf8mb4_general_ci LIKE CONCAT(?, '%')
-        AND CAST(SUBSTRING(class,3,1) AS UNSIGNED) IN (2,4,6)
-    ");
-
-} else {
-
-    $stmt = $conn->prepare("
-        SELECT user_id
-        FROM students
-        WHERE class COLLATE utf8mb4_general_ci LIKE CONCAT(?, '%')
-        AND CAST(SUBSTRING(class,3,1) AS UNSIGNED) IN (1,3,5)
-    );
-}
-
-if (!$stmt) {
-    die("Student Query Prepare Error: " . $conn->error);
-}
-
-$stmt->bind_param("s", $department);
-
-if (!$stmt->execute()) {
-    die("Student Query Execute Error: " . $stmt->error);
-}
-
-/* ✅ SERVER SAFE FETCH */
-$stmt->bind_result($user_id);
-
-/* ================= PROMOTION COUNT ================= */
+$stmt->bind_param("s",$department);
+$stmt->execute();
+$result = $stmt->get_result();
 
 $totalStudents = 0;
 $promoted = 0;
-$promotedWithBacklog = 0;
+$atkt = 0;
 $detained = 0;
 
-while ($stmt->fetch()) {
-
-    $promotion = calculatePromotion($conn, $user_id, $atktLimit);
-
-    if (!$promotion || !isset($promotion['status'])) {
-        continue;
-    }
+while($row = $result->fetch_assoc()){
 
     $totalStudents++;
 
-    if ($promotion['status'] == "PROMOTED") {
+    $promo = calculatePromotion($conn,$row['user_id'],$atktLimit);
+
+    if($promo['status']=="PROMOTED"){
         $promoted++;
-    } elseif ($promotion['status'] == "PROMOTED_WITH_ATKT") {
-        $promotedWithBacklog++;
-    } elseif ($promotion['status'] == "DETAINED") {
+    }
+    elseif($promo['status']=="PROMOTED_WITH_ATKT"){
+        $atkt++;
+    }
+    else{
         $detained++;
     }
 }
 
-$stmt->close();
-
-/* ================= COUNT TEACHERS ================= */
-
-$teacherStmt = $conn->prepare("
-    SELECT COUNT(DISTINCT ta.user_id)
-    FROM teacher_assignments ta
-    JOIN teachers t ON t.user_id = ta.user_id
-    WHERE ta.department = ?
+/* TEACHERS */
+$t = $conn->prepare("
+SELECT COUNT(DISTINCT ta.user_id) AS totalTeachers
+FROM teacher_assignments ta
+JOIN teachers t ON t.user_id = ta.user_id
+WHERE ta.department = ?
 ");
 
-if (!$teacherStmt) {
-    die("Teacher Query Prepare Error: " . $conn->error);
-}
-
-$teacherStmt->bind_param("s", $department);
-
-if (!$teacherStmt->execute()) {
-    die("Teacher Query Execute Error: " . $teacherStmt->error);
-}
-
-$teacherStmt->bind_result($totalTeachers);
-$teacherStmt->fetch();
-$teacherStmt->close();
-
-$totalTeachers = $totalTeachers ?? 0;
+$t->bind_param("s",$department);
+$t->execute();
+$totalTeachers = $t->get_result()->fetch_assoc()['totalTeachers'];
 
 ?>
 
 <!DOCTYPE html>
 <html>
 <head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HOD Dashboard</title>
-<link rel="stylesheet" href="css/style.css">
+
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+<style>
+
+/* BODY */
+body{
+margin:0;
+font-family:'Segoe UI',sans-serif;
+background:#f2f2f2;
+display:flex;
+justify-content:center;
+}
+
+/* MAIN PANEL WIDTH (IMPORTANT 🔥) */
+.wrapper{
+width:100%;
+max-width:380px;
+background:#f2f2f2;
+min-height:100vh;
+}
+
+/* HEADER */
+.header{
+background:#0a8f3c;
+color:white;
+padding:18px;
+font-size:20px;
+font-weight:600;
+}
+
+/* CONTENT */
+.container{
+padding:15px;
+}
+
+/* ROW */
+.row{
+display:flex;
+gap:12px;
+margin-bottom:15px;
+}
+
+/* CARD */
+.card{
+background:white;
+border-radius:16px;
+padding:18px;
+flex:1;
+text-align:center;
+box-shadow:0 4px 10px rgba(0,0,0,0.1);
+}
+
+.card i{
+font-size:28px;
+margin-bottom:5px;
+}
+
+/* SMALL CARD */
+.small{
+padding:14px;
+}
+
+/* COLORS */
+.green{color:#0a8f3c;}
+.orange{color:#ff9800;}
+.red{color:#f44336;}
+
+/* TITLE */
+.section-title{
+font-size:18px;
+font-weight:600;
+margin:15px 0 10px;
+}
+
+/* BUTTON */
+.btn{
+display:block;
+width:100%;
+background:#0a8f3c;
+color:white;
+padding:14px;
+border-radius:12px;
+text-align:center;
+text-decoration:none;
+margin-bottom:12px;
+font-size:15px;
+}
+
+/* BOTTOM NAV */
+.bottom-nav{
+position:fixed;
+bottom:0;
+width:100%;
+max-width:380px;
+background:white;
+display:flex;
+justify-content:space-around;
+padding:10px 0;
+border-top:1px solid #ddd;
+}
+
+.bottom-nav div{
+text-align:center;
+font-size:12px;
+color:#777;
+}
+
+.bottom-nav .active{
+color:#0a8f3c;
+}
+
+</style>
 </head>
 
 <body>
 
+<div class="wrapper">
+
 <div class="header">
-☰ HOD Dashboard
+HOD Dashboard (<?php echo $department; ?>)
 </div>
 
-<div class="dashboard-cards">
+<div class="container">
 
+<!-- TOP -->
+<div class="row">
 <div class="card">
-<h3>Total Students</h3>
-<p><?php echo $totalStudents; ?></p>
-</div>
-
-<div class="card">
-<h3>Total Teachers</h3>
-<p><?php echo $totalTeachers; ?></p>
+<i class="material-icons green">school</i>
+<div>Total Students</div>
+<h2><?php echo $totalStudents; ?></h2>
 </div>
 
 <div class="card">
-<h3>Promoted</h3>
-<p><?php echo $promoted; ?></p>
+<i class="material-icons green">person</i>
+<div>Total Teachers</div>
+<h2><?php echo $totalTeachers; ?></h2>
+</div>
 </div>
 
-<div class="card">
-<h3>Promoted With ATKT</h3>
-<p><?php echo $promotedWithBacklog; ?></p>
+<!-- STATUS -->
+<div class="row">
+<div class="card small">
+<i class="material-icons green">arrow_upward</i>
+<div>Promoted</div>
+<h3><?php echo $promoted; ?></h3>
 </div>
 
-<div class="card">
-<h3>Detained</h3>
-<p><?php echo $detained; ?></p>
+<div class="card small">
+<i class="material-icons orange">trending_up</i>
+<div>With ATKT</div>
+<h3><?php echo $atkt; ?></h3>
 </div>
 
+<div class="card small">
+<i class="material-icons red">warning</i>
+<div>Detained</div>
+<h3><?php echo $detained; ?></h3>
+</div>
 </div>
 
-<div class="section-title">
-Quick Actions
-</div>
+<!-- ACTIONS -->
+<div class="section-title">Academic Actions</div>
 
-<div class="action-buttons">
-
-<a class="action-btn" href="student_by_class.php">View Students</a>
-<a class="action-btn" href="teacher.php">View Teachers</a>
-<a class="action-btn" href="promoted_classes.php">View Promoted List</a>
-<a class="action-btn" href="atkt_classes.php">View ATKT List</a>
-<a class="action-btn" href="detained_classes.php">View Detained List</a>
+<a href="#" class="btn">View Students</a>
+<a href="#" class="btn">View Teachers</a>
+<a href="#" class="btn">View Promoted List</a>
+<a href="#" class="btn">View ATKT List</a>
+<a href="#" class="btn">View Detained List</a>
 
 </div>
 
-<!-- Bottom Navigation -->
+<!-- BOTTOM NAV -->
 <div class="bottom-nav">
-
-<a href="dashboard.php" class="nav-item active">
-<div class="icon">📊</div>
-<div class="label">Dashboard</div>
-</a>
-
-<a href="settings.php" class="nav-item">
-<div class="icon">⚙️</div>
-<div class="label">Settings</div>
-</a>
+<div class="active">
+<i class="material-icons">dashboard</i><br>Dashboard
+</div>
+<div>
+<i class="material-icons">settings</i><br>Settings
+</div>
+</div>
 
 </div>
 
