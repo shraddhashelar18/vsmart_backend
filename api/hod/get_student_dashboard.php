@@ -50,7 +50,6 @@ $semesterCode = $student['current_semester'];
 $department = $student['department'];
 
 $semesterNumber = (int) filter_var($semesterCode, FILTER_SANITIZE_NUMBER_INT);
-$semesterStr = (string) $semesterNumber;
 
 
 /* =========================================
@@ -68,7 +67,7 @@ $attStmt = $conn->prepare("
     AND MONTH(date) = MONTH(CURRENT_DATE())
     AND YEAR(date) = YEAR(CURRENT_DATE())
 ");
-$attStmt->bind_param("is", $userId, $semesterStr);
+$attStmt->bind_param("ii", $userId, $semesterNumber);
 $attStmt->execute();
 $attRes = $attStmt->get_result();
 
@@ -106,16 +105,15 @@ $currentYear = date("Y");
 
 $performanceTrend = [];
 
-$currentYear = date("Y");
-$currentMonth = (int) date("n");
-
 foreach ($months as $month) {
 
-    // ✅ FIX YEAR FOR EVEN SEM
-    if ($cycle == "EVEN" && $month == 12) {
-        $year = $currentYear - 1;
-    } else {
-        $year = $currentYear;
+    // Skip future months ONLY for current semester
+    if ($semesterNumber == $student['current_semester']) {
+
+        if ($month > $currentMonth) {
+            continue;
+        }
+
     }
 
     $stmt = $conn->prepare("
@@ -126,37 +124,23 @@ foreach ($months as $month) {
         WHERE student_id = ?
         AND semester = ?
         AND MONTH(date) = ?
-        AND YEAR(date) = ?
     ");
 
-    $stmt->bind_param("isii", $userId, $semesterStr, $month, $year);
+    $stmt->bind_param("iii", $userId, $semesterNumber, $month);
     $stmt->execute();
     $res = $stmt->get_result()->fetch_assoc();
-
-    $percent = 0;
     if ($res['total'] > 0) {
         $percent = round(($res['present'] / $res['total']) * 100);
+    } else {
+        $percent = 0;
     }
 
-    $performanceTrend[] = [
-        "month" => date("M", mktime(0, 0, 0, $month, 1)),
-        "percent" => $percent
-    ];
+    $performanceTrend[] = $percent;
 }
-// total subjects
-$classPrefix = substr($className, 0, 4); // IF6K
 
-$subStmt = $conn->prepare("
-SELECT COUNT(DISTINCT subject_name) as total
-FROM semester_subjects
-WHERE semester=? AND class=?
-");
-
-$subStmt->bind_param("is", $semesterNumber, $classPrefix);
-$subStmt->execute();
-
-$totalSubjects = $subStmt->get_result()->fetch_assoc()['total'];
-
+if (empty($performanceTrend)) {
+    $performanceTrend = [];
+}
 
 $ct1Check = $conn->prepare("
 SELECT COUNT(*) as cnt
@@ -167,11 +151,11 @@ AND exam_type='CT1'
 AND status='published'
 ");
 
-$ct1Check->bind_param("is", $userId, $semesterStr);
+$ct1Check->bind_param("ii", $userId, $semesterNumber);
 $ct1Check->execute();
 $ct1Row = $ct1Check->get_result()->fetch_assoc();
 
-$ct1Published = ($ct1Row['cnt'] == $totalSubjects) ? 1 : 0;
+$ct1Published = $ct1Row['cnt'] > 0 ? 1 : 0;
 
 
 $ct2Check = $conn->prepare("
@@ -183,11 +167,11 @@ AND exam_type='CT2'
 AND status='published'
 ");
 
-$ct2Check->bind_param("is", $userId, $semesterStr);
+$ct2Check->bind_param("ii", $userId, $semesterNumber);
 $ct2Check->execute();
 $ct2Row = $ct2Check->get_result()->fetch_assoc();
 
-$ct2Published = ($ct2Row['cnt'] == $totalSubjects) ? 1 : 0;
+$ct2Published = $ct2Row['cnt'] > 0 ? 1 : 0;
 
 
 /* =========================================
@@ -198,29 +182,19 @@ $ct2Published = ($ct2Row['cnt'] == $totalSubjects) ? 1 : 0;
 ========================================= */
 $subjects = [];
 
-
-
-// FULL checks
-$ct1Published = ($ct1Row['cnt'] == $totalSubjects) ? 1 : 0;
-$ct2Published = ($ct2Row['cnt'] == $totalSubjects) ? 1 : 0;
-
-/* =========================================
-   STRICT RULE (NO CT1 FALLBACK)
-========================================= */
-
 if ($ct1Published == 1 && $ct2Published == 1) {
 
     $marksStmt = $conn->prepare("
         SELECT subject,
-        SUM(obtained_marks) as totalObtained,
-        SUM(total_marks) as totalMax
-        FROM marks
-        WHERE student_id = ?
-        AND semester = ?
-        GROUP BY subject
+       SUM(obtained_marks) as totalObtained,
+       SUM(total_marks) as totalMax
+FROM marks
+WHERE student_id = ?
+AND semester = ?
+GROUP BY subject
     ");
 
-    $marksStmt->bind_param("is", $userId, $semesterStr);
+    $marksStmt->bind_param("ii", $userId, $semesterNumber);
     $marksStmt->execute();
     $marksRes = $marksStmt->get_result();
 
@@ -238,8 +212,6 @@ if ($ct1Published == 1 && $ct2Published == 1) {
         ];
     }
 }
-
-// ❌ else → KEEP EMPTY (no CT1, no partial, nothing)
 /* =========================================
    8️⃣ Final Response
 ========================================= */

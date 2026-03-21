@@ -25,6 +25,24 @@ if ($action == "settings") {
     $result = $conn->query("SELECT * FROM settings WHERE id=1");
     $row = $result->fetch_assoc();
 
+    // 🔥 ADD THIS BLOCK
+    $enrollmentNo = null;
+
+    if ($role == "student") {
+        $stmt = $conn->prepare("
+            SELECT enrollment_no 
+            FROM students 
+            WHERE user_id=?
+        ");
+        $stmt->bind_param("i", $userId);
+        $stmt->execute();
+        $res = $stmt->get_result();
+
+        if ($r = $res->fetch_assoc()) {
+            $enrollmentNo = $r['enrollment_no'];
+        }
+    }
+
     echo json_encode([
         "status" => true,
         "activeSemester" => $row['active_semester'],
@@ -33,7 +51,10 @@ if ($action == "settings") {
         "atktLimit" => (int) $row['atkt_limit'],
         "ct1Published" => isset($row['ct1_published']) ? (bool) $row['ct1_published'] : false,
         "ct2Published" => isset($row['ct2_published']) ? (bool) $row['ct2_published'] : false,
-        "finalPublished" => (bool) $row['final_published']
+        "finalPublished" => (bool) $row['final_published'],
+
+        // ✅ ADD THIS
+        "enrollmentNo" => $enrollmentNo
     ]);
     exit;
 }

@@ -3,7 +3,7 @@
 require_once "../config.php"; // ✅ IMPORTANT
 
 header("Content-Type: application/json");
-
+require_once("../config.php");
 /* ======================
    GET AUTH HEADER (FIXED)
 ====================== */

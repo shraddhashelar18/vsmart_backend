@@ -77,7 +77,7 @@ if ($user['status'] !== "approved") {
 /* ===============================
    5️⃣ Role Based Extra Data
 ================================ */
-
+$enrollmentNo = null;
 $departments = [];
 $className = null;
 $semester = null;
@@ -188,7 +188,8 @@ if ($user['role'] == "principal") {
 if ($user['role'] == "student") {
 
     $sStmt = $conn->prepare("
-       SELECT full_name,class,current_semester,department
+       SELECT full_name,class,current_semester,department,enrollment_no
+
        FROM students
        WHERE user_id = ?
     ");
@@ -204,7 +205,7 @@ if ($user['role'] == "student") {
         $className = $student['class'];
         $name = $student['full_name'] ?? $user['email'];
         $semester = (int) ($student['current_semester'] ?? 0);
-
+        $enrollmentNo = $student['enrollment_no'] ?? null;
         if (!empty($student['department'])) {
             $departments[] = $student['department'];
         }
@@ -258,6 +259,7 @@ echo json_encode([
         "name"=>$name ?? $user['email'],
         "role"=>$user['role'],
         "status"=>$user['status'],
+        "enrollmentNo" => $enrollmentNo,
         "departments"=>$departments,
         "className"=>$className,
         "semester"=>$semester

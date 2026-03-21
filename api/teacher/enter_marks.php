@@ -147,6 +147,19 @@ INSERT INTO marks
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 ");
 
+        $insert->bind_param(
+            "iissssiis",
+            $studentUserId,
+            $currentUserId,
+            $class,
+            $semester,
+            $subject,
+            $examType,
+            $totalMarks,
+            $obtainedMarks,
+            $status
+        );
+
 $insert->bind_param(
 "iissssiis",
 $studentUserId,

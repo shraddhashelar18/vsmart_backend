@@ -2,19 +2,7 @@
 header("Content-Type: application/json");
 error_reporting(0);
 ini_set('display_errors', 0);
-
 require_once("../config.php");
-require_once "../cors.php"; 
-require_once "../api_guard.php"; // ✅ ADDED
-
-/* ================= ROLE CHECK ================= */
-if ($currentRole != 'student') {
-    echo json_encode([
-        "status" => false,
-        "message" => "Access Denied"
-    ]);
-    exit;
-}
 
 /* ==============================
    READ JSON BODY
@@ -51,17 +39,12 @@ if (!$student) {
 $current_class = $student['class'];
 $current_sem = $student['current_semester'];
 
-$semester_number = (int) $current_sem;
-$semester_type = ($semester_number % 2 == 0) ? "EVEN" : "ODD";
-
-/* =====================================================
-   2️⃣ DETERMINE ACTIVE SEMESTER
-===================================================== */
-
 $active_semester = $current_sem;
 
-/* Check if marks exist for current semester */
+// get dept from ORIGINAL class (not modified one)
+$dept = substr($student['class'], 0, 2);
 
+// check marks
 $check = $conn->prepare("
 SELECT COUNT(*) as cnt
 FROM marks
@@ -69,15 +52,49 @@ WHERE student_id=?
 AND semester=?
 ");
 
-$check->bind_param("ii", $student_id, $current_sem);
+$semStr = (string) $current_sem;
+$check->bind_param("is", $student_id, $semStr);
 $check->execute();
 $row = $check->get_result()->fetch_assoc();
 
-/* If no marks in current semester → show previous semester */
+// SUBJECT COUNT
+$subjectQuery = $conn->prepare("
+SELECT COUNT(DISTINCT subject_name) as total_subjects
+FROM semester_subjects
+WHERE semester=? AND class=?
+");
+$classPrefix = substr($student['class'], 0, 4); // IF3K
 
-if ($row['cnt'] == 0 && $current_sem > 1) {
+$subjectQuery->bind_param("is", $current_sem, $classPrefix);
+$subjectQuery->execute();
+$subjectRow = $subjectQuery->get_result()->fetch_assoc();
+$subjectCount = $subjectRow['total_subjects'];
+
+// CT1 COUNT
+$ct1CheckAll = $conn->prepare("
+SELECT COUNT(DISTINCT subject) as cnt
+FROM marks
+WHERE student_id=? 
+AND semester=? 
+AND exam_type='CT1'
+AND status='published'
+");
+$ct1CheckAll->bind_param("is", $student_id, $current_sem);
+$ct1CheckAll->execute();
+$ct1AllRow = $ct1CheckAll->get_result()->fetch_assoc();
+
+
+// fallback
+// ONLY check CT1 completion (ignore total marks count)
+if (
+    $ct1AllRow['cnt'] < $subjectCount
+    && $current_sem > 1
+) {
     $active_semester = $current_sem - 1;
 }
+// ✅ FINAL CLASS (CORRECT)
+$current_class = $dept . $active_semester . "KA";
+
 
 /* =====================================================
    3️⃣ GET SETTINGS
@@ -86,22 +103,17 @@ if ($row['cnt'] == 0 && $current_sem > 1) {
 $settings = $conn->query("SELECT * FROM settings LIMIT 1")->fetch_assoc();
 
 /* =====================================================
-   4️⃣ SUBJECT COUNT
+   4️⃣ SUBJECT COUNT (FOR ACTIVE SEMESTER)
 ===================================================== */
 
-$classPrefix = $current_class;
+/* =====================================================
+   3️⃣ SUBJECT COUNT
+===================================================== */
 
-$subjectQuery = $conn->prepare("
-SELECT COUNT(id) as total_subjects
-FROM semester_subjects
-WHERE semester=? AND class=?
-");
 
-$subjectQuery->bind_param("is", $active_semester, $classPrefix);
-$subjectQuery->execute();
-
-$subjectRow = $subjectQuery->get_result()->fetch_assoc();
-$subjectCount = $subjectRow['total_subjects'];
+/* =====================================================
+   5️⃣ CHECK CT1 / CT2 PUBLISH STATUS
+===================================================== */
 
 /* =====================================================
    5️⃣ CHECK CT1 / CT2 PUBLISH STATUS
@@ -116,15 +128,17 @@ AND exam_type='CT1'
 AND status='published'
 ");
 
-$ct1Check->bind_param("ii", $student_id, $active_semester);
+$semStr = (string) $active_semester;
+$ct1Check->bind_param("is", $student_id, $semStr);
 $ct1Check->execute();
 $ct1Row = $ct1Check->get_result()->fetch_assoc();
 
 if ($active_semester != $current_sem) {
     $ct1_published = "1";
 } else {
-    $ct1_published = ($ct1Row['cnt'] > 0) ? "1" : "0";
+    $ct1_published = ($ct1Row['cnt'] == $subjectCount && $subjectCount > 0) ? "1" : "0";
 }
+
 
 $ct2Check = $conn->prepare("
 SELECT COUNT(DISTINCT subject) as cnt
@@ -135,16 +149,16 @@ AND exam_type='CT2'
 AND status='published'
 ");
 
-$ct2Check->bind_param("ii", $student_id, $active_semester);
+$semStr = (string) $active_semester;
+$ct2Check->bind_param("is", $student_id, $semStr);
 $ct2Check->execute();
 $ct2Row = $ct2Check->get_result()->fetch_assoc();
 
 if ($active_semester != $current_sem) {
     $ct2_published = "1";
 } else {
-    $ct2_published = ($ct2Row['cnt'] > 0) ? "1" : "0";
+    $ct2_published = ($ct2Row['cnt'] == $subjectCount && $subjectCount > 0) ? "1" : "0";
 }
-
 /* =====================================================
    6️⃣ FETCH MARKS
 ===================================================== */
@@ -180,7 +194,6 @@ while ($row = $marksResult->fetch_assoc()) {
 }
 
 $total_ct_marks = count($marksData) * 30;
-
 /* =====================================================
    7️⃣ PERCENTAGE CALCULATION
 ===================================================== */
@@ -208,7 +221,8 @@ if ($final_published == "1") {
     WHERE student_id=? AND semester=?
     ");
 
-    $finalQuery->bind_param("ii", $student_id, $active_semester);
+    $semStr = (string) $active_semester;
+    $finalQuery->bind_param("is", $student_id, $semStr);
     $finalQuery->execute();
 
     $finalRow = $finalQuery->get_result()->fetch_assoc();
@@ -217,9 +231,12 @@ if ($final_published == "1") {
 
     $current_sem_graph[] = [
         "exam" => "FINAL",
-        "percentage" => (float)$final_percent
+        "percentage" => (float) $final_percent
     ];
 }
+/* =====================================================
+   8️⃣ ALL SEMESTER GRAPH
+===================================================== */
 
 /* =====================================================
    8️⃣ ALL SEMESTER GRAPH
@@ -229,10 +246,11 @@ $allSemQuery = $conn->prepare("
 SELECT semester, percentage
 FROM semester_results
 WHERE student_id=?
-ORDER BY CAST(REPLACE(semester,'SEM','') AS UNSIGNED)
+AND semester < ?
+ORDER BY semester ASC
 ");
 
-$allSemQuery->bind_param("i", $student_id);
+$allSemQuery->bind_param("ii", $student_id, $active_semester);
 $allSemQuery->execute();
 
 $allSemResult = $allSemQuery->get_result();
@@ -246,7 +264,6 @@ while ($row = $allSemResult->fetch_assoc()) {
         "percentage" => (float) $row["percentage"]
     ];
 }
-
 $uploadAllowed = 1;
 
 $checkUpload = $conn->prepare("
@@ -264,7 +281,6 @@ $uploadAllowed = 0;
 if ($settings['allow_marksheet_upload'] == 1 && $row['marks_uploaded'] == 0) {
     $uploadAllowed = 1;
 }
-
 /* =====================================================
    FINAL RESPONSE
 ===================================================== */
@@ -292,7 +308,9 @@ echo json_encode([
     "current_sem_performance_graph" => $current_sem_graph,
     "all_semester_graph" => $allSemesterGraph,
 
+
+
     "allow_marksheet_upload" => $uploadAllowed,
     "allow_reupload" => $settings['allow_reupload']
+
 ]);
-?>

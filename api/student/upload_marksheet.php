@@ -1,9 +1,16 @@
 <?php
 
-require_once("../config.php");
-require_once("../api_guard.php");
-require_once("../cors.php");
-require_once("../../vendor/autoload.php");
+ini_set('display_errors', 1);
+require_once(__DIR__ . "/../config.php");   // ensure DB
+require_once(__DIR__ . "/../api_guard.php"); // auth
+require_once(__DIR__ . "/../cors.php");      // frontend calls
+require_once(__DIR__ . "/../../vendor/autoload.php"); // pdf
+error_reporting(E_ALL);
+
+
+
+ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/php_error.log');
 
 use Smalot\PdfParser\Parser;
 
@@ -20,6 +27,21 @@ if ($currentRole != "student") {
 }
 
 $student_id = $currentUserId;
+$stmt = $conn->prepare("SELECT roll_no FROM students WHERE user_id=?");
+$stmt->bind_param("i", $student_id);
+$stmt->execute();
+$res = $stmt->get_result();
+$row = $res->fetch_assoc();
+
+if (!$row || !isset($row['roll_no'])) {
+    echo json_encode([
+        "status" => false,
+        "message" => "Roll number not found"
+    ]);
+    exit;
+}
+
+$rollNo = $row['roll_no'];
 
 /* ================= FILE CHECK ================= */
 
@@ -63,16 +85,19 @@ if ($file['size'] > 5 * 1024 * 1024) {
 
 /* ================= SAVE FILE ================= */
 
+/* ================= SAVE FILE ================= */
+
 $uploadDir = "../../uploads/marksheets/";
 
 if (!file_exists($uploadDir)) {
     mkdir($uploadDir, 0777, true);
 }
 
-$fileName = $student_id . "_" . time() . ".pdf";
-$target = $uploadDir . $fileName;
+/* STEP 1: Save temp file */
+$tempFileName = $rollNo . "_" . time() . ".pdf";
+$tempPath = $uploadDir . $tempFileName;
 
-if (!move_uploaded_file($file['tmp_name'], $target)) {
+if (!move_uploaded_file($file['tmp_name'], $tempPath)) {
     echo json_encode([
         "status" => false,
         "message" => "Failed to save file"
@@ -83,13 +108,14 @@ if (!move_uploaded_file($file['tmp_name'], $target)) {
 /* ================= READ PDF ================= */
 
 try {
-
+    ini_set('memory_limit', '512M');
+    set_time_limit(60);
     $parser = new Parser();
-    $pdf = $parser->parseFile($target);
+    $pdf = $parser->parseFile($tempPath);
     $text = $pdf->getText();
-    file_put_contents("debug.txt", $text);
+    file_put_contents(__DIR__ . "/debug.txt", $text);
 
-} catch (Exception $e) {
+} catch (Throwable $e) {
 
     echo json_encode([
         "status" => false,
@@ -128,6 +154,32 @@ if (!isset($semMatch[1])) {
 }
 
 $semesterNumber = $semesterMap[strtoupper($semMatch[1])];
+
+/* ================= RENAME FILE AFTER SEM DETECT ================= */
+
+$newFileName = $rollNo . "_SEM" . $semesterNumber . ".pdf";
+$newPath = "../../uploads/marksheets/" . $newFileName;
+
+// delete old if exists
+if (file_exists($newPath)) {
+    unlink($newPath);
+}
+
+// rename temp → final
+if (!rename($tempPath, $newPath)) {
+    echo json_encode([
+        "status" => false,
+        "message" => "Failed to rename file"
+    ]);
+    exit;
+}
+
+// correct path for DB
+$fileName = "uploads/marksheets/" . $newFileName;
+/* ================= RENAME FILE AFTER SEM DETECT ================= */
+
+
+
 
 /* ================= CHECK DUPLICATE ================= */
 
@@ -186,8 +238,10 @@ $lines = preg_split("/\r\n|\n|\r/", $text);
 foreach ($lines as $line) {
 
     foreach ($subjectList as $subject) {
+        $cleanLine = strtoupper(preg_replace('/\s+/', ' ', str_replace('&', 'AND', $line)));
+        $cleanSubject = strtoupper(preg_replace('/\s+/', ' ', str_replace('&', 'AND', $subject)));
 
-        if (stripos($line, $subject) !== false) {
+        if (preg_match('/\b' . preg_quote($cleanSubject, '/') . '\b/', $cleanLine))  {
 
             preg_match_all('/\d+/', $line, $nums);
 
@@ -210,22 +264,33 @@ foreach ($lines as $line) {
 
                 }
             }
+            break;
         }
     }
 }
 
-/* ================= SAVE MARKS ================= */
 
+
+/* ================= SAVE MARKS ================= */
+// fetch class FIRST
+$classStmt = $conn->prepare("SELECT class FROM students WHERE user_id=?");
+$classStmt->bind_param("i", $student_id);
+$classStmt->execute();
+$classRes = $classStmt->get_result();
+$classRow = $classRes->fetch_assoc();
+$class = $classRow['class'] ?? "";
 foreach ($subjects as $subject => $marks) {
 
-    $stmt = $conn->prepare("
-    INSERT INTO marks
-    (student_id,teacher_user_id,class,semester,subject,exam_type,total_marks,obtained_marks,status)
-    VALUES (?,?,?,? ,?,'FINAL',100,?,'published')
-    ");
 
-    $teacher = 0;
-    $class = "";
+
+    // now insert marks
+    $stmt = $conn->prepare("
+INSERT INTO marks
+(student_id,teacher_user_id,class,semester,subject,exam_type,total_marks,obtained_marks,status)
+VALUES (?,?,?,? ,?,'FINAL',100,?,'published')
+");
+
+    $teacher = 0; // or valid teacher id
 
     $stmt->bind_param(
         "iisssi",
@@ -237,7 +302,9 @@ foreach ($subjects as $subject => $marks) {
         $marks
     );
 
-    $stmt->execute();
+    if (!$stmt->execute()) {
+        file_put_contents("marks_error.txt", $stmt->error);
+    }
 }
 
 /* ================= EXTRACT PERCENTAGE ================= */
@@ -251,8 +318,7 @@ $percentage = 0;
 /* MSBTE style percentage detection */
 if (preg_match('/PERCENTAGE\s*[:\-]?\s*([0-9]+\.[0-9]+)/i', $text, $m)) {
     $percentage = $m[1];
-}
-elseif (preg_match('/([0-9]{2,3}\.[0-9]{2})/', $text, $m)) {
+} elseif (preg_match('/([0-9]{2,3}\.[0-9]{2})/', $text, $m)) {
     $percentage = $m[1];
 }
 
@@ -298,5 +364,3 @@ echo json_encode([
     "semester" => $semesterNumber,
     "percentage" => $percentage
 ]);
-
-?>
