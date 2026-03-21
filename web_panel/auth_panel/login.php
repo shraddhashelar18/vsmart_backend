@@ -1,4 +1,6 @@
 <?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 session_start();
 require_once("../config.php");
 
@@ -22,19 +24,42 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         // ✅ If password is hashed use password_verify
         if (password_verify($password, $user['password']) || $password == $user['password']) {
 
-            $_SESSION['user_id'] = $user['id'];
-            $_SESSION['role'] = $user['role'];
+        $role = strtolower(trim($user['role']));
 
-            // ✅ Redirect based on role
-            if ($user['role'] == "admin") {
-                header("Location: ../admin_panel/dashboard.php");
-            } elseif ($user['role'] == "hod") {
-                header("Location: ../hod_panel/dashboard.php");
-            } elseif ($user['role'] == "teacher") {
-                header("Location: ../teacher_panel/teacher_dashboard.php");
-            } elseif ($user['role'] == "student") {
-                header("Location: student_dashboard.php");
-            } elseif ($user['role'] == "principal") {
+$_SESSION['user_id'] = $user['user_id'];
+$_SESSION['role'] = $role;
+
+if ($role == "admin") {
+    header("Location: ../admin_panel/dashboard.php");
+    exit;
+}
+elseif ($role == "hod") {
+    header("Location: ../hod_panel/dashboard.php");
+    exit;
+}
+elseif ($role == "teacher") {
+
+    $t = $conn->prepare("SELECT * FROM teachers WHERE user_id=? LIMIT 1");
+    $t->bind_param("i", $user['user_id']);
+    $t->execute();
+    $res = $t->get_result();
+
+    if($res->num_rows > 0){
+        $teacher = $res->fetch_assoc();
+
+        $_SESSION['teacher_id'] = $user['user_id'];
+        $_SESSION['teacher_name'] = $teacher['full_name'];
+
+        header("Location: ../teacher_panel/teacher_dashboard.php");
+        exit;
+    } else {
+        $message = "Teacher not found";
+    }
+}
+elseif ($role == "student") {
+    header("Location: student_dashboard.php");
+    exit;
+} elseif ($user['role'] == "principal") {
                 header("Location: principal_dashboard.php");
             } elseif ($user['role'] == "parent") {
                 header("Location: parent_dashboard.php");

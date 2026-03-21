@@ -1,4 +1,6 @@
 <?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 require_once("../config.php");
 session_start();
 
@@ -9,28 +11,40 @@ if(!isset($_SESSION['teacher_id'])){
 }
 
 $teacher_id   = $_SESSION['teacher_id'];
-$teacher_name = $_SESSION['teacher_name'];
+$teacher_name = $_SESSION['teacher_name'] ?? "Teacher";
 
-/* DEPARTMENT CHECK */
+/* ✅ AUTO SET DEFAULT DEPARTMENT */
 if(!isset($_SESSION['department_id'])){
-    header("Location: switch_department.php");
-    exit();
+
+    $res = $conn->query("
+    SELECT DISTINCT department 
+    FROM teacher_assignments 
+    WHERE user_id = '$teacher_id'
+    LIMIT 1
+    ");
+
+    if($res->num_rows > 0){
+        $row = $res->fetch_assoc();
+        $_SESSION['department_id'] = $row['department'];
+    }
 }
 
 $department_id = $_SESSION['department_id'];
 
-/* FETCH CLASSES */
+/* ✅ FETCH CLASSES (ASSIGNED ONLY) */
 $classes = $conn->query("
-SELECT class_name 
-FROM classes 
-WHERE department_id = '$department_id'
+SELECT DISTINCT class 
+FROM teacher_assignments 
+WHERE user_id = '$teacher_id' 
+AND department = '$department_id'
 ");
 
-/* FETCH SUBJECTS */
+/* ✅ FETCH SUBJECTS (ASSIGNED ONLY) */
 $subjects = $conn->query("
-SELECT subject_name 
-FROM subjects 
-WHERE department_id = '$department_id'
+SELECT DISTINCT subject 
+FROM teacher_assignments 
+WHERE user_id = '$teacher_id' 
+AND department = '$department_id'
 ");
 
 $date = date("l, F d, Y");
@@ -45,7 +59,6 @@ $date = date("l, F d, Y");
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
 <style>
-
 body{
 margin:0;
 font-family:Arial;
@@ -53,7 +66,6 @@ background:#f4f6f9;
 }
 
 /* HEADER */
-
 .header{
 background:#009846;
 color:white;
@@ -73,15 +85,14 @@ opacity:0.9;
 }
 
 /* CONTAINER */
-
 .container{
 width:95%;
 margin:auto;
 padding:25px;
+padding-bottom:100px; /* 👈 ADD THIS */
 }
 
 /* SWITCH */
-
 .switch{
 text-align:right;
 color:#009846;
@@ -91,7 +102,6 @@ margin-bottom:15px;
 }
 
 /* SELECT BOX */
-
 .select-box{
 background:white;
 padding:15px;
@@ -115,7 +125,6 @@ border-radius:6px;
 }
 
 /* CARDS */
-
 .card{
 background:white;
 padding:18px;
@@ -151,7 +160,6 @@ font-size:13px;
 }
 
 /* BOTTOM NAV */
-
 .bottom{
 position:fixed;
 bottom:0;
@@ -179,7 +187,6 @@ font-size:22px;
 color:#009846;
 font-weight:bold;
 }
-
 </style>
 
 </head>
@@ -201,9 +208,9 @@ font-weight:bold;
 <!-- CLASS -->
 <div class="select-box">
 <label>Select Class</label>
-<select>
+<select name="class" id="class" onchange="loadSubjects()">
 <?php while($row = $classes->fetch_assoc()){ ?>
-<option><?= $row['class_name'] ?></option>
+<option><?= $row['class'] ?></option>
 <?php } ?>
 </select>
 </div>
@@ -211,16 +218,13 @@ font-weight:bold;
 <!-- SUBJECT -->
 <div class="select-box">
 <label>Select Subject</label>
-<select>
-<?php while($row = $subjects->fetch_assoc()){ ?>
-<option><?= $row['subject_name'] ?></option>
-<?php } ?>
-</select>
-</div>
+<select name="subject" id="subject">
+<option value="">Select Subject</option>
+</select></div>
 
 <!-- CARDS -->
 
-<div class="card" onclick="location.href='mark_attendance.php'">
+<div class="card" onclick="goAttendance()">
 <div class="icon">
 <span class="material-icons">check_circle</span>
 </div>
@@ -230,7 +234,7 @@ font-weight:bold;
 </div>
 </div>
 
-<div class="card" onclick="location.href='enter_marks.php'">
+<div class="card" onclick="goMarks()">
 <div class="icon">
 <span class="material-icons">edit</span>
 </div>
@@ -240,7 +244,7 @@ font-weight:bold;
 </div>
 </div>
 
-<div class="card" onclick="location.href='reports.php'">
+<div class="card" onclick="goReports()">
 <div class="icon">
 <span class="material-icons">bar_chart</span>
 </div>
@@ -250,7 +254,7 @@ font-weight:bold;
 </div>
 </div>
 
-<div class="card" onclick="location.href='send_notification.php'">
+<div class="card" onclick="goNotification()">
 <div class="icon">
 <span class="material-icons">notifications</span>
 </div>
@@ -263,7 +267,6 @@ font-weight:bold;
 </div>
 
 <div class="bottom">
-
 <a href="teacher_dashboard.php" class="active">
 <span class="material-icons">dashboard</span>
 Dashboard
@@ -275,6 +278,91 @@ Settings
 </a>
 
 </div>
+<script>
+function loadSubjects(){
+
+    let classVal = document.getElementById("class").value;
+
+    if(!classVal){
+        document.getElementById("subject").innerHTML = "<option>Select Subject</option>";
+        return;
+    }
+
+    fetch("get_subjects.php?class=" + encodeURIComponent(classVal))
+    .then(res => res.json())
+    .then(data => {
+
+        let options = "<option value=''>Select Subject</option>";
+
+        data.forEach(sub => {
+            options += `<option value="${sub}">${sub}</option>`;
+        });
+
+        document.getElementById("subject").innerHTML = options;
+
+    });
+}
+window.onload = function(){
+    loadSubjects();
+};
+</script>
+
+<script>
+function goAttendance(){
+
+    let classVal = document.querySelector("select[name='class']").value;
+    let subjectVal = document.querySelector("select[name='subject']").value;
+
+    if(!classVal || !subjectVal){
+        alert("Please select class and subject");
+        return;
+    }
+
+    window.location.href = "mark_attendance.php?class=" + encodeURIComponent(classVal) + "&subject=" + encodeURIComponent(subjectVal);
+}
+
+function goNotification(){
+
+    let classVal = document.querySelector("select[name='class']").value;
+    let subjectVal = document.querySelector("select[name='subject']").value;
+
+    if(!classVal || !subjectVal){
+        alert("Please select class and subject");
+        return;
+    }
+
+    window.location.href = "send_notification.php?class=" 
+        + encodeURIComponent(classVal) + 
+        "&subject=" + encodeURIComponent(subjectVal);
+}
+function goReports(){
+
+    let classVal = document.querySelector("select[name='class']").value;
+
+    if(!classVal){
+        alert("Please select class");
+        return;
+    }
+
+    window.location.href = "reports.php?class=" + encodeURIComponent(classVal);
+}
+
+function goMarks(){
+
+    let classVal = document.querySelector("select[name='class']").value;
+    let subjectVal = document.querySelector("select[name='subject']").value;
+
+    if(!classVal || !subjectVal){
+        alert("Please select class and subject");
+        return;
+    }
+
+    window.location.href = "enter_marks.php?class=" 
+        + encodeURIComponent(classVal) 
+        + "&subject=" 
+        + encodeURIComponent(subjectVal);
+}
+</script>
 
 </body>
 </html>
