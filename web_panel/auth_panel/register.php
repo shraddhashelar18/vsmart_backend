@@ -1,6 +1,6 @@
 <?php
 require_once("../config.php");
-//register code
+//code
 $message = "";
 $msgType = "";
 
