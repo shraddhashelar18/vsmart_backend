@@ -12,9 +12,20 @@ WHERE user_id=?
 
 $semQuery->bind_param("i",$studentId);
 $semQuery->execute();
-$semResult = $semQuery->get_result()->fetch_assoc();
+$semData = $semQuery->get_result();
 
-$currentSemester = "SEM".$semResult['current_semester'];
+if (!$semData || $semData->num_rows == 0) {
+    return [
+        "status" => "DETAINED",
+        "percentage" => null,
+        "backlogCount" => 0,
+        "ktSubjects" => []
+    ];
+}
+
+$semResult = $semData->fetch_assoc();
+
+$currentSemester = $semResult['current_semester'];
 
 /* calculate promotion only for that semester */
 
@@ -24,7 +35,7 @@ SUM(total_marks) total_marks,
 SUM(obtained_marks) obtained_marks
 FROM marks
 WHERE student_id=?
-AND semester LIKE CONCAT('%',?,'%')
+AND semester = ?
 AND exam_type='FINAL'
 AND status='published'
 GROUP BY subject
@@ -32,7 +43,24 @@ GROUP BY subject
 
 $stmt->bind_param("is",$studentId,$currentSemester);
 $stmt->execute();
-$result=$stmt->get_result();
+$result = $stmt->get_result();
+if ($result->num_rows == 0) {
+    return [
+        "status" => "DETAINED",
+        "percentage" => null,
+        "backlogCount" => 0,
+        "ktSubjects" => []
+    ];
+}
+
+if (!$result) {
+    return [
+        "status" => "DETAINED",
+        "percentage" => null,
+        "backlogCount" => 0,
+        "ktSubjects" => []
+    ];
+}
 
 $failCount=0;
 $ktSubjects=[];

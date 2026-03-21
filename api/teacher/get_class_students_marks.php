@@ -12,7 +12,7 @@ if($currentRole != "teacher"){
     exit;
 }
 $class = $_GET['class'] ?? '';
-$subject = $_GET['subject'] ?? '';
+$subject = trim($_GET['subject'] ?? '');
 $examType = $_GET['exam_type'] ?? '';
 
 if (empty($class) || empty($subject) || empty($examType)) {

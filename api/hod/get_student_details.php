@@ -1,4 +1,5 @@
 <?php
+//get_student_details.php
 require_once("../config.php");
 require_once("../api_guard.php");
 require_once("../cors.php");
@@ -40,12 +41,23 @@ $student = $result->fetch_assoc();
 
 /* ================= MARKS ================= */
 
+$semQuery = $conn->prepare("
+    SELECT current_semester FROM students WHERE user_id = ?
+");
+$semQuery->bind_param("i",$studentId);
+$semQuery->execute();
+$semData = $semQuery->get_result()->fetch_assoc();
+
+$currentSemester = (string)$semData['current_semester'];
+
 $marksStmt = $conn->prepare("
     SELECT subject, exam_type, obtained_marks
     FROM marks
     WHERE student_id = ?
+    AND semester = ?
 ");
-$marksStmt->bind_param("i",$studentId);
+$marksStmt->bind_param("is",$studentId,$currentSemester);
+
 $marksStmt->execute();
 $marksResult = $marksStmt->get_result();
 
