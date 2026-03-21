@@ -31,7 +31,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             } elseif ($user['role'] == "hod") {
                 header("Location: ../hod_panel/dashboard.php");
             } elseif ($user['role'] == "teacher") {
-                header("Location: teacher_dashboard.php");
+                header("Location: ../teacher_panel/teacher_dashboard.php");
             } elseif ($user['role'] == "student") {
                 header("Location: student_dashboard.php");
             } elseif ($user['role'] == "principal") {

@@ -1,21 +1,20 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
 require_once("../../config.php");
 
 /* SAVE SETTINGS */
 
 if($_SERVER['REQUEST_METHOD']=="POST"){
 
-    $upload = $_POST['upload'];
-    $publish = $_POST['publish'];
+    $upload = isset($_POST['upload']) ? 1 : 0;
+    $publish = isset($_POST['publish']) ? 1 : 0;
 
-    $conn->query("
+    $stmt = $conn->prepare("
     UPDATE settings 
-    SET allow_marksheet_upload='$upload',
-        final_published='$publish'
+    SET allow_marksheet_upload=?, final_published=?
     WHERE id=1
     ");
+    $stmt->bind_param("ii",$upload,$publish);
+    $stmt->execute();
 
     header("Location: result_control.php?saved=1");
     exit;
@@ -23,10 +22,13 @@ if($_SERVER['REQUEST_METHOD']=="POST"){
 
 /* FETCH SETTINGS */
 
-$settings=$conn->query("
+$settings = $conn->query("
 SELECT allow_marksheet_upload, final_published 
 FROM settings WHERE id=1
 ")->fetch_assoc();
+
+$uploadEnabled = $settings['allow_marksheet_upload'];
+$publishEnabled = $settings['final_published'];
 ?>
 
 <!DOCTYPE html>
@@ -34,6 +36,7 @@ FROM settings WHERE id=1
 <head>
 
 <title>Result Control</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
 <style>
 
@@ -43,45 +46,75 @@ font-family:Segoe UI;
 background:#f4f6f9;
 }
 
-/* TOPBAR */
+/* HEADER */
 .topbar{
-background:#009846;
-color:white;
-padding:20px 30px;
-font-size:22px;
+    background:#009846;
+    color:white;
+    padding:18px 30px;
+    font-size:20px;
+    display:flex;
+    align-items:center;
+    gap:10px;
 }
 
-/* DESKTOP LEFT LAYOUT */
-.wrapper{
-width:600px;
-margin-left:80px;
-margin-top:40px;
+.back-btn{
+    color:white;
+    text-decoration:none;
+    display:flex;
+    align-items:center;
+}
+
+.back-btn .material-icons{
+    font-size:24px;
+    cursor:pointer;
+}
+
+.title-text{
+    font-weight:600;
+}
+
+/* CONTAINER */
+.container{
+max-width:600px;
+margin:40px auto;
+padding:20px;
 }
 
 /* CARD */
 .card{
 background:white;
-padding:25px;
-border-radius:16px;
-margin-bottom:20px;
+border-radius:14px;
+padding:16px;
+margin-bottom:15px;
 display:flex;
-justify-content:space-between;
 align-items:center;
-box-shadow:0 6px 15px rgba(0,0,0,0.08);
+justify-content:space-between;
+box-shadow:0 4px 12px rgba(0,0,0,0.08);
+}
+
+/* LEFT */
+.left{
+display:flex;
+align-items:center;
+gap:12px;
+}
+
+.icon{
+color:#009846;
+font-size:26px;
 }
 
 /* TEXT */
-.card-text{
-font-size:16px;
+.title{
 font-weight:600;
+font-size:16px;
 }
 
 /* SWITCH */
 .switch{
 position:relative;
-display:inline-block;
-width:55px;
-height:28px;
+width:50px;
+height:26px;
 }
 
 .switch input{
@@ -101,10 +134,10 @@ transition:.3s;
 }
 
 .slider:before{
-position:absolute;
 content:"";
-height:22px;
-width:22px;
+position:absolute;
+height:20px;
+width:20px;
 left:3px;
 bottom:3px;
 background:white;
@@ -117,15 +150,24 @@ background:#009846;
 }
 
 input:checked + .slider:before{
-transform:translateX(27px);
+transform:translateX(24px);
 }
 
-/* MESSAGE */
-.msg{
-padding:15px;
+/* DISABLED */
+.disabled{
+opacity:0.5;
+pointer-events:none;
+}
+
+/* STATUS BOX */
+.status{
+padding:14px;
 border-radius:12px;
-margin-bottom:20px;
-font-size:15px;
+margin-top:10px;
+display:flex;
+align-items:center;
+gap:10px;
+font-weight:600;
 }
 
 .success{
@@ -135,30 +177,40 @@ color:#009846;
 
 .error{
 background:#fdecea;
-color:red;
+color:#e53935;
 }
 
 /* BUTTON */
 .btn{
 width:100%;
-padding:16px;
+padding:14px;
 background:#009846;
-border:none;
 color:white;
-border-radius:12px;
-font-size:16px;
+border:none;
+border-radius:10px;
+margin-top:20px;
 cursor:pointer;
 }
 
-/* SAVED TOAST */
+/* INFO */
+.info{
+background:#eaf7f1;
+padding:12px;
+border-radius:10px;
+margin-top:20px;
+display:flex;
+gap:10px;
+}
+
+/* TOAST */
 .toast{
-background:#333;
-color:white;
-padding:12px 20px;
 position:fixed;
 bottom:20px;
 left:50%;
 transform:translateX(-50%);
+background:#333;
+color:white;
+padding:10px 20px;
 border-radius:8px;
 }
 
@@ -168,91 +220,137 @@ border-radius:8px;
 
 <body>
 
-<div class="topbar">Result Control</div>
+<div class="topbar">
+    <a href="../reports.php" class="back-btn">
+        <span class="material-icons">arrow_back</span>
+    </a>
+    <span class="title-text">Result Control</span>
+</div>
+<div class="container">
 
-<div class="wrapper">
-
-<form method="POST">
-
-<h2 style="margin-bottom:5px;">Result Upload Settings</h2>
-<p style="color:#777;margin-bottom:20px;">
-Control student marksheet upload permissions.
-</p>
-
-<!-- ✅ ADD HERE -->
-<div style="
-background:#e6f4ea;
-padding:15px;
-border-radius:12px;
-margin-bottom:20px;
-">
-ℹ Semester control is managed from Admin Settings. This screen only controls upload permissions.
-</div>  
-
+<h2>Result Upload Settings</h2>
+<p style="color:#777;">Control student marksheet upload permissions.</p>
 
 <form method="POST">
-<input type="hidden" name="upload" value="0">
-<input type="hidden" name="publish" value="0">
-<!-- ENABLE UPLOAD -->
+
+<!-- UPLOAD -->
 <div class="card">
-
-<div class="card-text">
-Enable Marksheet Upload
+<div class="left">
+<span class="material-icons icon">upload_file</span>
+<div class="title">Enable Marksheet Upload</div>
 </div>
 
 <label class="switch">
-<input type="checkbox" name="upload" value="1"
-<?=$settings['allow_marksheet_upload'] ? 'checked' : ''?>>
+<input type="checkbox" id="uploadToggle"
+<?=$uploadEnabled ? 'checked' : ''?>>
+<span class="slider"></span>
+</label>
+</div>
 
-<input type="checkbox" name="publish" value="1"
-<?=$settings['final_published'] ? 'checked' : ''?>>
+<!-- PUBLISH -->
+<div class="card <?=$uploadEnabled ? '' : 'disabled'?>">
+
+<div class="left">
+<span class="material-icons icon">refresh</span>
+<div class="title">Publish Final Result</div>
+</div>
+
+<label class="switch">
+<input type="checkbox" id="publishToggle"
+<?=$publishEnabled ? 'checked' : ''?>
+<?=$uploadEnabled ? '' : 'disabled'?>>
 <span class="slider"></span>
 </label>
 
 </div>
 
-<!-- PUBLISH RESULT -->
-<div class="card">
+<!-- STATUS -->
+<?php if($uploadEnabled): ?>
 
-<div class="card-text">
-Publish Final Result
-</div>
-
-<label class="switch">
-<input type="checkbox" name="publish"
-<?=$settings['final_published'] ? 'checked' : ''?>>
-<span class="slider"></span>
-</label>
-
-</div>
-
-<!-- STATUS MESSAGE -->
-
-<?php if($settings['allow_marksheet_upload']): ?>
-
-<div class="msg success">
-✔ Students can upload marksheets.
+<div class="status success">
+<span class="material-icons">check_circle</span>
+Students can upload marksheets.
 </div>
 
 <?php else: ?>
 
-<div class="msg error">
-✖ Marksheet upload is disabled.
+<div class="status error">
+<span class="material-icons">cancel</span>
+Marksheet upload is disabled.
 </div>
 
 <?php endif; ?>
 
-<!-- SAVE BUTTON -->
+<!-- VIEW STATUS BUTTON -->
+<?php if($uploadEnabled): ?>
+
+<button type="button" class="btn view-btn" onclick="location.href='upload_status.php'">
+View Upload Status
+</button>
+
+<?php endif; ?>
+
+<!-- INFO -->
+<div class="info">
+<span class="material-icons">info</span>
+<div>
+Semester control is managed from Admin Settings. 
+This screen only controls upload permissions.
+</div>
+</div>
+
 <button class="btn">Save Settings</button>
 
 </form>
 
 </div>
 
-<!-- TOAST -->
 <?php if(isset($_GET['saved'])): ?>
 <div class="toast">Result settings saved</div>
 <?php endif; ?>
+<script>
+const uploadToggle = document.getElementById("uploadToggle");
+const publishToggle = document.getElementById("publishToggle");
+const statusBox = document.querySelector(".status");
+const viewBtn = document.querySelector(".view-btn");
+const publishCard = publishToggle.closest(".card");
 
+function updateDB(){
+    fetch("update_result_control.php", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            upload: uploadToggle.checked ? 1 : 0,
+            publish: publishToggle.checked ? 1 : 0
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        console.log("Updated", data);
+    })
+    .catch(err => {
+        console.error("Error:", err);
+    });
+}
+// upload toggle
+uploadToggle.addEventListener("change", () => {
+
+    if(!uploadToggle.checked){
+        publishToggle.checked = false;
+        publishToggle.disabled = true;
+        publishCard.classList.add("disabled");
+    } else {
+        publishToggle.disabled = false;
+        publishCard.classList.remove("disabled");
+    }
+
+    updateDB();
+});
+
+// publish toggle
+publishToggle.addEventListener("change", updateDB);
+</script>
 </body>
 </html>

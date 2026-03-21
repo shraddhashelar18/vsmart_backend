@@ -4,51 +4,48 @@ ini_set('display_errors', 1);
 require_once("../../config.php");
 
 if(!isset($_GET['department'])){
-die("Department missing");
+    die("Department missing");
 }
 
-$department=$_GET['department'];
+$department = $_GET['department'];
 
 /* GET CLASSES */
-
-$classes=$conn->query("
+$classes = $conn->query("
 SELECT class_name
 FROM classes
 WHERE department='$department'
 ");
 
-/* GET SUBJECTS */
+/* GET SUBJECTS (BASE CLASS FIX) */
+$subjects = [];
 
-$subjects=[];
-
-$res=$conn->query("
-SELECT class,subject_name
+$res = $conn->query("
+SELECT class, subject_name
 FROM semester_subjects
 ");
 
-while($row=$res->fetch_assoc()){
-$subjects[$row['class']][]=$row['subject_name'];
+while($row = $res->fetch_assoc()){
+    $baseClass = substr($row['class'],0,4);
+    $subjects[$baseClass][] = $row['subject_name'];
 }
 
 /* GET ASSIGNED SUBJECTS */
+$assigned = [];
 
-$assigned=[];
-
-$res=$conn->query("
-SELECT class,subject
+$res = $conn->query("
+SELECT class, subject
 FROM teacher_assignments
 WHERE status='active'
 ");
 
-while($row=$res->fetch_assoc()){
-$baseClass = substr($row['class'],0,4);
-$assigned[$baseClass][]=$row['subject'];
+while($row = $res->fetch_assoc()){
+    $baseClass = substr($row['class'],0,4);
+    $assigned[$baseClass][] = $row['subject'];
 }
 ?>
 
 <!DOCTYPE html>
 <html>
-
 <head>
 
 <title>Add Teacher</title>
@@ -64,7 +61,6 @@ margin:0;
 }
 
 /* TOPBAR */
-
 .topbar{
 background:#009846;
 color:white;
@@ -75,15 +71,19 @@ align-items:center;
 gap:10px;
 }
 
-/* WRAPPER */
+.back{
+color:white;
+text-decoration:none;
+font-size:22px;
+}
 
+/* WRAPPER */
 .wrapper{
 max-width:900px;
 margin:30px auto;
 }
 
 /* INPUT */
-
 .input{
 background:#eee;
 padding:14px;
@@ -95,7 +95,6 @@ width:100%;
 }
 
 /* CHIP */
-
 .chip{
 display:inline-block;
 padding:10px 18px;
@@ -105,10 +104,6 @@ margin:6px;
 cursor:pointer;
 background:white;
 transition:0.2s;
-}
-
-.chip:hover{
-background:#f1f1f1;
 }
 
 .chip.selected{
@@ -128,15 +123,13 @@ pointer-events:none;
 display:none;
 }
 
-/* SUBJECT SECTION */
-
+/* SUBJECT */
 .subject-section{
 display:none;
 margin-top:15px;
 }
 
-/* SAVE BUTTON */
-
+/* BUTTON */
 .save{
 width:100%;
 padding:14px;
@@ -149,12 +142,6 @@ margin-top:25px;
 cursor:pointer;
 }
 
-.back{
-color:white;
-text-decoration:none;
-font-size:22px;
-}
-
 </style>
 
 </head>
@@ -162,13 +149,10 @@ font-size:22px;
 <body>
 
 <div class="topbar">
-
 <a href="manage_teachers.php?department=<?= $department ?>" class="back">
 <span class="material-icons">arrow_back</span>
 </a>
-
 Add Teacher
-
 </div>
 
 <div class="wrapper">
@@ -176,72 +160,34 @@ Add Teacher
 <form method="POST" action="save_teacher.php" id="teacherForm">
 
 <label>Teacher Name</label>
-
-<input
-class="input"
-name="name"
-placeholder="Enter full name"
-required
-pattern="[A-Za-z ]+">
+<input class="input" name="name" required>
 
 <label>Email</label>
-
-<input
-class="input"
-type="email"
-name="email"
-placeholder="teacher@email.com"
-required>
+<input class="input" type="email" name="email" required>
 
 <label>Password</label>
+<input class="input" type="password" name="password" required>
 
-<input
-class="input"
-type="password"
-name="password"
-placeholder="Enter password"
-required
-minlength="6">
+<label>Departments</label><br>
 
-<label>Departments</label>
-
-<br>
-
-<div class="chip selected">
-✔ <?= $department ?>
-</div>
-
+<div class="chip selected">✔ <?= $department ?></div>
 <input type="hidden" name="department" value="<?= $department ?>">
 
 <h4>Assign Classes</h4>
 
 <?php while($row=$classes->fetch_assoc()): 
+$class = $row['class_name'];
+$baseClass = substr($class,0,4);
 
-$class=$row['class_name'];
-$baseClass=substr($class,0,4);
-
-/* TOTAL SUBJECTS */
-
-$totalSubjects=count($subjects[$baseClass] ?? []);
-
-/* ASSIGNED SUBJECTS */
-
-$assignedSubjects=count($assigned[$baseClass] ?? []);
-
-/* DISABLE IF ALL ASSIGNED */
-
-$isDisabled=($totalSubjects>0 && $totalSubjects==$assignedSubjects);
-
+$total = count($subjects[$baseClass] ?? []);
+$assignedCount = count($assigned[$baseClass] ?? []);
+$isDisabled = ($total>0 && $total==$assignedCount);
 ?>
 
 <label class="chip class-chip <?= $isDisabled ? 'disabled' : '' ?>"
 onclick="<?= $isDisabled ? '' : "selectClass(this,'$class')" ?>">
 
-<input
-type="checkbox"
-name="classes[]"
-value="<?= $class ?>"
-<?= $isDisabled ? 'disabled' : '' ?>>
+<input type="checkbox" name="classes[]" value="<?= $class ?>" <?= $isDisabled ? 'disabled' : '' ?>>
 
 <?= $class ?>
 
@@ -251,30 +197,27 @@ value="<?= $class ?>"
 
 <h4>Subjects</h4>
 
-<?php foreach($subjects as $class=>$subs): ?>
+<?php foreach($subjects as $baseClass=>$subs): ?>
 
-<div id="subjects_<?= $class ?>" class="subject-section">
+<div id="subjects_<?= $baseClass ?>" class="subject-section">
 
-<b><?= $class ?></b>
-
-<br>
+<b><?= $baseClass ?></b><br>
 
 <?php foreach($subs as $sub):
 
 $isAssigned = in_array(
-strtolower(trim($sub)),
-array_map(function($s){
-    return strtolower(trim($s));
-}, $assigned[substr($class,0,4)] ?? [])
+    strtolower(trim($sub)),
+    array_map(function($s){
+        return strtolower(trim($s));
+    }, $assigned[$baseClass] ?? [])
 );
-
 ?>
 
 <label class="chip <?= $isAssigned ? 'disabled selected' : '' ?>">
 
 <input
 type="checkbox"
-name="subjects[<?= $class ?>][]"
+name="subjects[<?= $baseClass ?>][]"
 value="<?= $sub ?>"
 <?= $isAssigned ? 'checked disabled' : '' ?>>
 
@@ -288,9 +231,7 @@ value="<?= $sub ?>"
 
 <?php endforeach; ?>
 
-<button class="save">
-Save Teacher
-</button>
+<button class="save">Save Teacher</button>
 
 </form>
 
@@ -298,85 +239,50 @@ Save Teacher
 
 <script>
 
-/* CLASS SELECT */
-
+/* SELECT CLASS */
 function selectClass(element,className){
 
 if(element.classList.contains("disabled")) return;
 
 let checkbox = element.querySelector("input");
-
 checkbox.checked = !checkbox.checked;
 
-/* TOGGLE PURPLE UI */
-
-if(checkbox.checked){
-element.classList.add("selected");
-}else{
-element.classList.remove("selected");
-}
-
-/* SHOW SUBJECT SECTION */
+element.classList.toggle("selected");
 
 let baseClass = className.substring(0,4);
-
 let section = document.getElementById("subjects_"+baseClass);
 
 if(section){
-
-if(checkbox.checked){
-section.style.display="block";
-}else{
-section.style.display="none";
+section.style.display = checkbox.checked ? "block" : "none";
 }
 
 }
 
-}
-
-
-/* SUBJECT CHIP CLICK */
-
-document.querySelectorAll(".subject-section .chip").forEach(function(chip){
-
+/* SUBJECT CLICK */
+document.querySelectorAll(".subject-section .chip").forEach(chip=>{
 chip.addEventListener("click",function(){
 
 let checkbox = chip.querySelector("input");
 
-if(!checkbox) return;
-
-if(checkbox.disabled) return;
-
-/* TOGGLE CHECK */
+if(!checkbox || checkbox.disabled) return;
 
 checkbox.checked = !checkbox.checked;
-
-/* TOGGLE PURPLE */
-
-if(checkbox.checked){
-chip.classList.add("selected");
-}else{
-chip.classList.remove("selected");
-}
+chip.classList.toggle("selected");
 
 });
-
 });
 
-
-/* FORM VALIDATION */
-
+/* VALIDATION */
 document.getElementById("teacherForm").onsubmit=function(){
 
-let classSelected=document.querySelector("input[name='classes[]']:checked");
+let cls=document.querySelector("input[name='classes[]']:checked");
 
-if(!classSelected){
-alert("Please select at least one class");
+if(!cls){
+alert("Select at least one class");
 return false;
 }
 
 return true;
-
 }
 
 </script>

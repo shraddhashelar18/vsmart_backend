@@ -48,71 +48,88 @@ $classes=$stmt->get_result();
 }
 
 /* =========================
-LOAD PERFORMANCE
+LOAD PERFORMANCE (API MATCHED)
 ========================= */
 
 if($selectedClass && $selectedExam){
 
-$subjectClass=substr($selectedClass,0,4);
+$subjectClass = substr($selectedClass, 0, 4);
 
-/* total subjects */
+/* TOTAL SUBJECTS */
 
-$stmt=$conn->prepare("
-SELECT COUNT(*) total
+$stmt = $conn->prepare("
+SELECT COUNT(*) as total_subjects
 FROM semester_subjects
-WHERE class=?
+WHERE class = ?
 ");
 
-$stmt->bind_param("s",$subjectClass);
+$stmt->bind_param("s", $subjectClass);
 $stmt->execute();
 
-$totalSubjects=$stmt->get_result()->fetch_assoc()['total'];
+$totalSubjects = $stmt->get_result()->fetch_assoc()['total_subjects'] ?? 0;
 
-/* check published */
 
-$stmt=$conn->prepare("
-SELECT COUNT(DISTINCT subject) published
-FROM marks
-WHERE class=? AND exam_type=? AND status='published'
+/* PUBLISHED SUBJECTS (API LOGIC) */
+
+$stmt = $conn->prepare("
+SELECT COUNT(DISTINCT m.subject) as published_count
+FROM marks m
+INNER JOIN semester_subjects ss 
+ON TRIM(LOWER(m.subject)) = TRIM(LOWER(ss.subject_name))
+WHERE m.class=? 
+AND m.exam_type=? 
+AND m.status='published'
+AND ss.class=?
 ");
 
-$stmt->bind_param("ss",$selectedClass,$selectedExam);
+$stmt->bind_param("sss", $selectedClass, $selectedExam, $subjectClass);
 $stmt->execute();
 
-$published=$stmt->get_result()->fetch_assoc()['published'];
+$publishedSubjects = $stmt->get_result()->fetch_assoc()['published_count'] ?? 0;
 
-if($published==$totalSubjects){
 
-$stmt=$conn->prepare("
+/* CHECK ALL PUBLISHED */
+
+if($publishedSubjects == $totalSubjects){
+
+$stmt = $conn->prepare("
 SELECT 
+s.user_id,
 s.full_name,
-SUM(m.obtained_marks) obtained,
-SUM(m.total_marks) max_marks
+SUM(m.total_marks) AS max_marks,
+SUM(m.obtained_marks) AS obtained
 FROM students s
-LEFT JOIN marks m
-ON s.user_id=m.student_id
-AND m.class=?
-AND m.exam_type=?
-WHERE s.class=?
+
+LEFT JOIN marks m 
+ON s.user_id = m.student_id
+AND m.class = ?
+AND m.exam_type = ?
+
+INNER JOIN semester_subjects ss
+ON TRIM(LOWER(ss.subject_name)) = TRIM(LOWER(m.subject))
+AND ss.class = ?
+
+WHERE s.class = ?
+
 GROUP BY s.user_id
 ");
 
-$stmt->bind_param("sss",$selectedClass,$selectedExam,$selectedClass);
+$stmt->bind_param("ssss", $selectedClass, $selectedExam, $subjectClass, $selectedClass);
 $stmt->execute();
 
-$res=$stmt->get_result();
+$res = $stmt->get_result();
 
-while($row=$res->fetch_assoc()){
+while($row = $res->fetch_assoc()){
 
-$percent=0;
+$percent = 0;
 
-if($row['max_marks']>0){
-$percent=round(($row['obtained']/$row['max_marks'])*100);
+if($row['max_marks'] > 0){
+$percent = round(($row['obtained'] / $row['max_marks']) * 100);
 }
 
-$row['percent']=$percent;
+$row['percent'] = $percent;
 
-$students[]=$row;
+$students[] = $row;
 }
 
 }
@@ -124,7 +141,6 @@ $students[]=$row;
 <head>
 
 <title>Performance Report</title>
-
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
 <style>
@@ -132,7 +148,7 @@ $students[]=$row;
 body{
 margin:0;
 font-family:Segoe UI;
-background:#f4f6f9;
+background:#eef2f5;
 }
 
 /* HEADER */
@@ -140,111 +156,109 @@ background:#f4f6f9;
 .topbar{
 background:#009846;
 color:white;
-padding:18px 30px;
-font-size:20px;
+padding:18px 40px;
+font-size:22px;
 display:flex;
 align-items:center;
 gap:10px;
 }
 
-/* CONTAINER */
+/* MAIN CONTAINER */
 
 .container{
-max-width:900px;
-margin:50px auto;
-padding:30px;
+max-width:700px;
+margin:40px auto;
+padding:25px;
+}
+
+/* CARD STYLE (LIKE MOBILE UI) */
+
+.box{
 background:white;
-border-radius:12px;
-box-shadow:0 6px 18px rgba(0,0,0,0.08);
+border-radius:16px;
+padding:18px;
+margin-bottom:15px;
+box-shadow:0 4px 12px rgba(0,0,0,0.08);
 }
 
 /* FIELD */
 
-.field{
-margin-bottom:18px;
-}
-
 .field label{
 font-size:14px;
 color:#666;
-display:block;
 margin-bottom:6px;
+display:block;
 }
-
-/* SELECT */
 
 .select{
 width:100%;
 padding:14px;
 border-radius:12px;
 border:none;
-background:#f2f2f2;
+background:#f1f1f1;
 font-size:15px;
 }
 
-/* STUDENT TITLE */
-
-.title{
-font-size:18px;
-font-weight:600;
-margin-top:25px;
-margin-bottom:15px;
-}
-
-/* CARD */
+/* STUDENT CARD */
 
 .card{
-background:white;
-border-radius:12px;
-padding:18px;
-margin-bottom:14px;
+background:#f9f9f9;
+border-radius:16px;
+padding:16px;
+margin-bottom:12px;
 display:flex;
 justify-content:space-between;
 align-items:center;
-box-shadow:0 4px 10px rgba(0,0,0,0.08);
+box-shadow:0 2px 6px rgba(0,0,0,0.08);
 }
 
-/* STUDENT */
+/* LEFT */
 
 .student{
 display:flex;
 align-items:center;
-gap:14px;
+gap:12px;
 }
 
 .avatar{
-width:50px;
-height:50px;
+width:45px;
+height:45px;
 border-radius:50%;
-background:#EAF7F1;
+background:#e6f5ee;
 display:flex;
 align-items:center;
 justify-content:center;
 color:#009846;
-font-size:24px;
 }
 
+/* TEXT */
+
 .name{
-font-size:18px;
+font-size:17px;
 font-weight:600;
 }
 
 .sub{
 font-size:14px;
-color:#666;
+color:#777;
 }
 
+/* RIGHT */
+
 .percent{
-font-size:18px;
+font-size:16px;
 font-weight:bold;
 }
 
-.green{
-color:#009846;
-}
+.green{ color:#009846; }
+.red{ color:#e53935; }
 
-.red{
-color:#e53935;
+/* EMPTY */
+
+.empty{
+color:#777;
+text-align:center;
+margin-top:20px;
 }
 
 </style>
@@ -257,83 +271,57 @@ color:#e53935;
 <a href="../reports.php" style="color:white;text-decoration:none;">
 <span class="material-icons">arrow_back</span>
 </a>
-
 Performance Report
-
 </div>
 
 <div class="container">
 
 <form method="GET">
 
-<div class="field">
-
+<div class="box field">
 <label>Department</label>
-
 <select class="select" name="department" onchange="this.form.submit()">
-
 <option value="">Select</option>
 
 <?php while($d=$departments->fetch_assoc()): ?>
-
-<option value="<?=$d['department']?>" 
-<?=$selectedDept==$d['department']?'selected':''?>>
-
+<option value="<?=$d['department']?>" <?=$selectedDept==$d['department']?'selected':''?>>
 <?=$d['department']?>
-
 </option>
-
 <?php endwhile; ?>
 
 </select>
-
 </div>
 
-<div class="field">
 
+<div class="box field">
 <label>Class</label>
-
 <select class="select" name="class" onchange="this.form.submit()">
-
 <option value="">Select</option>
 
 <?php if($classes) while($c=$classes->fetch_assoc()): ?>
-
-<option value="<?=$c['class_name']?>"
-<?=$selectedClass==$c['class_name']?'selected':''?>>
-
+<option value="<?=$c['class_name']?>" <?=$selectedClass==$c['class_name']?'selected':''?>>
 <?=$c['class_name']?>
-
 </option>
-
 <?php endwhile; ?>
 
 </select>
-
 </div>
 
-<div class="field">
 
+<div class="box field">
 <label>Exam</label>
-
 <select class="select" name="exam" onchange="this.form.submit()">
-
 <option value="">Select</option>
-
 <option value="CT1" <?=$selectedExam=="CT1"?'selected':''?>>CT1</option>
 <option value="CT2" <?=$selectedExam=="CT2"?'selected':''?>>CT2</option>
-
 </select>
-
 </div>
 
 </form>
 
-<div class="title">Students</div>
-
 <?php if(empty($students)){ ?>
 
-<p style="color:#777;">Marks will appear after all teachers publish marks</p>
+<p class="empty">Marks will appear after all teachers publish marks</p>
 
 <?php } else { ?>
 
@@ -348,13 +336,10 @@ Performance Report
 </div>
 
 <div>
-
 <div class="name"><?=$s['full_name']?></div>
 
 <div class="sub">
-
-<?=$s['obtained']?> / <?=$s['max_marks']?> marks
-
+<?=$s['obtained'] ?? 'ABSENT'?> / <?=$s['max_marks']?> marks
 </div>
 
 </div>
@@ -362,9 +347,7 @@ Performance Report
 </div>
 
 <div class="percent <?=$s['percent']>=40?'green':'red'?>">
-
 <?=$s['percent']?>%
-
 </div>
 
 </div>

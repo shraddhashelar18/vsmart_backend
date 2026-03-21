@@ -1,19 +1,22 @@
+<?php if(isset($_GET['success'])): ?>
+<p style="color:green;text-align:center;">
+User <?= $_GET['success'] ?> successfully!
+</p>
+<?php endif; ?>
 <?php
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 require_once("../../config.php");
 
-$result=$conn->query("
-SELECT 
-u.user_id,
-u.email,
-u.role,
-COALESCE(s.full_name,t.full_name) AS name
-FROM users u
-LEFT JOIN students s ON u.user_id=s.user_id
-LEFT JOIN teachers t ON u.user_id=t.user_id
-WHERE u.status='pending'
+$result = $conn->query("
+SELECT user_id, email, role 
+FROM users 
+WHERE status='pending'
 ");
+
+if(!$result){
+    die("SQL Error: " . $conn->error);
+}
 ?>
 
 <!DOCTYPE html>
@@ -21,7 +24,7 @@ WHERE u.status='pending'
 <head>
 
 <title>User Approvals</title>
-
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
 <style>
@@ -32,26 +35,64 @@ font-family:Segoe UI;
 background:#f4f6f9;
 }
 
-.topbar{
-background:#009846;
-color:white;
-padding:22px;
-font-size:22px;
+.topbar {
+    background: #009846;
+    color: white;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
 }
 
-.wrapper{
-max-width:800px;
-margin:40px auto;
+/* FIX YOUR CURRENT ISSUE */
+.back-arrow {
+    font-size: 24px;
+    margin-right: 12px;
+    cursor: pointer;
+    text-decoration: none;  /* remove underline */
+    color: white;           /* remove blue */
 }
 
+/* title */
+.title {
+    font-size: 20px;
+    font-weight: 500;
+}
+
+/* CARD */
 .card{
 background:white;
-border-radius:16px;
-padding:20px;
-margin-bottom:15px;
-box-shadow:0 6px 15px rgba(0,0,0,0.08);
+margin:20px;
+padding:15px;
+border-radius:12px;
 display:flex;
 justify-content:space-between;
+align-items:center;
+box-shadow:0 4px 10px rgba(0,0,0,0.08);
+cursor:pointer;
+text-decoration:none;
+color:black;
+}
+
+.user{
+display:flex;
+align-items:center;
+gap:10px;
+}
+
+.icon{
+background:#e8f5ec;
+width:40px;
+height:40px;
+border-radius:50%;
+display:flex;
+align-items:center;
+justify-content:center;
+color:#009846;
+}
+
+.role{
+color:#777;
+font-size:14px;
 }
 
 </style>
@@ -60,37 +101,41 @@ justify-content:space-between;
 
 <body>
 
-<div class="topbar">User Approvals</div>
+<div class="topbar">
+ <a href="../dashboard.php" class="material-icons back-arrow">arrow_back</a>
+    <span class="title">User Approvals</span>
+</div>
 
-<div class="wrapper">
+<?php if($result->num_rows > 0): ?>
 
-<?php while($row=$result->fetch_assoc()): ?>
+<?php while($row = $result->fetch_assoc()): ?>
 
-<div class="card">
+<a class="card" href="verify_user.php?id=<?=$row['user_id']?>">
 
-<div>
-
-<b><?=$row['name']?></b><br>
-<?=$row['email']?><br>
-Role: <?=$row['role']?>
-
+<div class="user">
+<div class="icon">
+<span class="material-icons">person</span>
 </div>
 
 <div>
-
-<a href="verify_registration.php?user_id=<?=$row['user_id']?>">
+<div><?=$row['email']?></div>
+<div class="role">Role: <?=strtoupper($row['role'])?></div>
+</div>
+</div>
 
 <span class="material-icons">chevron_right</span>
 
 </a>
 
-</div>
-
-</div>
-
 <?php endwhile; ?>
 
-</div>
+<?php else: ?>
+
+<p style="text-align:center; margin-top:50px; color:#777;">
+No Pending Requests
+</p>
+
+<?php endif; ?>
 
 </body>
 </html>

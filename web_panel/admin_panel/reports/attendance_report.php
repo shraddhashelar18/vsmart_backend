@@ -7,7 +7,18 @@ require_once("../../config.php");
 GET ACTIVE SEMESTER (EVEN / ODD)
 =============================== */
 
-$settings = $conn->query("SELECT active_semester FROM settings WHERE id=1")->fetch_assoc();
+$result = $conn->query("SELECT active_semester FROM settings LIMIT 1");
+
+if(!$result){
+    die("Query Error: " . $conn->error);
+}
+
+$settings = $result->fetch_assoc();
+
+if(!$settings){
+    die("Settings row missing");
+}
+
 $cycle = $settings['active_semester'];
 
 if($cycle=="EVEN"){

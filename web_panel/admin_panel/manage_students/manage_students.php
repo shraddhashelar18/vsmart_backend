@@ -4,6 +4,7 @@ ini_set('display_errors', 1);
 require_once("../../config.php");
 
 $class = $_GET['class'];
+$department = substr($class, 0, 2);
 
 $result = $conn->query("
 SELECT s.*, u.email
@@ -178,7 +179,7 @@ background:#007a38;
 
 <div class="topbar">
 
-<a href="select_class.php?department=<?= $_GET['department'] ?>" class="back">
+<a href="select_class.php?department=<?= $department ?>" class="back">
 <span class="material-icons">arrow_back</span>
 </a>
 
