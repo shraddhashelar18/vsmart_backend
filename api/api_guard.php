@@ -1,24 +1,21 @@
 <?php
 
-require_once "../config.php"; // ✅ IMPORTANT
+require_once(__DIR__ . "/config.php");
 
 header("Content-Type: application/json");
-require_once("../config.php");
+
 /* ======================
-   GET AUTH HEADER (FIXED)
+   GET AUTH HEADER
 ====================== */
 
 $authHeader = null;
 
-/* Method 1: Standard */
 if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
     $authHeader = $_SERVER['HTTP_AUTHORIZATION'];
 }
 
-/* Method 2: Apache fix */
 if (!$authHeader && function_exists('apache_request_headers')) {
     $headers = apache_request_headers();
-
     foreach ($headers as $key => $value) {
         if (strtolower($key) == 'authorization') {
             $authHeader = $value;
@@ -27,14 +24,11 @@ if (!$authHeader && function_exists('apache_request_headers')) {
     }
 }
 
-/* Method 3: Fallback (IMPORTANT FOR LIVE SERVER) */
 if (!$authHeader && isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
     $authHeader = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
 }
 
-/* ======================
-   CHECK HEADER
-====================== */
+/* fallback for ?token */
 if (!$authHeader && isset($_GET['token'])) {
     $authHeader = "Bearer " . $_GET['token'];
 }
@@ -42,19 +36,15 @@ if (!$authHeader && isset($_GET['token'])) {
 if (!$authHeader) {
     echo json_encode([
         "status" => false,
-        "message" => "Authorization header missing"
+        "message" => "Authorization missing"
     ]);
     exit;
 }
 
-/* ======================
-   EXTRACT TOKEN
-====================== */
-
 if (!str_starts_with($authHeader, "Bearer ")) {
     echo json_encode([
         "status" => false,
-        "message" => "Invalid Authorization format"
+        "message" => "Invalid format"
     ]);
     exit;
 }
@@ -73,22 +63,15 @@ $stmt = $conn->prepare("
 
 $stmt->bind_param("s", $token);
 $stmt->execute();
+$stmt->store_result();
 
-$result = $stmt->get_result();
-
-if ($result->num_rows == 0) {
+if ($stmt->num_rows == 0) {
     echo json_encode([
         "status" => false,
-        "message" => "Invalid Token"
+        "message" => "Invalid token"
     ]);
     exit;
 }
 
-$user = $result->fetch_assoc();
-
-/* ======================
-   GLOBAL USER VARIABLES
-====================== */
-
-$currentUserId = $user['user_id'];
-$currentRole = $user['role'];
+$stmt->bind_result($currentUserId, $currentRole);
+$stmt->fetch();

@@ -1,12 +1,28 @@
 <?php
 
 require_once("../../config.php");
+
+$data = json_decode(file_get_contents("php://input"), true);
+
 require_once("../../api_guard.php");
 require_once("../../cors.php");
 
 header("Content-Type: application/json");
+$rawData = file_get_contents("php://input");
 
-$data = json_decode(file_get_contents("php://input"), true);
+if (!$rawData || empty($rawData)) {
+    $data = $_POST;
+} else {
+    $data = json_decode($rawData, true);
+}
+
+if (!$data) {
+    echo json_encode([
+        "status" => false,
+        "message" => "No data received"
+    ]);
+    exit;
+}
 
 $enrollment = $data['enrollment'] ?? '';
 
@@ -47,7 +63,12 @@ if ($result->num_rows == 0) {
 
 $student = $result->fetch_assoc();
 
-echo json_encode([
-    "status" => true,
-    ...$student
-]);
+$response = [
+    "status" => true
+];
+
+foreach ($student as $key => $value) {
+    $response[$key] = $value;
+}
+
+echo json_encode($response);

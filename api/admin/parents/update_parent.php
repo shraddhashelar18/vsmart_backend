@@ -2,34 +2,51 @@
 require_once("../../config.php");
 require_once("../../api_guard.php");
 require_once("../../cors.php");
+
 header("Content-Type: application/json");
 
 $data = json_decode(file_get_contents("php://input"), true);
 
-$user_id = $data['user_id'];   // required
-$name    = $data['name'];
-$phone   = $data['phone'];
+$name = $data['name'] ?? '';
+$phone = $data['phone'] ?? '';
+$oldPhone = $data['oldPhone'] ?? '';
+
+if (empty($name) || empty($phone) || empty($oldPhone)) {
+    echo json_encode([
+        "status" => false,
+        "message" => "All fields required"
+    ]);
+    exit;
+}
 
 $conn->begin_transaction();
 
 try {
 
-    // Update parents table
-    $stmt1 = $conn->prepare("
+    /* =========================
+       UPDATE PARENTS TABLE
+    ========================= */
+
+    $stmt = $conn->prepare("
         UPDATE parents 
         SET full_name=?, mobile_no=? 
-        WHERE user_id=?
+        WHERE mobile_no=?
     ");
-    $stmt1->bind_param("ssi", $name, $phone, $user_id);
-    $stmt1->execute();
 
-    // If you also want to update student name in users table (NOT email)
+    $stmt->bind_param("sss", $name, $phone, $oldPhone);
+    $stmt->execute();
+
+    /* =========================
+       UPDATE STUDENTS LINK
+    ========================= */
+
     $stmt2 = $conn->prepare("
-        UPDATE users 
-        SET first_login=first_login 
-        WHERE user_id=?
+        UPDATE students 
+        SET parent_mobile_no=? 
+        WHERE parent_mobile_no=?
     ");
-    $stmt2->bind_param("i", $user_id);
+
+    $stmt2->bind_param("ss", $phone, $oldPhone);
     $stmt2->execute();
 
     $conn->commit();

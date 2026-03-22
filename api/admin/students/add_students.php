@@ -108,7 +108,7 @@ try {
     =============================== */
 
     preg_match('/\d+/', $data['class'], $match);
-    $semester = "SEM" . ($match[0] ?? "1");
+    $semester = intval($match[0] ?? 1);
 
     /* ===============================
        6️⃣ INSERT INTO STUDENTS TABLE

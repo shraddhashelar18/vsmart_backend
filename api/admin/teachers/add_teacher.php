@@ -3,14 +3,29 @@
 require_once(__DIR__ . "/../../config.php");
 require_once(__DIR__ . "/../../api_guard.php");
 require_once(__DIR__ . "/../../cors.php");
-
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 header("Content-Type: application/json");
 if($currentRole != "admin"){
     echo json_encode(["status"=>false,"message"=>"Access denied"]);
     exit;
 }
+$raw = file_get_contents("php://input");
 
-$data = json_decode(file_get_contents("php://input"), true);
+if (!$raw || empty($raw)) {
+    $data = $_POST;
+} else {
+    $data = json_decode($raw, true);
+}
+
+if (!$data) {
+    echo json_encode([
+        "status" => false,
+        "message" => "No data received"
+    ]);
+    exit;
+}
+
 
 /* ===========================
    VALIDATE INPUT
@@ -53,9 +68,9 @@ if(strlen($password) < 6){
 $check = $conn->prepare("SELECT user_id FROM users WHERE email=?");
 $check->bind_param("s", $email);
 $check->execute();
-$res = $check->get_result();
+$check->store_result();
 
-if ($res->num_rows > 0) {
+if ($check->num_rows > 0) {
     echo json_encode([
         "status" => false,
         "message" => "Email already exists"
@@ -75,23 +90,35 @@ $stmt = $conn->prepare("
 ");
 
 $stmt->bind_param("ss", $email, $hashedPassword);
-$stmt->execute();
+
+if (!$stmt->execute()) {
+    echo json_encode([
+        "status" => false,
+        "error" => $stmt->error
+    ]);
+    exit;
+}
 
 $user_id = $stmt->insert_id;
-
 /* ===========================
    INSERT INTO TEACHERS TABLE
 =========================== */
 
-$employee_id = rand(100000, 999999);
+$employee_id = $data['employee_id'] ?? '';
 
 $stmt2 = $conn->prepare("
     INSERT INTO teachers (user_id, employee_id, full_name, mobile_no)
     VALUES (?, ?, ?, ?)
 ");
 
-$stmt2->bind_param("iiss", $user_id, $employee_id, $name, $phone);
-$stmt2->execute();
+$stmt2->bind_param("isss", $user_id, $employee_id, $name, $phone);
+if (!$stmt2->execute()) {
+    echo json_encode([
+        "status" => false,
+        "error" => $stmt2->error
+    ]);
+    exit;
+}
 
 /* ===========================
    INSERT TEACHER ASSIGNMENTS

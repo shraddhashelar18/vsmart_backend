@@ -14,7 +14,7 @@ if($currentRole != "admin"){
 
 $data = json_decode(file_get_contents("php://input"), true);
 
-$department = $data['department'] ?? '';
+$department = strtoupper(trim($data['department'] ?? ''));
 
 if (empty($department)) {
     echo json_encode([
@@ -36,7 +36,7 @@ FROM teacher_assignments ta
 JOIN teachers t ON t.user_id = ta.user_id
 JOIN users u ON u.user_id = t.user_id
 LEFT JOIN classes c ON c.class_teacher = t.user_id
-WHERE ta.department = ?
+WHERE UPPER(TRIM(ta.department)) = ?
 ORDER BY t.full_name ASC
 ");
 

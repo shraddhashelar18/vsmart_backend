@@ -182,7 +182,28 @@ if ($action == "student_upload_status") {
 
     exit;
 }
+if (isset($data['action']) && $data['action'] == "student_upload_status") {
 
+    $class = $data['class'];
+
+    $result = $conn->query("
+        SELECT name, marks_uploaded
+        FROM students
+        WHERE class = '$class'
+    ");
+
+    $students = [];
+
+    while ($row = $result->fetch_assoc()) {
+        $students[] = $row;
+    }
+
+    echo json_encode([
+        "status" => true,
+        "students" => $students
+    ]);
+    exit;
+}
 
 /* ===============================
 INVALID
