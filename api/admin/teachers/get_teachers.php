@@ -1,64 +1,62 @@
 <?php
-//add teacher.php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-require_once(__DIR__ . "/../../cors.php");
-require_once(__DIR__ . "/../../config.php");
-require_once(__DIR__ . "/../../api_guard.php");
+require_once("../../config.php");
+require_once("../../api_guard.php");
+require_once("../../cors.php");
 
 header("Content-Type: application/json");
-if($currentRole != "admin"){
-    echo json_encode(["status"=>false,"message"=>"Access denied"]);
+
+if ($currentRole != "admin") {
+    echo json_encode(["status" => false, "message" => "Access denied"]);
     exit;
 }
 
+// 🔥 FIX: get from POST body
 $data = json_decode(file_get_contents("php://input"), true);
+$department = $data['department'] ?? '';
 
-$department = strtoupper(trim($data['department'] ?? ''));
+// 🔥 SIMPLE QUERY (NO bind_param)
+$sql = "
+SELECT DISTINCT
+    t.user_id,
+    t.full_name,
+    t.mobile_no,
+    t.employee_id,
+    u.email,
+    c.class_name
+FROM teacher_assignments ta
 
-if (empty($department)) {
+-- 🔥 department filter FIRST
+JOIN teachers t ON t.user_id = ta.user_id
+JOIN users u ON u.user_id = t.user_id
+
+-- 🔥 for disable logic
+LEFT JOIN classes c ON c.class_teacher = t.user_id
+
+WHERE UPPER(TRIM(ta.department)) = UPPER(TRIM('$department'))
+";
+$result = $conn->query($sql);
+
+if (!$result) {
     echo json_encode([
         "status" => false,
-        "message" => "Department required"
+        "error" => $conn->error
     ]);
     exit;
 }
 
-$stmt = $conn->prepare("
-SELECT DISTINCT
-    t.user_id AS id,
-    t.full_name AS name,
-    u.email,
-    t.mobile_no AS phone,
-    t.employee_id,
-    c.class_name
-FROM teacher_assignments ta
-JOIN teachers t ON t.user_id = ta.user_id
-JOIN users u ON u.user_id = t.user_id
-LEFT JOIN classes c ON c.class_teacher = t.user_id
-WHERE UPPER(TRIM(ta.department)) = ?
-ORDER BY t.full_name ASC
-");
-
-$stmt->bind_param("s", $department);
-$stmt->execute();
-
-$result = $stmt->get_result();
-
 $teachers = [];
 
 while ($row = $result->fetch_assoc()) {
-
     $teachers[] = [
-        "id" => intval($row["id"]),
-        "name" => $row["name"],
+        "id" => intval($row["user_id"]),
+        "name" => $row["full_name"],
         "email" => $row["email"],
-        "phone" => $row["phone"],
-        "employee_id" => $row["employee_id"] ?? "",
-        "departments" => [$department],
+        "phone" => $row["mobile_no"],
+        "employee_id" => $row["employee_id"],
         "class_name" => $row["class_name"] ?? ""
     ];
 }
+
 echo json_encode([
     "status" => true,
     "teachers" => $teachers

@@ -204,6 +204,8 @@ if ($action == "assign_teacher") {
         ]);
         exit;
     }
+
+    
 }
 
 

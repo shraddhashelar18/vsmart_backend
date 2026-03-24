@@ -53,7 +53,13 @@ foreach ($subjects as $department => $classes) {
         }
     }
 }
-
+if (empty($data['subjects'])) {
+    echo json_encode([
+        "status" => false,
+        "message" => "Teacher must have at least one subject assigned"
+    ]);
+    exit;
+}
 echo json_encode([
     "status" => true,
     "message" => "Teacher updated successfully"
