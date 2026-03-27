@@ -25,7 +25,7 @@ if (!$semData || $semData->num_rows == 0) {
 
 $semResult = $semData->fetch_assoc();
 
-$currentSemester = $semResult['current_semester'];
+    $currentSemester = (string) ($semResult['current_semester'] - 1);
 
 /* calculate promotion only for that semester */
 
@@ -46,7 +46,7 @@ $stmt->execute();
 $result = $stmt->get_result();
 if ($result->num_rows == 0) {
     return [
-        "status" => "DETAINED",
+        "status" => "PENDING",
         "percentage" => null,
         "backlogCount" => 0,
         "ktSubjects" => []
