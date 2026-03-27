@@ -1,71 +1,143 @@
 <?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 session_start();
 require_once("../config.php");
-require_once("../promotion_helper.php");
 
-/* 🔒 CHECK LOGIN */
-if(!isset($_SESSION['user_id']) || $_SESSION['role'] != "hod"){
-    header("Location: https://mycollege.vpt.edu.in/vsmart/web_panel/auth_panel/login.php");
-    exit;
+/* =========================
+   🔒 LOGIN CHECK
+========================= */
+if(!isset($_SESSION['user_id'])){
+    echo "<script>
+        alert('Please login first');
+        window.location.href='../../auth_panel/login.php';
+    </script>";
+    exit();
+}
+
+if($_SESSION['role'] != "hod"){
+    die("❌ Access denied. Only HOD allowed.");
 }
 
 $userId = $_SESSION['user_id'];
 
-/* 🔥 GET HOD DEPARTMENT */
-$deptQuery = $conn->prepare("
-SELECT department 
-FROM hods 
-WHERE user_id = ?
-");
+/* =========================
+   🎯 GET DEPARTMENT
+========================= */
+$department = "";
+
+$deptQuery = $conn->prepare("SELECT department FROM hods WHERE user_id=?");
+
+if(!$deptQuery){
+    die("Dept Query Error: " . $conn->error);
+}
 
 $deptQuery->bind_param("i",$userId);
 $deptQuery->execute();
-$deptResult = $deptQuery->get_result()->fetch_assoc();
 
-if(!$deptResult){
-    die("Department not found");
+$res = $deptQuery->get_result();
+
+if(!$res){
+    die("Dept Result Error: " . $conn->error);
 }
 
-$department = $deptResult['department']; // IF / CO / EJ
+if($res->num_rows > 0){
+    $department = $res->fetch_assoc()['department'];
+}else{
+    die("❌ No department found for this HOD");
+}
 
-/* ATKT LIMIT */
-$setting = $conn->query("SELECT atkt_limit FROM settings LIMIT 1");
-$atktLimit = (int)$setting->fetch_assoc()['atkt_limit'];
+/* =========================
+   ⚙️ SETTINGS
+========================= */
+$atktLimit = 2;
+$activeSemester = "odd";
 
-/* STUDENTS */
-$stmt = $conn->prepare("
-SELECT user_id 
-FROM students 
-WHERE department=?
-");
+$set = $conn->query("SELECT * FROM settings LIMIT 1");
 
-$stmt->bind_param("s",$department);
-$stmt->execute();
-$result = $stmt->get_result();
+if(!$set){
+    die("Settings Error: " . $conn->error);
+}
+
+if($set->num_rows > 0){
+    $row = $set->fetch_assoc();
+    $atktLimit = (int)$row['atkt_limit'];
+    $activeSemester = strtolower(trim($row['active_semester']));
+}
+
+/* =========================
+   👨‍🎓 STUDENT STATS (CLASS BASED)
+========================= */
 
 $totalStudents = 0;
 $promoted = 0;
 $atkt = 0;
 $detained = 0;
 
-while($row = $result->fetch_assoc()){
+/* 🔥 HANDLE ODD/EVEN IN PHP (NO COLLATION ISSUE) */
+$isOdd = ($activeSemester === 'odd');
+
+if($isOdd){
+
+    $statusQuery = $conn->prepare("
+    SELECT status FROM students 
+    WHERE department=? 
+    AND CAST(SUBSTRING(class, LENGTH(?) + 1, 1) AS UNSIGNED) % 2 = 1
+    ");
+
+    if(!$statusQuery){
+        die("Student Query Error: " . $conn->error);
+    }
+
+    $statusQuery->bind_param("ss", $department, $department);
+
+}else{
+
+    $statusQuery = $conn->prepare("
+    SELECT status FROM students 
+    WHERE department=? 
+    AND CAST(SUBSTRING(class, LENGTH(?) + 1, 1) AS UNSIGNED) % 2 = 0
+    ");
+
+    if(!$statusQuery){
+        die("Student Query Error: " . $conn->error);
+    }
+
+    $statusQuery->bind_param("ss", $department, $department);
+}
+
+$statusQuery->execute();
+
+$res = $statusQuery->get_result();
+
+if(!$res){
+    die("Student Result Error: " . $conn->error);
+}
+
+while($row = $res->fetch_assoc()){
 
     $totalStudents++;
 
-    $promo = calculatePromotion($conn,$row['user_id'],$atktLimit);
+    $status = strtolower(trim($row['status']));
 
-    if($promo['status']=="PROMOTED"){
+    if($status == "passed_out" || $status == "promoted"){
         $promoted++;
     }
-    elseif($promo['status']=="PROMOTED_WITH_ATKT"){
+    elseif($status == "promoted_with_atkt"){
         $atkt++;
     }
-    else{
+    elseif($status == "detained"){
         $detained++;
     }
 }
 
-/* TEACHERS */
+/* =========================
+   👨‍🏫 TEACHERS COUNT
+========================= */
+
+$totalTeachers = 0;
+
 $t = $conn->prepare("
 SELECT COUNT(DISTINCT ta.user_id) AS totalTeachers
 FROM teacher_assignments ta
@@ -73,9 +145,20 @@ JOIN teachers t ON t.user_id = ta.user_id
 WHERE ta.department = ?
 ");
 
-$t->bind_param("s",$department);
+if(!$t){
+    die("Teacher Query Error: " . $conn->error);
+}
+
+$t->bind_param("s", $department);
 $t->execute();
-$totalTeachers = $t->get_result()->fetch_assoc()['totalTeachers'];
+
+$resultT = $t->get_result();
+
+if(!$resultT){
+    die("Teacher Result Error: " . $conn->error);
+}
+
+$totalTeachers = $resultT->fetch_assoc()['totalTeachers'] ?? 0;
 
 ?>
 
@@ -88,184 +171,170 @@ $totalTeachers = $t->get_result()->fetch_assoc()['totalTeachers'];
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
 <style>
-
-/* BODY */
 body{
 margin:0;
 font-family:'Segoe UI',sans-serif;
-background:#f2f2f2;
-display:flex;
-justify-content:center;
+background:#eef1f5;
 }
 
-/* MAIN PANEL WIDTH (IMPORTANT 🔥) */
-.wrapper{
-width:100%;
-max-width:380px;
-background:#f2f2f2;
-min-height:100vh;
-}
-
-/* HEADER */
 .header{
 background:#0a8f3c;
 color:white;
-padding:18px;
-font-size:20px;
-font-weight:600;
+padding:20px 30px;
 }
 
-/* CONTENT */
+.header h2{
+margin:0;
+font-size:24px;
+}
+
 .container{
-padding:15px;
+padding:25px 40px;
+padding-bottom:80px;
 }
 
-/* ROW */
-.row{
-display:flex;
-gap:12px;
-margin-bottom:15px;
+.grid{
+display:grid;
+grid-template-columns: repeat(2,1fr);
+gap:20px;
+margin-bottom:25px;
 }
 
-/* CARD */
 .card{
 background:white;
-border-radius:16px;
-padding:18px;
-flex:1;
+border-radius:12px;
+padding:25px;
 text-align:center;
-box-shadow:0 4px 10px rgba(0,0,0,0.1);
+box-shadow:0 4px 10px rgba(0,0,0,0.08);
 }
 
 .card i{
-font-size:28px;
-margin-bottom:5px;
+font-size:30px;
+margin-bottom:10px;
+color:#0a8f3c;
 }
 
-/* SMALL CARD */
-.small{
-padding:14px;
+.small-grid{
+display:grid;
+grid-template-columns: repeat(3,1fr);
+gap:20px;
+margin-bottom:25px;
 }
 
-/* COLORS */
-.green{color:#0a8f3c;}
 .orange{color:#ff9800;}
 .red{color:#f44336;}
 
-/* TITLE */
 .section-title{
 font-size:18px;
 font-weight:600;
-margin:15px 0 10px;
+margin-bottom:15px;
 }
 
-/* BUTTON */
 .btn{
 display:block;
 width:100%;
 background:#0a8f3c;
 color:white;
 padding:14px;
-border-radius:12px;
+margin-bottom:12px;
+border-radius:8px;
 text-align:center;
 text-decoration:none;
-margin-bottom:12px;
-font-size:15px;
 }
 
-/* BOTTOM NAV */
-.bottom-nav{
+.bottom{
 position:fixed;
 bottom:0;
 width:100%;
-max-width:380px;
 background:white;
 display:flex;
 justify-content:space-around;
-padding:10px 0;
-border-top:1px solid #ddd;
+padding:12px;
+box-shadow:0 -2px 10px rgba(0,0,0,0.1);
 }
 
-.bottom-nav div{
-text-align:center;
-font-size:12px;
+.bottom a{
+text-decoration:none;
 color:#777;
+text-align:center;
+font-size:14px;
 }
 
-.bottom-nav .active{
-color:#0a8f3c;
+.bottom .material-icons{
+display:block;
+font-size:22px;
 }
 
+.bottom a.active{
+color:#009846;
+font-weight:bold;
+}
 </style>
 </head>
 
 <body>
 
-<div class="wrapper">
-
 <div class="header">
-HOD Dashboard (<?php echo $department; ?>)
+<h2>
+HOD Dashboard 
+</h2>
 </div>
 
 <div class="container">
 
-<!-- TOP -->
-<div class="row">
+<div class="grid">
 <div class="card">
-<i class="material-icons green">school</i>
-<div>Total Students</div>
-<h2><?php echo $totalStudents; ?></h2>
-</div>
-
-<div class="card">
-<i class="material-icons green">person</i>
+<i class="material-icons">person</i>
 <div>Total Teachers</div>
 <h2><?php echo $totalTeachers; ?></h2>
 </div>
+
+<div class="card">
+<i class="material-icons">school</i>
+<div>Total Students</div>
+<h2><?php echo $totalStudents; ?></h2>
+</div>
 </div>
 
-<!-- STATUS -->
-<div class="row">
-<div class="card small">
-<i class="material-icons green">arrow_upward</i>
+<div class="small-grid">
+<div class="card">
+<i class="material-icons">arrow_upward</i>
 <div>Promoted</div>
-<h3><?php echo $promoted; ?></h3>
+<h2><?php echo $promoted; ?></h2>
 </div>
 
-<div class="card small">
+<div class="card">
 <i class="material-icons orange">trending_up</i>
 <div>With ATKT</div>
-<h3><?php echo $atkt; ?></h3>
+<h2><?php echo $atkt; ?></h2>
 </div>
 
-<div class="card small">
+<div class="card">
 <i class="material-icons red">warning</i>
 <div>Detained</div>
-<h3><?php echo $detained; ?></h3>
+<h2><?php echo $detained; ?></h2>
 </div>
 </div>
 
-<!-- ACTIONS -->
 <div class="section-title">Academic Actions</div>
-
-<a href="#" class="btn">View Students</a>
-<a href="#" class="btn">View Teachers</a>
-<a href="#" class="btn">View Promoted List</a>
-<a href="#" class="btn">View ATKT List</a>
-<a href="#" class="btn">View Detained List</a>
+<a href="student_by_class.php" class="btn">View Students</a>
+<a href="teacher.php" class="btn">View Teachers</a>
+<a href="promoted_classes.php" class="btn">View Promoted List</a>
+<a href="atkt_classes.php" class="btn">View ATKT List</a>
+<a href="detained_classes.php" class="btn">View Detained List</a>
 
 </div>
 
-<!-- BOTTOM NAV -->
-<div class="bottom-nav">
-<div class="active">
-<i class="material-icons">dashboard</i><br>Dashboard
-</div>
-<div>
-<i class="material-icons">settings</i><br>Settings
-</div>
-</div>
+<div class="bottom">
+<a href="teacher_dashboard.php" class="active">
+<span class="material-icons">dashboard</span>
+Dashboard
+</a>
 
+<a href="settings.php">
+<span class="material-icons">settings</span>
+Settings
+</a>
 </div>
 
 </body>

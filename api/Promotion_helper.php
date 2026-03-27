@@ -25,7 +25,25 @@ if (!$semData || $semData->num_rows == 0) {
 
 $semResult = $semData->fetch_assoc();
 
-$currentSemester = $semResult['current_semester'];
+  $currentSemester = (int)$semResult['current_semester'];
+
+/* GET LATEST RESULT SEMESTER */
+$resultStmt = $conn->prepare("
+    SELECT semester
+    FROM semester_results
+    WHERE student_id = ?
+    ORDER BY semester DESC
+    LIMIT 1
+");
+
+$resultStmt->bind_param("i", $studentId);
+$resultStmt->execute();
+$resData = $resultStmt->get_result();
+
+if ($resData && $resData->num_rows > 0) {
+    $row = $resData->fetch_assoc();
+    $currentSemester = (int)$row['semester']; // ✅ correct semester
+}
 
 /* calculate promotion only for that semester */
 
@@ -41,12 +59,12 @@ AND status='published'
 GROUP BY subject
 ");
 
-$stmt->bind_param("is",$studentId,$currentSemester);
+$stmt->bind_param("ii",$studentId,$currentSemester);
 $stmt->execute();
 $result = $stmt->get_result();
 if ($result->num_rows == 0) {
     return [
-        "status" => "DETAINED",
+        "status" => "PENDING",
         "percentage" => null,
         "backlogCount" => 0,
         "ktSubjects" => []
@@ -98,11 +116,24 @@ $status="DETAINED";
 }
 
 /* percentage only when no backlog */
+/* ===== GET PERCENTAGE FROM semester_results ===== */
 
-if($failCount==0 && $totalMarks>0){
-$percentage = round(($obtainedMarks/$totalMarks)*100,2);
-}else{
-$percentage = null;
+$resultStmt = $conn->prepare("
+    SELECT percentage
+    FROM semester_results
+    WHERE student_id = ?
+    AND semester = ?
+");
+
+$resultStmt->bind_param("is", $studentId, $currentSemester);
+$resultStmt->execute();
+$resData = $resultStmt->get_result();
+
+if ($resData && $resData->num_rows > 0) {
+    $row = $resData->fetch_assoc();
+    $percentage = $row['percentage']; // ✅ correct %
+} else {
+    $percentage = null;
 }
 
 return[

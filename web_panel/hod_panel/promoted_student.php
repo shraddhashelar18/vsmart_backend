@@ -1,10 +1,10 @@
 <?php
-require_once("db.php");
+require_once("../config.php");
 require_once("../promotion_helper.php");
 
 if(!isset($_GET['class'])){
-echo "Class required";
-exit;
+    echo "Class required";
+    exit;
 }
 
 $class = $_GET['class'];
@@ -30,52 +30,52 @@ $students = [];
 
 while($row = $result->fetch_assoc()){
 
-$studentId = $row['user_id'];
+    $studentId = $row['user_id'];
 
-$promotion = calculatePromotion($conn,$studentId,$atktLimit);
+    $promotion = calculatePromotion($conn,$studentId,$atktLimit);
 
-/* show only promoted */
+    /* show only promoted */
 
-if(
-$promotion['status'] != "PROMOTED" &&
-strtolower($row['status']) != "passed_out"
-){
-continue;
-}
+    if(
+        $promotion['status'] != "PROMOTED" &&
+        strtolower($row['status']) != "passed_out"
+    ){
+        continue;
+    }
 
-$currentClass = $row['class'];
+    $currentClass = $row['class'];
+    $currentSemester = (int)$row['current_semester'];
 
-$currentSemester = (int)$row['current_semester'];
+    $department = substr($currentClass,0,2);
+    $division = substr($currentClass,-2);
 
-$department = substr($currentClass,0,2);
-$division = substr($currentClass,-2);
+    $oldSemester = $currentSemester - 1;
+    $oldClass = $department.$oldSemester.$division;
 
-$oldSemester = $currentSemester - 1;
-$oldClass = $department.$oldSemester.$division;
+    $newSemester = $currentSemester;
+    $newClass = $currentClass;
 
-$newSemester = $currentSemester;
-$newClass = $currentClass;
+    if($promotion['status']=="PROMOTED" && $currentSemester < 6){
+        $newSemester = $currentSemester + 1;
+        $newClass = $department.$newSemester.$division;
+    }
 
-if($promotion['status']=="PROMOTED" && $currentSemester < 6){
+    $displayStatus = ($row['status']=="passed_out")
+        ? "PASSED_OUT"
+        : $promotion['status'];
 
-$newSemester = $currentSemester + 1;
-$newClass = $department.$newSemester.$division;
+    /* ✅ ADD PERCENTAGE HERE */
+    $percentage = $promotion['percentage'] ?? "N/A";
 
-}
-
-$displayStatus = ($row['status']=="passed_out")
-? "PASSED_OUT"
-: $promotion['status'];
-
-$students[] = [
-"name"=>$row['full_name'],
-"oldClass"=>$oldClass,
-"newClass"=>$newClass,
-"oldSemester"=>$oldSemester,
-"newSemester"=>$newSemester,
-"status"=>$displayStatus
-];
-
+    $students[] = [
+        "name"=>$row['full_name'],
+        "oldClass"=>$oldClass,
+        "newClass"=>$newClass,
+        "oldSemester"=>$oldSemester,
+        "newSemester"=>$newSemester,
+        "status"=>$displayStatus,
+        "percentage"=>$percentage
+    ];
 }
 ?>
 
@@ -137,6 +137,13 @@ font-weight:bold;
 color:#0a8f3c;
 }
 
+/* NEW STYLE */
+.percentage{
+margin-top:6px;
+font-weight:bold;
+color:#2c3e50;
+}
+
 </style>
 
 </head>
@@ -164,6 +171,11 @@ Class: <?php echo $s['oldClass']; ?> → <?php echo $s['newClass']; ?>
 
 <div class="info">
 Semester: <?php echo $s['oldSemester']; ?> → <?php echo $s['newSemester']; ?>
+</div>
+
+<!-- ✅ NEW: FINAL PERCENTAGE -->
+<div class="percentage">
+Final Percentage: <?php echo $s['percentage']; ?>%
 </div>
 
 <div class="status">

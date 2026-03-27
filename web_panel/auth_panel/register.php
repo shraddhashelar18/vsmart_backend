@@ -25,7 +25,6 @@ $msgType = "error";
 }
 else{
 
-// Check duplicate email
 $check = $conn->prepare("SELECT user_id FROM users WHERE email=?");
 $check->bind_param("s",$email);
 $check->execute();
@@ -37,7 +36,6 @@ $msgType = "error";
 }
 else{
 
-// Insert user
 $hashedPassword = password_hash($password,PASSWORD_BCRYPT);
 $status = "active";
 
@@ -86,7 +84,6 @@ $_POST['parentOwnMobile'] ?? ""
 $stmt->execute();
 }
 
-// ✅ SUCCESS MESSAGE
 $message = "Registration Successful!";
 $msgType = "success";
 
@@ -101,13 +98,12 @@ $msgType = "success";
 <title>Vsmart Register</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- Material Icons -->
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
 <style>
 
 body{
-font-family: 'Segoe UI', sans-serif;
+font-family:'Segoe UI',sans-serif;
 background:#f2f2f2;
 margin:0;
 display:flex;
@@ -120,16 +116,10 @@ width:100%;
 padding:20px;
 }
 
-/* LOGO */
+/* ✅ LOGO */
 .logo{
-width:90px;
-height:90px;
-background:#0a8f3c;
-border-radius:50%;
-margin:40px auto 10px;
-display:flex;
-align-items:center;
-justify-content:center;
+margin:30px 0 10px;
+text-align:center;
 }
 .register-logo{
     width:100px;
@@ -138,9 +128,11 @@ justify-content:center;
     margin:40px auto 10px;
 }
 
-.logo i{
-color:white;
-font-size:40px;
+.logo img{
+width:120px;
+height:auto;
+display:block;
+margin:0 auto;
 }
 
 /* TITLE */
@@ -227,7 +219,17 @@ color:#555;
 
 <div class="container">
 
+<<<<<<< HEAD
 <img src="/vsmart/web_panel/assets/logo.png" class="register-logo">
+=======
+<!-- ✅ FINAL LOGO (WORKING) -->
+<div class="logo">
+   <img src="../web_panel/assets/logo.png"
+     onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/3/3b/Graduation_cap_icon.svg'"
+     alt="Vsmart Logo">
+      
+</div>
+>>>>>>> b623440530b43e32f79a9ee94002dd32e6d3fc78
 
 <div class="title">Vsmart</div>
 <div class="subtitle">A Smart Academic Management Platform</div>
@@ -295,7 +297,6 @@ color:#555;
 
 </form>
 
-<!-- MESSAGE -->
 <?php if($message!=""): ?>
 <div class="msg <?php echo $msgType; ?>">
 <?php echo $message; ?>
@@ -309,7 +310,6 @@ color:#555;
 </div>
 
 <script>
-
 function togglePassword(){
 let pass=document.getElementById("password");
 let icon=document.querySelector(".right-icon");
@@ -325,14 +325,12 @@ icon.innerHTML="visibility_off";
 
 function showFields(){
 let role=document.getElementById("role").value;
-
 document.getElementById("studentFields").style.display="none";
 
 if(role=="student"){
 document.getElementById("studentFields").style.display="block";
 }
 }
-
 </script>
 
 </body>

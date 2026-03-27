@@ -1,7 +1,7 @@
 <?php
 
-require_once(__DIR__ . "/../config.php");
-require_once(__DIR__ . "/../promotion_helper.php");
+require_once(__DIR__ . "../config.php");
+require_once(__DIR__ . "../promotion_helper.php");
 
 $roll = $_GET['roll'];
 

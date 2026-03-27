@@ -11,7 +11,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $email = $_POST['email'] ?? "";
     $password = $_POST['password'] ?? "";
 
-    // 🔐 Check user from database
     $stmt = $conn->prepare("SELECT * FROM users WHERE email=? LIMIT 1");
     $stmt->bind_param("s", $email);
     $stmt->execute();
@@ -21,51 +20,50 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         $user = $result->fetch_assoc();
 
-        // ✅ If password is hashed use password_verify
         if (password_verify($password, $user['password']) || $password == $user['password']) {
 
-        $role = strtolower(trim($user['role']));
+            $role = strtolower(trim($user['role']));
 
-$_SESSION['user_id'] = $user['user_id'];
-$_SESSION['role'] = $role;
+            $_SESSION['user_id'] = $user['user_id'];
+            $_SESSION['role'] = $role;
 
-if ($role == "admin") {
+            if ($role == "admin") {
+                $_SESSION['admin_id'] = $user['user_id'];
+                $_SESSION['admin_name'] = $user['full_name'];
+                header("Location: ../admin_panel/dashboard.php");
+                exit;
+            }
+            elseif ($role == "hod") {
+                header("Location: ../hod_panel/dashboard.php");
+                exit;
+            }
+            elseif ($role == "teacher") {
 
-    $_SESSION['admin_id'] = $user['user_id'];     // ✅ ADD THIS
-    $_SESSION['admin_name'] = $user['full_name']; // optional
+                $t = $conn->prepare("SELECT * FROM teachers WHERE user_id=? LIMIT 1");
+                $t->bind_param("i", $user['user_id']);
+                $t->execute();
+                $res = $t->get_result();
 
-    header("Location: ../admin_panel/dashboard.php");
-    exit;
-}
-elseif ($role == "hod") {
-    header("Location: ../hod_panel/dashboard.php");
-    exit;
-}
-elseif ($role == "teacher") {
+                if($res->num_rows > 0){
+                    $teacher = $res->fetch_assoc();
 
-    $t = $conn->prepare("SELECT * FROM teachers WHERE user_id=? LIMIT 1");
-    $t->bind_param("i", $user['user_id']);
-    $t->execute();
-    $res = $t->get_result();
+                    $_SESSION['teacher_id'] = $user['user_id'];
+                    $_SESSION['teacher_name'] = $teacher['full_name'];
 
-    if($res->num_rows > 0){
-        $teacher = $res->fetch_assoc();
-
-        $_SESSION['teacher_id'] = $user['user_id'];
-        $_SESSION['teacher_name'] = $teacher['full_name'];
-
-        header("Location: ../teacher_panel/teacher_dashboard.php");
-        exit;
-    } else {
-        $message = "Teacher not found";
-    }
-}
-elseif ($role == "student") {
-    header("Location: student_dashboard.php");
-    exit;
-} elseif ($user['role'] == "principal") {
-                header("Location: principal_dashboard.php");
-            } elseif ($user['role'] == "parent") {
+                    header("Location: ../teacher_panel/teacher_dashboard.php");
+                    exit;
+                } else {
+                    $message = "Teacher not found";
+                }
+            }
+            elseif ($role == "student") {
+                header("Location: student_dashboard.php");
+                exit;
+            } 
+            elseif ($user['role'] == "principal") {
+                header("Location: ../principal_panel/dashboard.php");
+            } 
+            elseif ($user['role'] == "parent") {
                 header("Location: parent_dashboard.php");
             }
 
@@ -101,11 +99,13 @@ body{
 
     height:100vh;
 }
+
 .login-container{
     width:100%;
     max-width:350px;
     text-align:center;
 }
+<<<<<<< HEAD
 .login-logo{
     width:120px;
     height:auto;          /* 🔥 IMPORTANT */
@@ -121,21 +121,36 @@ body{
     align-items:center;
     justify-content:center;
     margin:auto;
+=======
+
+/* 🔥 LOGO FIXED */
+.logo{
+    margin-bottom:15px;
+    text-align:center;
+>>>>>>> b623440530b43e32f79a9ee94002dd32e6d3fc78
 }
-.logo-circle i{
-    color:white;
-    font-size:28px;
+
+.logo img{
+    width:120px;
+    height:auto;
+    display:block;
+    margin:0 auto;
+    object-fit:contain;
 }
+
+/* Title */
 .logo-title{
     color:#009846;
     font-size:22px;
-    margin-top:10px;
+    margin-bottom:15px;
     font-weight:600;
 }
+
 .input-box{
     position:relative;
     margin-top:15px;
 }
+
 .input-box input{
     width:75%;
     padding:14px 40px;
@@ -145,12 +160,14 @@ body{
     outline:none;
     font-size:14px;
 }
+
 .input-box i{
     position:absolute;
     left:12px;
     top:15px;
     color:#666;
 }
+
 .toggle{
     position:absolute;
     right:45px;
@@ -158,6 +175,7 @@ body{
     cursor:pointer;
     color:#666;
 }
+
 .login-btn{
     margin-top:20px;
     width:100%;
@@ -169,9 +187,11 @@ body{
     font-size:16px;
     cursor:pointer;
 }
+
 .login-btn:hover{
     background:#007a38;
 }
+
 .error{
     color:red;
     margin-top:10px;
@@ -183,7 +203,16 @@ body{
 
 <div class="login-container">
 
+<<<<<<< HEAD
 <img src="../assets/logo.png" class="login-logo">
+=======
+<!-- ✅ LOGO WITH FALLBACK -->
+<div class="logo">
+    <img src="../web_panel/assets/logo.png"
+         onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/3/3b/Graduation_cap_icon.svg'"
+         alt="Vsmart Logo">
+</div>
+>>>>>>> b623440530b43e32f79a9ee94002dd32e6d3fc78
 
 <div class="logo-title">Vsmart</div>
 
@@ -209,6 +238,7 @@ body{
 <?php } ?>
 
 </form>
+
 </div>
 
 <script>

@@ -89,6 +89,34 @@ border-top:1px solid #ddd;
 .active{
 color:#009846;
 }
+/* BOTTOM NAV */
+.bottom{
+position:fixed;
+bottom:0;
+width:100%;
+background:white;
+display:flex;
+justify-content:space-around;
+padding:12px;
+box-shadow:0 -2px 10px rgba(0,0,0,0.1);
+}
+
+.bottom a{
+text-decoration:none;
+color:#777;
+text-align:center;
+font-size:14px;
+}
+
+.bottom .material-icons{
+display:block;
+font-size:22px;
+}
+
+.bottom a.active{
+color:#009846;
+font-weight:bold;
+}
 
 </style>
 </head>
@@ -121,8 +149,15 @@ Principal Dashboard
 </div>
 
 <div class="bottom">
-<div class="active">🏠<br>Dashboard</div>
-<div>⚙️<br>Settings</div>
+<a href="teacher_dashboard.php" class="active">
+<span class="material-icons">dashboard</span>
+Dashboard
+</a>
+
+<a href="settings.php">
+<span class="material-icons">settings</span>
+Settings
+</a>
 </div>
 
 </body>

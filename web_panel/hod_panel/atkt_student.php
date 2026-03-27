@@ -2,11 +2,10 @@
 require_once("../config.php");
 require_once("../promotion_helper.php");
 
-/* ================= GET CLASS FROM QUERY ================= */
+/* ================= GET CLASS ================= */
 
 if(!isset($_GET['class'])){
-echo "Class not selected";
-exit;
+    die("Class not selected");
 }
 
 $class = $_GET['class'];
@@ -14,70 +13,84 @@ $class = $_GET['class'];
 /* ================= ATKT LIMIT ================= */
 
 $setting = $conn->query("SELECT atkt_limit FROM settings LIMIT 1");
-$atktLimit = $setting->fetch_assoc()['atkt_limit'];
+$atktLimit = (int)$setting->fetch_assoc()['atkt_limit'];
 
 /* ================= GET STUDENTS ================= */
 
 $stmt = $conn->prepare("
-SELECT user_id, full_name
-FROM students
-WHERE class = ?
+    SELECT user_id, full_name
+    FROM students
+    WHERE class = ?
 ");
 
-$stmt->bind_param("s",$class);
+$stmt->bind_param("s", $class);
 $stmt->execute();
 $result = $stmt->get_result();
-
 ?>
 
 <!DOCTYPE html>
 <html>
-
 <head>
-
-<title>ATKT Students</title>
+<title>Promoted With KT</title>
 
 <style>
 
 body{
-margin:0;
-font-family:Arial;
-background:#e9e4ea;
+    margin:0;
+    font-family: 'Segoe UI', Arial;
+    background:#e6e3e7;
 }
 
 .header{
-background:#0a8f3c;
-color:white;
-padding:18px;
-font-size:22px;
+    background:#0aa03c;
+    color:#fff;
+    padding:16px;
+    font-size:20px;
+    font-weight:600;
+    display:flex;
+    align-items:center;
+}
+
+.back{
+    font-size:22px;
+    margin-right:10px;
+    cursor:pointer;
 }
 
 .container{
-padding:15px;
+    padding:15px;
 }
 
-.student-card{
-background:white;
-padding:18px;
-margin-bottom:15px;
-border-radius:12px;
-box-shadow:0 2px 6px rgba(0,0,0,0.2);
+.card{
+    background:#f3f1f5;
+    border-radius:15px;
+    padding:15px;
+    margin-bottom:15px;
+    box-shadow:0 2px 6px rgba(0,0,0,0.15);
 }
 
 .name{
-font-size:18px;
-font-weight:bold;
-margin-bottom:6px;
+    font-size:18px;
+    font-weight:600;
+    color:#333;
 }
 
-.info{
-font-size:14px;
-margin-top:4px;
+.text{
+    font-size:14px;
+    margin-top:5px;
+    color:#444;
 }
 
 .kt{
-color:red;
-font-weight:bold;
+    color:#e67e22;
+    font-weight:600;
+}
+
+.empty{
+    text-align:center;
+    margin-top:50px;
+    font-size:16px;
+    color:#666;
 }
 
 </style>
@@ -87,42 +100,52 @@ font-weight:bold;
 <body>
 
 <div class="header">
-Promoted with KT to <?php echo $class; ?>
+    <span class="back" onclick="history.back()">←</span>
+    <?php echo htmlspecialchars($class); ?> - Promoted With KT
 </div>
 
 <div class="container">
 
 <?php
+$found = false;
 
 while($row = $result->fetch_assoc()){
 
-$promotion = calculatePromotion($conn,$row['user_id'],$atktLimit);
+    $promotion = calculatePromotion($conn, $row['user_id'], $atktLimit);
 
-if($promotion['status']=="PROMOTED_WITH_ATKT"){
+    /* ✅ ONLY SHOW ATKT STUDENTS */
+    if(strtolower($promotion['status']) != "promoted_with_atkt"){
+        continue;
+    }
 
+    $found = true;
+
+    $backlogs = $promotion['backlogCount'] ?? 0;
+    $subjects = $promotion['ktSubjects'] ?? [];
 ?>
 
-<div class="student-card">
+<div class="card">
 
-<div class="name">
-<?php echo $row['full_name']; ?>
-</div>
+    <div class="name">
+        <?php echo htmlspecialchars($row['full_name']); ?>
+    </div>
 
-<div class="info">
-Backlogs : <span class="kt">
-<?php echo $promotion['backlogCount']; ?>
-</span>
-</div>
+    <div class="text">
+        Backlogs: <?php echo $backlogs; ?>
+    </div>
 
-<div class="info">
-KT Subjects :
-<?php echo implode(", ",$promotion['ktSubjects']); ?>
-</div>
+    <div class="text kt">
+        KT Subjects: 
+        <?php echo !empty($subjects) ? implode(", ", $subjects) : "None"; ?>
+    </div>
 
 </div>
 
 <?php
 }
+
+if(!$found){
+    echo "<div class='empty'>No ATKT students found</div>";
 }
 ?>
 
