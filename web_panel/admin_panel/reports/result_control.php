@@ -1,5 +1,6 @@
 <?php
 require_once("../../config.php");
+require_once("../helpers/promotion_helper.php");
 
 /* SAVE SETTINGS */
 
@@ -15,6 +16,11 @@ if($_SERVER['REQUEST_METHOD']=="POST"){
     ");
     $stmt->bind_param("ii",$upload,$publish);
     $stmt->execute();
+
+    /* 🚀 CALL HELPER */
+    if($publish == 1){
+        runPromotion($conn);
+    }
 
     header("Location: result_control.php?saved=1");
     exit;

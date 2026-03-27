@@ -131,6 +131,12 @@ display:flex;
 align-items:center;
 justify-content:center;
 }
+.register-logo{
+    width:100px;
+    height:auto;
+    display:block;
+    margin:40px auto 10px;
+}
 
 .logo i{
 color:white;
@@ -221,9 +227,7 @@ color:#555;
 
 <div class="container">
 
-<div class="logo">
-<i class="material-icons">school</i>
-</div>
+<img src="/vsmart/web_panel/assets/logo.png" class="register-logo">
 
 <div class="title">Vsmart</div>
 <div class="subtitle">A Smart Academic Management Platform</div>

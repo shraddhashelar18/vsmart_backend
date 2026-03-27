@@ -68,10 +68,26 @@ while($r = $result->fetch_assoc()){
     $totalObt += $r['obtained_marks'];
     $totalMax += $r['total_marks'];
 }
+/* =========================
+   FETCH SEM RESULT %
+========================= */
+$stmt = $conn->prepare("
+SELECT percentage 
+FROM semester_results 
+WHERE student_id=? AND semester=?
+LIMIT 1
+");
 
-/* PERCENTAGE */
-$percentage = $totalMax > 0 ? round(($totalObt/$totalMax)*100,2) : 0;
+$stmt->bind_param("ii", $student_id, $selected_sem);
+$stmt->execute();
+$res = $stmt->get_result();
 
+if($res->num_rows > 0){
+    $row = $res->fetch_assoc();
+    $percentage = $row['percentage'];
+} else {
+    $percentage = 0; // or fallback if needed
+}
 /* RESULT */
 $resultStatus = $percentage >= 40 ? "PASS" : "FAIL";
 

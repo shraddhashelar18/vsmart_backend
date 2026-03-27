@@ -91,17 +91,26 @@ elseif ($role == "student") {
 
 <style>
 body{
+    margin:0;
     font-family: Arial, sans-serif;
     background:#f5f5f5;
+
     display:flex;
     justify-content:center;
     align-items:center;
+
     height:100vh;
-    margin:0;
 }
 .login-container{
-    width:350px;
+    width:100%;
+    max-width:350px;
     text-align:center;
+}
+.login-logo{
+    width:120px;
+    height:auto;          /* 🔥 IMPORTANT */
+    display:block;
+    margin:0 auto 15px;
 }
 .logo-circle{
     width:70px;
@@ -174,9 +183,7 @@ body{
 
 <div class="login-container">
 
-<div class="logo-circle">
-<i class="fa fa-graduation-cap"></i>
-</div>
+<img src="../assets/logo.png" class="login-logo">
 
 <div class="logo-title">Vsmart</div>
 
