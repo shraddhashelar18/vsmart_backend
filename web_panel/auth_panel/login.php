@@ -61,7 +61,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 exit;
             } 
             elseif ($user['role'] == "principal") {
-                header("Location: principal_dashboard.php");
+                header("Location: ../principal_panel/dashboard.php");
             } 
             elseif ($user['role'] == "parent") {
                 header("Location: parent_dashboard.php");

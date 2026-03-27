@@ -1,9 +1,32 @@
 <?php
 require_once("../config.php");
 
-/* ================= DEPARTMENT ================= */
+session_start();
 
-$department = "IF";
+/* ================= LOGIN CHECK ================= */
+if(!isset($_SESSION['user_id'])){
+    die("Login required");
+}
+
+$userId = $_SESSION['user_id'];
+
+/* ================= GET HOD DEPARTMENT ================= */
+
+$hodQuery = $conn->prepare("
+SELECT department 
+FROM hods 
+WHERE user_id = ?
+");
+
+$hodQuery->bind_param("i",$userId);
+$hodQuery->execute();
+$hodResult = $hodQuery->get_result();
+
+if($hodResult->num_rows == 0){
+    die("HOD not found");
+}
+
+$department = $hodResult->fetch_assoc()['department'];
 
 /* ================= GET ACTIVE SEMESTER ================= */
 
@@ -13,29 +36,33 @@ FROM settings
 LIMIT 1
 ");
 
-$active = $setting->fetch_assoc()['active_semester'];
+$active = strtoupper(trim($setting->fetch_assoc()['active_semester']));
 
 /* ================= FETCH CLASSES ================= */
 
+/* 🔥 REVERSE LOGIC */
+
 if($active == "EVEN"){
 
-$stmt = $conn->prepare("
-SELECT class_name
-FROM classes
-WHERE department = ?
-AND semester IN (2,4,6)
-ORDER BY semester,class_name
-");
+    // EVEN → SHOW ODD
+    $stmt = $conn->prepare("
+    SELECT class_name
+    FROM classes
+    WHERE department = ?
+    AND semester IN (1,3,5)
+    ORDER BY semester,class_name
+    ");
 
 }else{
 
-$stmt = $conn->prepare("
-SELECT class_name
-FROM classes
-WHERE department = ?
-AND semester IN (1,3,5)
-ORDER BY semester,class_name
-");
+    // ODD → SHOW EVEN
+    $stmt = $conn->prepare("
+    SELECT class_name
+    FROM classes
+    WHERE department = ?
+    AND semester IN (2,4,6)
+    ORDER BY semester,class_name
+    ");
 
 }
 
@@ -98,7 +125,7 @@ font-size:20px;
 <body>
 
 <div class="header">
-Detained Students
+Detained Students 
 </div>
 
 <div class="container">

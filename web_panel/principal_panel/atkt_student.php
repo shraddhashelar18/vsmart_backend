@@ -1,5 +1,6 @@
 <?php
 require_once("../config.php");
+require_once("../promotion_helper.php");
 
 /* ================= GET CLASS ================= */
 
@@ -9,12 +10,17 @@ if(!isset($_GET['class'])){
 
 $class = $_GET['class'];
 
-/* ================= GET ATKT STUDENTS ================= */
+/* ================= ATKT LIMIT ================= */
+
+$setting = $conn->query("SELECT atkt_limit FROM settings LIMIT 1");
+$atktLimit = (int)$setting->fetch_assoc()['atkt_limit'];
+
+/* ================= GET STUDENTS ================= */
 
 $stmt = $conn->prepare("
     SELECT user_id, full_name
     FROM students
-    WHERE class = ? AND status = 'promoted_with_atkt'
+    WHERE class = ?
 ");
 
 $stmt->bind_param("s", $class);
@@ -35,7 +41,6 @@ body{
     background:#e6e3e7;
 }
 
-/* HEADER */
 .header{
     background:#0aa03c;
     color:#fff;
@@ -46,19 +51,16 @@ body{
     align-items:center;
 }
 
-/* BACK BUTTON */
 .back{
     font-size:22px;
     margin-right:10px;
     cursor:pointer;
 }
 
-/* CONTAINER */
 .container{
     padding:15px;
 }
 
-/* CARD */
 .card{
     background:#f3f1f5;
     border-radius:15px;
@@ -67,27 +69,23 @@ body{
     box-shadow:0 2px 6px rgba(0,0,0,0.15);
 }
 
-/* NAME */
 .name{
     font-size:18px;
     font-weight:600;
     color:#333;
 }
 
-/* TEXT */
 .text{
     font-size:14px;
     margin-top:5px;
     color:#444;
 }
 
-/* KT SUBJECT COLOR */
 .kt{
-    color:#f39c12;
+    color:#e67e22;
     font-weight:600;
 }
 
-/* EMPTY */
 .empty{
     text-align:center;
     margin-top:50px;
@@ -112,11 +110,18 @@ body{
 $found = false;
 
 while($row = $result->fetch_assoc()){
+
+    $promotion = calculatePromotion($conn, $row['user_id'], $atktLimit);
+
+    /* ✅ ONLY SHOW ATKT STUDENTS */
+    if(strtolower($promotion['status']) != "promoted_with_atkt"){
+        continue;
+    }
+
     $found = true;
 
-    /* 🔥 TEMP STATIC DATA (Replace later with real logic) */
-    $backlogs = 1;
-    $subjects = ["Physics"];
+    $backlogs = $promotion['backlogCount'] ?? 0;
+    $subjects = $promotion['ktSubjects'] ?? [];
 ?>
 
 <div class="card">
@@ -130,7 +135,8 @@ while($row = $result->fetch_assoc()){
     </div>
 
     <div class="text kt">
-        KT Subjects: <?php echo implode(", ", $subjects); ?>
+        KT Subjects: 
+        <?php echo !empty($subjects) ? implode(", ", $subjects) : "None"; ?>
     </div>
 
 </div>
