@@ -55,6 +55,18 @@ $months=[
 
 }
 
+$currentMonth = date("n");
+
+/* semester months order */
+$evenMonths = [12, 1, 2, 3, 4, 5];
+$oddMonths  = [6, 7, 8, 9, 10, 11];
+
+/* pick correct order */
+$monthOrder = ($cycle == "EVEN") ? $evenMonths : $oddMonths;
+
+/* find current index */
+$currentIndex = array_search($currentMonth, $monthOrder);
+
 /* ===============================
 GET DEPARTMENTS
 =============================== */
@@ -96,20 +108,22 @@ if($selectedClass && $selectedMonth){
 
 $monthNumber=date("n",strtotime($selectedMonth));
 
-$stmt=$conn->prepare("
+$stmt = $conn->prepare("
 SELECT 
 s.full_name,
-COUNT(a.id) total,
-SUM(CASE WHEN a.status='P' THEN 1 ELSE 0 END) present
+COUNT(a.id) AS total,
+SUM(CASE WHEN a.status='P' THEN 1 ELSE 0 END) AS present
 FROM students s
 LEFT JOIN attendance a
-ON s.user_id=a.student_id
-AND MONTH(a.date)=?
-WHERE s.class=?
+ON s.user_id = a.student_id
+AND a.class = ?
+AND MONTH(a.date) = ?
+WHERE s.class = ?
 GROUP BY s.user_id
+ORDER BY s.full_name
 ");
 
-$stmt->bind_param("is",$monthNumber,$selectedClass);
+$stmt->bind_param("sis", $selectedClass, $monthNumber, $selectedClass);
 $stmt->execute();
 
 $res=$stmt->get_result();
@@ -354,10 +368,22 @@ Attendance Report
 
 <option value="">Select</option>
 
-<?php foreach($months as $m): ?>
+<?php foreach($months as $m): 
+
+    $monthNumber = date("n", strtotime($m));
+    $monthIndex = array_search($monthNumber, $monthOrder);
+
+    $enabled = false;
+
+    if($monthIndex !== false && $currentIndex !== false){
+        $enabled = $monthIndex < $currentIndex;
+    }
+?>
 
 <option value="<?=$m?>"
-<?=$selectedMonth==$m?'selected':''?>>
+<?=$selectedMonth==$m?'selected':''?>
+data-enabled="<?=$enabled ? '1' : '0'?>"
+style="<?=$enabled ? '' : 'color:gray;'?>">
 
 <?=$m?>
 
@@ -412,6 +438,23 @@ Present: <?=$s['present']?> / <?=$s['total']?> lectures
 <?php } ?>
 
 </div>
+<script>
+document.querySelector("select[name='month']").addEventListener("change", function(){
 
+    let selectedOption = this.options[this.selectedIndex];
+    let isEnabled = selectedOption.getAttribute("data-enabled");
+
+    if(isEnabled === "0"){
+        alert("This month is not available yet");
+
+        // reset selection
+        this.selectedIndex = 0;
+        return;
+    }
+
+    // submit form only if valid
+    this.form.submit();
+});
+</script>
 </body>
 </html>

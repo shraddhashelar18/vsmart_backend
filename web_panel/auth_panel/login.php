@@ -30,6 +30,10 @@ $_SESSION['user_id'] = $user['user_id'];
 $_SESSION['role'] = $role;
 
 if ($role == "admin") {
+
+    $_SESSION['admin_id'] = $user['user_id'];     // ✅ ADD THIS
+    $_SESSION['admin_name'] = $user['full_name']; // optional
+
     header("Location: ../admin_panel/dashboard.php");
     exit;
 }

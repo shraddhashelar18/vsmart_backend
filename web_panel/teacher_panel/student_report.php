@@ -5,6 +5,7 @@ ini_set('display_errors', 1);
 require_once("../config.php");
 session_start();
 
+/* LOGIN CHECK */
 if(!isset($_SESSION['teacher_id'])){
     header("Location: ../auth_panel/login.php");
     exit();
@@ -16,37 +17,47 @@ if(!$student_id){
     die("Student ID missing");
 }
 
-/* ✅ FETCH STUDENT DETAILS */
+/* ===========================
+   FETCH STUDENT DETAILS
+=========================== */
 $stmt = $conn->prepare("
-SELECT full_name, roll_no, current_semester
-FROM students
+SELECT full_name, roll_no, current_semester 
+FROM students 
 WHERE user_id=?
 ");
 $stmt->bind_param("i",$student_id);
 $stmt->execute();
-$student = $stmt->get_result()->fetch_assoc();
+$res = $stmt->get_result();
+$student = $res->fetch_assoc();
 
-if(!$student){
-    die("Student not found");
-}
+$name = $student['full_name'] ?? 'N/A';
+$roll = $student['roll_no'] ?? '-';
+$semester = $student['current_semester'] ?? 1;
 
-/* ✅ FETCH MARKS */
+/* ===========================
+   FETCH MARKS
+=========================== */
 $stmt = $conn->prepare("
 SELECT subject, exam_type, obtained_marks, total_marks
 FROM marks
-WHERE student_id=? 
-AND semester=? 
-AND status!='draft'
+WHERE student_id=? AND semester=? AND status='published'
 ");
-$stmt->bind_param("is",$student_id,$student['current_semester']);
+$stmt->bind_param("ii",$student_id,$semester);
 $stmt->execute();
 $result = $stmt->get_result();
 
-/* GROUP SUBJECTS */
 $marks = [];
 
 while($row = $result->fetch_assoc()){
-    $marks[$row['subject']][$row['exam_type']] = $row;
+
+    $subject = $row['subject'];
+    $exam = strtoupper(trim($row['exam_type'])); // normalize
+
+    if(!isset($marks[$subject])){
+        $marks[$subject] = [];
+    }
+
+    $marks[$subject][$exam] = $row;
 }
 ?>
 
@@ -54,57 +65,96 @@ while($row = $result->fetch_assoc()){
 <html>
 <head>
 <title>Student Report</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
 <style>
-body{margin:0;font-family:Arial;background:#f3f3f3;}
-
+body{
+margin:0;
+font-family:Arial;
+background:#f3f3f3;
+}
+.back{
+margin-right:10px;
+cursor:pointer;
+text-decoration:none; /* 🔥 remove underline */
+color:white; /* keep icon white */
+}
+/* HEADER */
 .header{
 background:#009846;
 color:white;
 padding:18px;
 display:flex;
 align-items:center;
+font-size:20px;
 }
 
-.container{padding:20px;}
+.back{
+margin-right:10px;
+cursor:pointer;
+}
 
-.profile{
+/* STUDENT ROW */
+.student{
 display:flex;
 align-items:center;
+padding:20px;
 gap:15px;
-margin-bottom:20px;
 }
 
-.circle{
-width:60px;height:60px;
+.avatar{
+width:60px;
+height:60px;
+border-radius:50%;
 background:#009846;
 color:white;
-border-radius:50%;
 display:flex;
 align-items:center;
 justify-content:center;
-font-size:22px;
+font-size:24px;
 }
 
-.card{
-background:white;
-padding:15px;
-border-radius:12px;
-margin-bottom:10px;
-display:flex;
-justify-content:space-between;
-}
-
-.subject{
-margin-top:20px;
+.name{
+font-size:18px;
 font-weight:bold;
 }
 
-.empty{
-text-align:center;
-color:#999;
-margin-top:50px;
+.roll{
+color:#666;
+}
+
+/* RIGHT LINK */
+.link{
+color:#009846;
+cursor:pointer;
+font-weight:bold;
+white-space:nowrap;
+}
+
+/* SECTION */
+.section{
+padding:0 20px;
+font-weight:bold;
+margin-top:10px;
+}
+
+/* SUBJECT */
+.subject{
+margin:15px 20px;
+font-weight:bold;
+}
+
+/* CARD */
+.card{
+background:white;
+margin:10px 20px;
+padding:15px;
+border-radius:12px;
+display:flex;
+justify-content:space-between;
+box-shadow:0 2px 6px rgba(0,0,0,0.08);
 }
 </style>
 </head>
@@ -112,48 +162,69 @@ margin-top:50px;
 <body>
 
 <div class="header">
-<span class="material-icons" onclick="history.back()">arrow_back</span>
-&nbsp; Student Report
+    <span class="material-icons back" onclick="goBack()">arrow_back</span>
+    Student Report
 </div>
 
-<div class="container">
+<!-- STUDENT + RIGHT LINK -->
+<div class="student">
+    
+    <div class="avatar"><?= strtoupper(substr($name,0,1)) ?></div>
+    
+    <div style="flex:1">
+        <div class="name"><?= $name ?></div>
+        <div class="roll">Roll No: <?= $roll ?></div>
+    </div>
 
-<!-- PROFILE -->
-<div class="profile">
-<div class="circle"><?= strtoupper($student['full_name'][0]) ?></div>
-<div>
-<b><?= $student['full_name'] ?></b><br>
-<small>Roll No: <?= $student['roll_no'] ?></small>
+    <div class="link" onclick="goPrevious()">
+        View Previous Semesters
+    </div>
+
 </div>
-</div>
 
-<a href="previous_semesters.php?user_id=<?= $student_id ?>" 
-style="color:#009846;font-weight:bold;text-decoration:none;">
-View Previous Semesters
-</a>
-
-<h3>Exam Performance</h3>
+<div class="section">Exam Performance</div>
 
 <?php if(empty($marks)){ ?>
-<div class="empty">Current semester data not entered yet</div>
+<p style="text-align:center;color:#999;">No data available</p>
 <?php } ?>
 
 <?php foreach($marks as $subject => $exams){ ?>
 
 <div class="subject"><?= $subject ?></div>
 
-<?php foreach($exams as $exam => $m){ ?>
+<?php
+$order = ['CT1','CT2'];
 
+foreach($order as $exam){
+
+    if(isset($exams[$exam])){
+        $m = $exams[$exam];
+        $score = $m['obtained_marks'];
+        $max = $m['total_marks'];
+    } else {
+        $score = "-";
+        $max = "-";
+    }
+?>
 <div class="card">
-<div><?= $exam ?></div>
-<div><?= $m['obtained_marks'] ?? 0 ?> / <?= $m['total_marks'] ?></div>
+<span><?= $exam ?></span>
+<span><?= $score ?> / <?= $max ?></span>
 </div>
+<?php
+}
+?>
 
 <?php } ?>
 
-<?php } ?>
+<script>
+function goPrevious(){
+    window.location.href = "previous_semesters.php?user_id=<?= $student_id ?>&class=<?= $_GET['class'] ?>";
+}
 
-</div>
+function goBack(){
+    window.location.href = "reports.php?class=<?= $_GET['class'] ?>";
+}
+</script>
 
 </body>
 </html>

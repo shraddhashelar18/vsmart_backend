@@ -3,132 +3,80 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 require_once("../../config.php");
 
-if(!isset($_GET['id'])){
-die("Teacher ID missing");
-}
+$user_id = $_GET['id'];
+$department = $_GET['department'] ?? '';
 
-$user_id=$_GET['id'];
+/* TEACHER */
+$teacher = $conn->query("SELECT * FROM teachers WHERE user_id='$user_id'")->fetch_assoc();
+$name = $teacher['full_name'];
 
-/* GET TEACHER */
+/* EMAIL */
+$user = $conn->query("SELECT email FROM users WHERE user_id='$user_id'")->fetch_assoc();
+$email = $user['email'] ?? "";
 
-$teacher=$conn->query("
-SELECT *
-FROM teachers
-WHERE user_id='$user_id'
-")->fetch_assoc();
-
-$name=$teacher['full_name'];
-
-/* GET EMAIL */
-
-$user=$conn->query("
-SELECT email
-FROM users
-WHERE user_id='$user_id'
-")->fetch_assoc();
-
-$email=$user['email'] ?? "";
-
-/* GET ASSIGNED DATA */
-
+/* ASSIGNED (THIS TEACHER) */
 $assigned = [];
 $assignedClasses = [];
 $departments = [];
 
-$res=$conn->query("
-SELECT class,subject
-FROM teacher_assignments
-WHERE user_id='$user_id'
-AND status='active'
+$res = $conn->query("
+SELECT class,subject FROM teacher_assignments
+WHERE user_id='$user_id' AND status='active'
 ");
 
 while($row=$res->fetch_assoc()){
+    $class = $row['class'];
 
-$class = $row['class'];
-
-$assignedClasses[$class] = true;
-
-$baseClass = substr($class,0,4);
-
-$assigned[$baseClass][]=$row['subject'];
-
-/* detect department */
-
-$departments[substr($class,0,2)] = true;
-
+    $assignedClasses[$class] = true;
+    $assigned[$class][] = strtolower(trim($row['subject']));
+    $departments[substr($class,0,2)] = true;
 }
-/* ALL DEPARTMENTS */
 
-$allDepartments=['IF','CO','EJ'];
+/* OTHER TEACHERS (DISABLE) */
+$otherAssigned = [];
 
-/* GET ALL CLASSES */
-
-$classes=$conn->query("
-SELECT class_name
-FROM classes
+$res = $conn->query("
+SELECT class, subject 
+FROM teacher_assignments 
+WHERE user_id != '$user_id' AND status='active'
 ");
 
-/* GET SUBJECTS */
-
-$subjects=[];
-
-$res=$conn->query("
-SELECT class,subject_name
-FROM semester_subjects
-");
-
-while($row=$res->fetch_assoc()){
-$subjects[$row['class']][]=$row['subject_name'];
+while($row = $res->fetch_assoc()){
+    $class = $row['class'];
+    $otherAssigned[$class][] = strtolower(trim($row['subject']));
 }
+
+/* SUBJECTS */
+$subjects = [];
+$res = $conn->query("SELECT class,subject_name FROM semester_subjects");
+
+while($row = $res->fetch_assoc()){
+    $key = substr($row['class'], 0, 4); // FIX
+    $subjects[$key][] = $row['subject_name'];
+}
+
+
+$allDepartments = ['IF','CO','EJ'];
 ?>
 
 <!DOCTYPE html>
 <html>
 <head>
-
 <title>Edit Teacher</title>
 
-<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-
 <style>
-
-body{
-font-family:Segoe UI;
-background:#f4f6f9;
-margin:0;
-}
-
-.topbar{
-background:#009846;
-color:white;
-padding:18px 25px;
-font-size:22px;
-display:flex;
-align-items:center;
-gap:10px;
-}
-
-.wrapper{
-max-width:900px;
-margin:30px auto;
-}
+body{font-family:Segoe UI;background:#f4f6f9;margin:0;}
+.topbar{background:#009846;color:white;padding:18px;font-size:20px;}
+.wrapper{max-width:900px;margin:30px auto;}
 
 .input{
 background:#eee;
-padding:14px;
-border-radius:10px;
-margin-top:6px;
-margin-bottom:18px;
+padding:12px;
+border-radius:8px;
+margin-bottom:15px;
 border:none;
 width:100%;
 }
-
-.back{
-color:white;
-text-decoration:none;
-font-size:26px;
-}
-
 
 .chip{
 display:inline-block;
@@ -141,21 +89,25 @@ background:white;
 }
 
 .chip.selected{
-background:#dcd3ff;
-border-color:#b8a8ff;
+background:#e6dcff;
+border-color:#c3b5ff;
+color:#5a4fcf;
 }
 
-.chip.selected::before{
-content:"✔ ";
+.chip.disabled {
+    background: #e0e0e0;
+    color: #888;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
-.chip input{
-display:none;
-}
+.chip input{display:none;}
 
 .subject-section{
 display:none;
-margin-top:15px;
+margin-top:20px;
+padding-top:10px;
+border-top:1px solid #ddd;
 }
 
 .save{
@@ -164,146 +116,174 @@ padding:14px;
 background:#009846;
 color:white;
 border:none;
-border-radius:12px;
-font-size:18px;
-margin-top:25px;
-cursor:pointer;
+border-radius:10px;
+font-size:16px;
+margin-top:20px;
 }
-
 </style>
-
 </head>
 
 <body>
 
 <div class="topbar">
-<a href="manage_teachers.php" class="back">
-<span class="material-icons">arrow_back</span>
-</a>
+<a href="manage_teachers.php?department=<?= $department ?>" style="color:white;text-decoration:none;">←</a>
 Edit Teacher
 </div>
 
 <div class="wrapper">
 
-<label>Teacher Name</label>
-<input class="input" value="<?= $name ?>" readonly>
+<form method="POST" action="update_teacher.php">
 
+<input type="hidden" name="user_id" value="<?= $user_id ?>">
+<input type="hidden" name="department" value="<?= $department ?>">
+
+<!-- NAME (EDITABLE) -->
+<label>Teacher Name</label>
+<input class="input" name="full_name" value="<?= $name ?>" required>
+
+<!-- EMAIL (READONLY) -->
 <label>Email</label>
 <input class="input" value="<?= $email ?>" readonly>
 
-<label>Departments</label>
-<br>
-
+<!-- DEPARTMENTS -->
+<label>Departments</label><br>
 <?php foreach($allDepartments as $dept): ?>
-
-<label class="chip dept-chip <?= isset($departments[$dept])?'selected':'' ?>" 
-onclick="toggleDepartment(this,'<?= $dept ?>')">
-
-<input type="checkbox" name="departments[]" value="<?= $dept ?>" 
-<?= isset($departments[$dept])?'checked':'' ?>>
-
+<div class="chip dept-chip <?= isset($departments[$dept])?'selected':'' ?>">
+<input type="checkbox" name="departments[]" value="<?= $dept ?>" <?= isset($departments[$dept])?'checked':'' ?>>
 <?= $dept ?>
-
-</label>
-
+</div>
 <?php endforeach; ?>
 
-
-<h4>Assign Classes</h4>
+<h3>Assign Classes</h3>
 
 <?php
-$departmentsList = ['IF','CO','EJ'];
+foreach($allDepartments as $dept):
 
-foreach($departmentsList as $dept):
+echo "<h4>".$dept." Department</h4>";
 
-echo "<h4 id='heading-$dept'>".$dept." Department</h4>";
-
-$cls=$conn->query("
-SELECT class_name
-FROM classes
-WHERE department='$dept'
-");
+$cls=$conn->query("SELECT class_name FROM classes WHERE department='$dept'");
 
 while($row=$cls->fetch_assoc()):
-
 $class=$row['class_name'];
 $isSelected=isset($assignedClasses[$class]);
 ?>
 
-<label class="chip class-chip dept-<?= $dept ?> <?= $isSelected?'selected':'' ?>"
-onclick="selectClass(this,'<?= $class ?>')">
-
+<div class="chip class-chip <?= $isSelected?'selected':'' ?>">
 <input type="checkbox" name="classes[]" value="<?= $class ?>" <?= $isSelected?'checked':'' ?>>
-
 <?= $class ?>
+</div>
 
-</label>
+<?php endwhile; endforeach; ?>
 
-<?php endwhile; ?>
+<h3>Subjects</h3>
 
-<?php endforeach; ?>
+<?php
+foreach($allDepartments as $dept):
 
-<h4>Subjects</h4>
+$cls=$conn->query("SELECT class_name FROM classes WHERE department='$dept'");
 
-<?php foreach($subjects as $class=>$subs): ?>
+while($row=$cls->fetch_assoc()):
+$class = $row['class_name'];
+?>
 
 <div id="subjects_<?= $class ?>" class="subject-section">
 
-<b><?= $class ?></b>
-<br>
+<b><?= $class ?></b><br>
 
-<?php foreach($subs as $sub):
+<?php 
+$baseClass = substr($class, 0, 4);
 
-$isAssigned = in_array(
-strtolower(trim($sub)),
-array_map(function($s){
-    return strtolower(trim($s));
-}, $assigned[$class] ?? [])
-);
+foreach($subjects[$baseClass] ?? [] as $sub):
 
+    $cleanSub = strtolower(trim($sub));
+
+    $isAssigned = in_array(
+        $cleanSub,
+        array_map(fn($s)=>strtolower(trim($s)), $assigned[$class] ?? [])
+    );
+
+    $isDisabled = in_array(
+        $cleanSub,
+        $otherAssigned[$class] ?? []
+    );
 ?>
 
-<label class="chip <?= $isAssigned ? 'selected' : '' ?>">
+<div class="chip subject-chip 
+<?= $isAssigned ? 'selected' : '' ?> 
+<?= $isDisabled ? 'disabled' : '' ?>">
 
-<input
-type="checkbox"
-name="subjects[<?= $class ?>][]"
-value="<?= $sub ?>"
-<?= $isAssigned ? 'checked' : '' ?>>
+    <input type="checkbox"
+        name="subjects[<?= $class ?>][]"
+        value="<?= $sub ?>"
+        <?= $isAssigned ? 'checked' : '' ?>
+        <?= $isDisabled ? 'disabled' : '' ?>
+    >
 
-<?= $sub ?>
+    <?= $sub ?>
 
-</label>
+</div>
 
 <?php endforeach; ?>
+</div>
+
+<?php endwhile; endforeach; ?>
+
+<button class="save">Update Teacher</button>
+
+</form>
 
 </div>
 
-<?php endforeach; ?>
-<button class="save">
-Update Teacher
-</button>
-
-</div>
 <script>
 
-document.querySelectorAll(".chip").forEach(function(chip){
+/* CLASS CLICK */
+document.querySelectorAll(".class-chip").forEach(chip=>{
+chip.onclick = function(){
 
-chip.addEventListener("click",function(e){
+let cb = chip.querySelector("input");
+cb.checked = !cb.checked;
 
-/* ignore class chips (they use selectClass) */
+let className = cb.value;
+let section = document.getElementById("subjects_"+className);
 
-if(chip.classList.contains("class-chip")) return;
+if(cb.checked){
 
-let checkbox = chip.querySelector("input");
+chip.classList.add("selected");
+if(section) section.style.display = "block";
 
-if(!checkbox) return;
+}else{
 
-if(checkbox.disabled) return;
+chip.classList.remove("selected");
 
-checkbox.checked = !checkbox.checked;
+if(section){
+section.style.display = "none";
 
-if(checkbox.checked){
+/* clear subjects */
+section.querySelectorAll("input").forEach(s=>{
+if(!s.disabled){
+s.checked = false;
+s.closest(".chip").classList.remove("selected");
+}
+});
+}
+
+}
+
+};
+});
+
+/* SUBJECT CLICK */
+document.addEventListener("click", function(e){
+
+let chip = e.target.closest(".subject-section .chip");
+
+if(!chip || chip.classList.contains("disabled")) return;
+
+let cb = chip.querySelector("input");
+
+cb.checked = !cb.checked;
+
+if(cb.checked){
 chip.classList.add("selected");
 }else{
 chip.classList.remove("selected");
@@ -311,110 +291,67 @@ chip.classList.remove("selected");
 
 });
 
+/* DEPARTMENT CLICK */
+document.querySelectorAll(".dept-chip").forEach(chip=>{
+chip.onclick = function(){
+
+let cb = chip.querySelector("input");
+cb.checked = !cb.checked;
+
+chip.classList.toggle("selected");
+
+};
 });
+
+/* PRELOAD */
+window.onload = function(){
+
+document.querySelectorAll(".class-chip input:checked").forEach(cb=>{
+
+let section = document.getElementById("subjects_"+cb.value);
+if(section) section.style.display = "block";
+
+});
+
+};
 
 </script>
 <script>
 
-/* DEPARTMENT TOGGLE */
+/* FORM VALIDATION */
+document.querySelector("form").addEventListener("submit", function(e){
 
-function toggleDepartment(element, dept){
+    let classChecked = document.querySelectorAll(".class-chip input:checked");
+    
+    if(classChecked.length === 0){
+        e.preventDefault();
 
-let checkbox = element.querySelector("input");
+        alert("Please assign at least one class and subject.\nOtherwise teacher will not appear.");
+        return;
+    }
 
-/* toggle checkbox */
+    let hasValidSubject = false;
 
-checkbox.checked = !checkbox.checked;
+    classChecked.forEach(cb=>{
+        let className = cb.value;
+        let section = document.getElementById("subjects_" + className);
 
-/* toggle UI */
+        if(section){
+            let subjects = section.querySelectorAll("input:checked:not(:disabled)");
+            if(subjects.length > 0){
+                hasValidSubject = true;
+            }
+        }
+    });
 
-if(checkbox.checked){
-element.classList.add("selected");
-}else{
-element.classList.remove("selected");
-}
+    if(!hasValidSubject){
+        e.preventDefault();
 
-/* show/hide class sections */
-
-document.querySelectorAll(".dept-"+dept).forEach(cls=>{
-cls.style.display = checkbox.checked ? "inline-block" : "none";
-});
-
-/* show/hide department heading */
-
-let heading = document.getElementById("heading-"+dept);
-
-if(heading){
-heading.style.display = checkbox.checked ? "block" : "none";
-}
-
-}
-
-/* CLASS SELECT */
-
-function selectClass(element,className){
-
-let checkbox = element.querySelector("input");
-
-/* toggle checkbox */
-
-checkbox.checked = !checkbox.checked;
-
-if(checkbox.checked){
-element.classList.add("selected");
-}else{
-element.classList.remove("selected");
-}
-
-/* IF6KA → IF6K */
-
-let baseClass = className.substring(0,4);
-
-let section = document.getElementById("subjects_"+baseClass);
-
-if(section){
-
-/* toggle subjects instead of hiding others */
-
-if(checkbox.checked){
-section.style.display="block";
-}else{
-section.style.display="none";
-}
-
-}
-
-}
-
-document.addEventListener("DOMContentLoaded", function(){
-
-document.querySelectorAll(".class-chip input:checked").forEach(function(ch){
-
-let baseClass = ch.value.substring(0,4);
-
-let section = document.getElementById("subjects_"+baseClass);
-
-if(section){
-section.style.display="block";
-}
+        alert("Each selected class must have at least one subject.\nOtherwise teacher will not appear.");
+        return;
+    }
 
 });
-
-});
-
-document.querySelectorAll(".class-chip.selected").forEach(function(el){
-
-let className = el.querySelector("input").value;
-let baseClass = className.substring(0,4);
-
-let section = document.getElementById("subjects_"+baseClass);
-
-if(section){
-section.style.display="block";
-}
-
-});
-
 </script>
 
 </body>

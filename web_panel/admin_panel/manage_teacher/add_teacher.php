@@ -16,7 +16,7 @@ FROM classes
 WHERE department='$department'
 ");
 
-/* GET SUBJECTS (BASE CLASS FIX) */
+/* GET SUBJECTS */
 $subjects = [];
 
 $res = $conn->query("
@@ -29,7 +29,7 @@ while($row = $res->fetch_assoc()){
     $subjects[$baseClass][] = $row['subject_name'];
 }
 
-/* GET ASSIGNED SUBJECTS */
+/* GET ASSIGNED */
 $assigned = [];
 
 $res = $conn->query("
@@ -39,28 +39,21 @@ WHERE status='active'
 ");
 
 while($row = $res->fetch_assoc()){
-    $baseClass = substr($row['class'],0,4);
-    $assigned[$baseClass][] = $row['subject'];
+    $assigned[$row['class']][] = $row['subject'];
 }
 ?>
 
 <!DOCTYPE html>
 <html>
 <head>
-
 <title>Add Teacher</title>
 
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
 <style>
 
-body{
-font-family:Segoe UI;
-background:#f4f6f9;
-margin:0;
-}
+body{font-family:Segoe UI;background:#f4f6f9;margin:0;}
 
-/* TOPBAR */
 .topbar{
 background:#009846;
 color:white;
@@ -71,30 +64,20 @@ align-items:center;
 gap:10px;
 }
 
-.back{
-color:white;
-text-decoration:none;
-font-size:22px;
-}
-
-/* WRAPPER */
 .wrapper{
 max-width:900px;
 margin:30px auto;
 }
 
-/* INPUT */
 .input{
 background:#eee;
 padding:14px;
 border-radius:10px;
-margin-top:6px;
 margin-bottom:18px;
 border:none;
 width:100%;
 }
 
-/* CHIP */
 .chip{
 display:inline-block;
 padding:10px 18px;
@@ -103,19 +86,17 @@ border:1px solid #ccc;
 margin:6px;
 cursor:pointer;
 background:white;
-transition:0.2s;
 }
 
 .chip.selected{
-background:#dcd3ff;
-border-color:#b8a8ff;
+background:#e6dcff;
+border-color:#c3b5ff;
+color:#5a4fcf;
 }
 
 .chip.disabled{
 background:#e0e0e0;
 color:#888;
-border-color:#ccc;
-cursor:not-allowed;
 pointer-events:none;
 }
 
@@ -123,33 +104,20 @@ pointer-events:none;
 display:none;
 }
 
-/* SUBJECT */
 .subject-section{
 display:none;
-margin-top:15px;
-}
-
-/* BUTTON */
-.save{
-width:100%;
-padding:14px;
-background:#009846;
-color:white;
-border:none;
-border-radius:12px;
-font-size:18px;
-margin-top:25px;
-cursor:pointer;
+margin-top:20px;
+padding-top:10px;
+border-top:1px solid #ddd;
 }
 
 </style>
-
 </head>
 
 <body>
 
 <div class="topbar">
-<a href="manage_teachers.php?department=<?= $department ?>" class="back">
+<a href="manage_teachers.php?department=<?= $department ?>" style="color:white;text-decoration:none;">
 <span class="material-icons">arrow_back</span>
 </a>
 Add Teacher
@@ -157,81 +125,78 @@ Add Teacher
 
 <div class="wrapper">
 
-<form method="POST" action="save_teacher.php" id="teacherForm">
+<form method="POST" action="save_teacher.php">
 
-<label>Teacher Name</label>
-<input class="input" name="name" required>
+<!-- Name -->
+<label>Name</label>
+<input class="input" name="name" placeholder="Enter full name" required>
 
+<!-- Email -->
 <label>Email</label>
-<input class="input" type="email" name="email" required>
+<input class="input" type="email" name="email" placeholder="teacher@vpt.edu.in" required>
 
+<!-- Password -->
 <label>Password</label>
-<input class="input" type="password" name="password" required>
+<input class="input" type="password" name="password" placeholder="Enter password" required>
 
-<label>Departments</label><br>
-
+<!-- DEPARTMENT -->
+<label>Department</label><br>
 <div class="chip selected">✔ <?= $department ?></div>
 <input type="hidden" name="department" value="<?= $department ?>">
 
-<h4>Assign Classes</h4>
+<h3>Assign Classes</h3>
 
-<?php while($row=$classes->fetch_assoc()): 
+<?php while($row=$classes->fetch_assoc()):
 $class = $row['class_name'];
-$baseClass = substr($class,0,4);
-
-$total = count($subjects[$baseClass] ?? []);
-$assignedCount = count($assigned[$baseClass] ?? []);
-$isDisabled = ($total>0 && $total==$assignedCount);
 ?>
 
-<label class="chip class-chip <?= $isDisabled ? 'disabled' : '' ?>"
-onclick="<?= $isDisabled ? '' : "selectClass(this,'$class')" ?>">
-
-<input type="checkbox" name="classes[]" value="<?= $class ?>" <?= $isDisabled ? 'disabled' : '' ?>>
-
-<?= $class ?>
-
-</label>
+<!-- FIXED (div instead of label) -->
+<div class="chip class-chip" onclick="toggleClass(this)">
+    <input type="checkbox" name="classes[]" value="<?= $class ?>">
+    <?= $class ?>
+</div>
 
 <?php endwhile; ?>
 
-<h4>Subjects</h4>
+<h3>Subjects</h3>
 
-<?php foreach($subjects as $baseClass=>$subs): ?>
+<?php
+$classes->data_seek(0);
+while($row=$classes->fetch_assoc()):
+$class = $row['class_name'];
+$base = substr($class,0,4);
+?>
 
-<div id="subjects_<?= $baseClass ?>" class="subject-section">
+<div id="subjects_<?= $class ?>" class="subject-section">
 
-<b><?= $baseClass ?></b><br>
+<b><?= $class ?></b><br>
 
-<?php foreach($subs as $sub):
+<?php foreach($subjects[$base] ?? [] as $sub):
 
 $isAssigned = in_array(
     strtolower(trim($sub)),
-    array_map(function($s){
-        return strtolower(trim($s));
-    }, $assigned[$baseClass] ?? [])
+    array_map(fn($s)=>strtolower(trim($s)), $assigned[$class] ?? [])
 );
 ?>
 
-<label class="chip <?= $isAssigned ? 'disabled selected' : '' ?>">
-
-<input
-type="checkbox"
-name="subjects[<?= $baseClass ?>][]"
-value="<?= $sub ?>"
-<?= $isAssigned ? 'checked disabled' : '' ?>>
-
-<?= $sub ?>
-
-</label>
+<!-- FIXED (div instead of label) -->
+<div class="chip <?= $isAssigned ? 'disabled selected' : '' ?>">
+    <input type="checkbox"
+    name="subjects[<?= $class ?>][]"
+    value="<?= $sub ?>"
+    <?= $isAssigned ? 'checked disabled' : '' ?>>
+    <?= $sub ?>
+</div>
 
 <?php endforeach; ?>
 
 </div>
 
-<?php endforeach; ?>
+<?php endwhile; ?>
 
-<button class="save">Save Teacher</button>
+<button style="width:100%;padding:14px;background:#009846;color:white;border:none;border-radius:10px;margin-top:20px;">
+Save Teacher
+</button>
 
 </form>
 
@@ -239,41 +204,63 @@ value="<?= $sub ?>"
 
 <script>
 
-/* SELECT CLASS */
-function selectClass(element,className){
+/* CLASS CLICK */
+function toggleClass(el){
 
-if(element.classList.contains("disabled")) return;
+    let cb = el.querySelector("input");
 
-let checkbox = element.querySelector("input");
-checkbox.checked = !checkbox.checked;
+    cb.checked = !cb.checked;
 
-element.classList.toggle("selected");
+    let className = cb.value;
+    let section = document.getElementById("subjects_"+className);
 
-let baseClass = className.substring(0,4);
-let section = document.getElementById("subjects_"+baseClass);
+    if(cb.checked){
 
-if(section){
-section.style.display = checkbox.checked ? "block" : "none";
-}
+        el.classList.add("selected");
 
+        if(section){
+            section.style.display = "block";
+        }
+
+    }else{
+
+        el.classList.remove("selected");
+
+        if(section){
+            section.style.display = "none";
+
+            // clear subjects
+            section.querySelectorAll("input").forEach(s=>{
+                if(!s.disabled){
+                    s.checked = false;
+                    s.closest(".chip").classList.remove("selected");
+                }
+            });
+        }
+    }
 }
 
 /* SUBJECT CLICK */
-document.querySelectorAll(".subject-section .chip").forEach(chip=>{
-chip.addEventListener("click",function(){
+document.addEventListener("click", function(e){
 
-let checkbox = chip.querySelector("input");
+    let chip = e.target.closest(".subject-section .chip");
 
-if(!checkbox || checkbox.disabled) return;
+    if(!chip || chip.classList.contains("disabled")) return;
 
-checkbox.checked = !checkbox.checked;
-chip.classList.toggle("selected");
+    let cb = chip.querySelector("input");
 
-});
+    cb.checked = !cb.checked;
+
+    if(cb.checked){
+        chip.classList.add("selected");
+    }else{
+        chip.classList.remove("selected");
+    }
+
 });
 
 /* VALIDATION */
-document.getElementById("teacherForm").onsubmit=function(){
+document.querySelector("form").onsubmit=function(){
 
 let cls=document.querySelector("input[name='classes[]']:checked");
 

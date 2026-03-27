@@ -1,6 +1,18 @@
 <?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 require_once("../config.php");
+session_start();
 
+/* LOGIN CHECK */
+if(!isset($_SESSION['admin_id'])){
+    header("Location: ../auth_panel/login.php");
+    exit();
+}
+
+$admin_name = $_SESSION['admin_name'] ?? "Administrator";
+
+/* COUNTS */
 $teachers=$conn->query("SELECT COUNT(*) as t FROM teachers")->fetch_assoc()['t'];
 $students=$conn->query("SELECT COUNT(*) as s FROM students")->fetch_assoc()['s'];
 $parents=$conn->query("SELECT COUNT(*) as p FROM parents")->fetch_assoc()['p'];
@@ -44,11 +56,11 @@ opacity:0.9;
 /* CONTAINER */
 
 .container{
-width:95%;
-margin:auto;
-padding:30px;
+    width:95%;
+    margin:auto;
+    padding:30px;
+    padding-bottom:80px; /* 🔥 ADD THIS LINE */
 }
-
 /* CARDS */
 
 .cards{

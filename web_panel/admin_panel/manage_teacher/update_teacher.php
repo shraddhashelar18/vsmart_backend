@@ -4,42 +4,39 @@ ini_set('display_errors', 1);
 require_once("../../config.php");
 
 $user_id = $_POST['user_id'] ?? '';
+$department = $_POST['department'] ?? '';
 
 if(!$user_id){
-die("User ID missing");
+    die("User ID missing");
 }
 
-/* DELETE OLD ASSIGNMENTS */
-
+/* DELETE OLD */
 $conn->query("
 DELETE FROM teacher_assignments
 WHERE user_id='$user_id'
 ");
 
-/* INSERT NEW ASSIGNMENTS */
-
+/* INSERT NEW */
 if(isset($_POST['subjects'])){
 
-foreach($_POST['subjects'] as $class=>$subs){
+    foreach($_POST['subjects'] as $class => $subs){
 
-foreach($subs as $sub){
+        // extract department from class (IF, CO, EJ)
+        $dept = substr($class, 0, 2);
 
-$conn->query("
-INSERT INTO teacher_assignments
-(user_id,class,subject,status)
-VALUES
-('$user_id','$class','$sub','active')
-");
+        foreach($subs as $sub){
 
+            $conn->query("
+            INSERT INTO teacher_assignments
+            (user_id, department, class, subject, status)
+            VALUES
+            ('$user_id', '$dept', '$class', '$sub', 'active')
+            ");
+        }
+    }
 }
 
-}
-
-}
-
-/* REDIRECT BACK */
-
-header("Location: manage_teachers.php?updated=1");
+/* REDIRECT */
+header("Location: manage_teachers.php?department=".$department."&updated=1");
 exit;
-
 ?>

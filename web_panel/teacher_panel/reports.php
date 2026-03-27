@@ -39,7 +39,12 @@ padding:18px;
 display:flex;
 align-items:center;
 }
-
+.back{
+margin-right:10px;
+cursor:pointer;
+text-decoration:none; /* 🔥 remove underline */
+color:white; /* keep icon white */
+}
 .container{padding:20px;}
 
 .card{
@@ -69,15 +74,15 @@ font-weight:bold;
 <body>
 
 <div class="header">
-<span class="material-icons" onclick="history.back()">arrow_back</span>
-&nbsp; <?= htmlspecialchars($class) ?> Students
+<a href="teacher_dashboard.php" class="material-icons back">arrow_back</a>
+Reports
 </div>
 
 <div class="container">
 
 <?php while($row = $result->fetch_assoc()){ ?>
 
-<div class="card" onclick="openReport(<?= $row['user_id'] ?>)">
+<div class="card" onclick="openReport(<?= $row['user_id'] ?>,'<?= $class ?>')">
 <div class="left">
 <div class="circle"><?= strtoupper($row['full_name'][0]) ?></div>
 <div>
@@ -93,8 +98,8 @@ font-weight:bold;
 </div>
 
 <script>
-function openReport(id){
-window.location.href="student_report.php?user_id="+id;
+function openReport(id, cls){
+    window.location.href = "student_report.php?user_id=" + id + "&class=" + cls;
 }
 </script>
 

@@ -18,82 +18,74 @@ exit();
 
 body{
 margin:0;
-font-family:Arial;
-background:#f2f2f2;
+font-family:Segoe UI;
+background:#f4f6f9;
+
+/* CENTER FULL PAGE */
+display:flex;
+flex-direction:column;
+align-items:center;
+justify-content:center;
+height:100vh;
 }
 
 /* HEADER */
-
-.header{
-background:#0a8f3c;
+.header {
+background:#009846;
 color:white;
-padding:15px;
-font-size:20px;
+padding:16px 20px;
 display:flex;
 align-items:center;
+width:100%;
+position:absolute;
+top:0;
+left:0;
 }
 
-.back{
-margin-right:10px;
-cursor:pointer;
+.back-arrow {
+font-size:24px;
+margin-right:12px;
+text-decoration:none;
+color:white;
+}
+
+.header-title {
 font-size:20px;
-}
-
-/* CENTER */
-
-.container{
-display:flex;
-justify-content:center;
-align-items:center;
-height:80vh;
+font-weight:500;
 }
 
 /* CARD */
-
 .card{
 background:white;
-width:360px;
-padding:35px;
-border-radius:12px;
+padding:50px 70px;
+border-radius:18px;
+box-shadow:0 6px 18px rgba(0,0,0,0.12);
 text-align:center;
-box-shadow:0 3px 12px rgba(0,0,0,0.15);
+min-width:400px;
+transition:0.3s;
+}
+
+.card:hover{
+transform:translateY(-5px);
 }
 
 /* LOGO */
-
-.logo img{
-width:90px;
+.logo-img{
+width:140px;
 margin-bottom:15px;
 }
 
 /* TEXT */
-
 .title{
 font-size:24px;
-font-weight:bold;
+font-weight:600;
 margin-bottom:5px;
 }
 
-.subtitle{
-color:#777;
-margin-bottom:20px;
-font-size:14px;
-}
-
-hr{
-border:none;
-border-top:1px solid #ddd;
-margin:20px 0;
-}
-
-.version{
+.sub{
 font-size:15px;
-}
-
-.copy{
 color:#777;
-font-size:14px;
-margin-top:5px;
+margin-bottom:12px;
 }
 
 </style>
@@ -114,27 +106,15 @@ About Application
 
 <div class="card">
 
-<div class="logo">
-<img src="../assets/vsmart_logo.png">
-</div>
+<img src="/vsmart/web_panel/assets/logo.png" class="logo-img">
 
 <div class="title">VSmart</div>
-
-<div class="subtitle">
-Smart Academic Management System
-</div>
+<div class="sub">Smart Academic Management System</div>
 
 <hr>
 
-<div class="version">
-Version 1.0.0
-</div>
-
-<div class="copy">
-© 2026 All Rights Reserved
-</div>
-
-</div>
+<p>Version 1.0.0</p>
+<p>© 2026 All Rights Reserved</p>
 
 </div>
 

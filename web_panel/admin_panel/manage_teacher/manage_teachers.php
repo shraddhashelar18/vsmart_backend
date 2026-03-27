@@ -3,13 +3,24 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 require_once("../../config.php");
 
-$department=$_GET['department'] ?? '';
+$department = $_GET['department'] ?? '';
 
-$result=$conn->query("
-SELECT t.*,u.email
-FROM teachers t
-JOIN users u ON u.user_id=t.user_id
-");
+if($department){
+    $result = $conn->query("
+        SELECT DISTINCT t.*, u.email
+        FROM teachers t
+        JOIN users u ON u.user_id = t.user_id
+        JOIN teacher_assignments ta ON ta.user_id = t.user_id
+        WHERE ta.class LIKE '$department%'
+    ");
+}else{
+    // fallback (optional)
+    $result = $conn->query("
+        SELECT t.*,u.email
+        FROM teachers t
+        JOIN users u ON u.user_id=t.user_id
+    ");
+}
 ?>
 
 <!DOCTYPE html>
@@ -221,10 +232,8 @@ onclick="location.href='teacher_details.php?id=<?=$row['user_id']?>&department=<
 <div class="actions">
 
 <a class="edit"
-href="edit_teacher.php?id=<?=$row['user_id']?>">
-
+href="edit_teacher.php?id=<?= $row['user_id'] ?>&department=<?= $department ?>">
 <span class="material-icons">edit</span>
-
 </a>
 
 <a class="delete"
@@ -242,7 +251,6 @@ onclick="return confirm('Delete teacher?')">
 <?php endwhile; ?>
 
 </div>
-
 <button class="fab"
 onclick="location.href='add_teacher.php?department=<?=$department?>'">
 +

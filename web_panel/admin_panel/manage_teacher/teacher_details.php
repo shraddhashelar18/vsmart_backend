@@ -70,12 +70,13 @@ color: grey;
 font-size:25px;
 margin-right:6px;
 }
-
+.back .material-icons{
+color:white;
+}
 .back{
 color:white;
 text-decoration:none;
-font-size:22px;
-margin-right:10px;
+font-size:26px;
 }
 
 </style>
