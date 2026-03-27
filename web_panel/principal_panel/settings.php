@@ -10,18 +10,22 @@ if(!isset($_SESSION['user_id'])){
 
 $userId = $_SESSION['user_id'];
 
-/* GET HOD PROFILE */
+/* =========================
+   GET PRINCIPAL PROFILE
+========================= */
 
 $query = $conn->query("
-SELECT h.full_name, u.email, h.department
-FROM hods h
-JOIN users u ON h.user_id = u.user_id
-WHERE h.user_id='$userId'
+SELECT p.full_name, u.email
+FROM principal p
+JOIN users u ON p.user_id = u.user_id
+WHERE p.user_id='$userId'
 ");
 
 $user = $query->fetch_assoc();
 
-/* GET SETTINGS */
+/* =========================
+   GET SETTINGS
+========================= */
 
 $set = $conn->query("SELECT * FROM settings WHERE id=1");
 $s = $set->fetch_assoc();
@@ -118,7 +122,7 @@ Email<br>
 
 <div class="item">
 Department<br>
-<small><?php echo $user['department']; ?></small>
+<small>IF, CO, EJ</small>
 </div>
 
 </div>
@@ -148,9 +152,9 @@ Registration Status<br>
 <small>
 <?php
 if($s['registration_open']==1){
-echo "Open";
+    echo "Open";
 }else{
-echo "Closed";
+    echo "Closed";
 }
 ?>
 </small>
@@ -160,6 +164,11 @@ echo "Closed";
 </div>
 
 </div>
+
+</div>
+
+</div>
+
 <div class="section">
 
 <div class="title">Account</div>
@@ -174,7 +183,7 @@ Change Password
 About Application
 </div>
 
-<div class="item" onclick="location.href='logout.php'"style="color:red;cursor:pointer;">
+<div class="item" onclick="location.href='logout.php'" style="color:red;cursor:pointer;">
 Logout
 </div>
 

@@ -1,237 +1,268 @@
 <?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 session_start();
-include "../config.php";
-include "../promotion_helper.php";
+require_once("../config.php");
 
-/* ROLE */
-$currentRole = $_SESSION['role'] ?? "principal";
-$currentDepartment = $_SESSION['department'] ?? null;
+/* =========================
+   🔒 LOGIN CHECK
+========================= */
+if(!isset($_SESSION['user_id'])){
+    echo "<script>
+        alert('Please login first');
+        window.location.href='../../auth_panel/login.php';
+    </script>";
+    exit();
+}
 
-/* GET DEPARTMENT */
-if($currentRole == "hod"){
-    $department = $currentDepartment;
-}else{
-    $department = isset($_GET['department']) ? $_GET['department'] : null;
+$role = $_SESSION['role'] ?? '';
+$userId = $_SESSION['user_id'];
+
+/* =========================
+   🎯 GET DEPARTMENT
+========================= */
+$department = "";
+
+/* HOD */
+if($role == "hod"){
+
+    $deptQuery = $conn->prepare("SELECT department FROM hods WHERE user_id=?");
+
+    if(!$deptQuery){
+        die("Dept Query Error: " . $conn->error);
+    }
+
+    $deptQuery->bind_param("i",$userId);
+    $deptQuery->execute();
+
+    $res = $deptQuery->get_result();
+
+    if($res && $res->num_rows > 0){
+        $department = $res->fetch_assoc()['department'];
+    }else{
+        die("❌ No department found for HOD");
+    }
+}
+
+/* PRINCIPAL */
+elseif($role == "principal"){
+    $department = $_GET['department'] ?? "";
+}
+
+/* INVALID ROLE */
+else{
+    die("❌ Access denied");
+}
+
+/* =========================
+   ⚙️ SETTINGS
+========================= */
+$activeSemester = "odd";
+
+$set = $conn->query("SELECT active_semester FROM settings LIMIT 1");
+
+if($set && $set->num_rows > 0){
+    $activeSemester = strtolower(trim($set->fetch_assoc()['active_semester']));
+}
+
+/* =========================
+   👨‍🎓 STUDENT STATS
+========================= */
+
+$totalStudents = 0;
+$promoted = 0;
+$atkt = 0;
+$detained = 0;
+$totalTeachers = 0;
+
+if(!empty($department)){
+
+    $isOdd = ($activeSemester === 'odd');
+
+    if($isOdd){
+
+        $query = "
+        SELECT status FROM students 
+        WHERE department=? 
+        AND CAST(SUBSTRING(class, LENGTH(?) + 1, 1) AS UNSIGNED) % 2 = 1
+        ";
+
+    }else{
+
+        $query = "
+        SELECT status FROM students 
+        WHERE department=? 
+        AND CAST(SUBSTRING(class, LENGTH(?) + 1, 1) AS UNSIGNED) % 2 = 0
+        ";
+    }
+
+    $stmt = $conn->prepare($query);
+
+    if(!$stmt){
+        die("Student Query Error: " . $conn->error);
+    }
+
+    $stmt->bind_param("ss", $department, $department);
+    $stmt->execute();
+
+    $res = $stmt->get_result();
+
+    if(!$res){
+        die("Student Result Error: " . $conn->error);
+    }
+
+    while($row = $res->fetch_assoc()){
+
+        $totalStudents++;
+
+        $status = strtolower(trim($row['status']));
+
+        if($status == "passed_out" || $status == "promoted"){
+            $promoted++;
+        }
+        elseif($status == "promoted_with_atkt"){
+            $atkt++;
+        }
+        elseif($status == "detained"){
+            $detained++;
+        }
+    }
+
+    /* =========================
+       👨‍🏫 TEACHERS COUNT
+    ========================= */
+    $t = $conn->prepare("
+    SELECT COUNT(DISTINCT ta.user_id) AS totalTeachers
+    FROM teacher_assignments ta
+    WHERE ta.department = ?
+    ");
+
+    if(!$t){
+        die("Teacher Query Error: " . $conn->error);
+    }
+
+    $t->bind_param("s", $department);
+    $t->execute();
+
+    $resultT = $t->get_result();
+
+    if(!$resultT){
+        die("Teacher Result Error: " . $conn->error);
+    }
+
+    $totalTeachers = $resultT->fetch_assoc()['totalTeachers'] ?? 0;
 }
 ?>
 
 <!DOCTYPE html>
 <html>
 <head>
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
 
-<!-- ICONS -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
 <style>
-
-body{
-margin:0;
-font-family:'Segoe UI';
-background:#f2f2f2;
-}
-
-/* HEADER */
-.header{
-background:#0b8f3a;
-color:white;
-padding:15px;
-display:flex;
-align-items:center;
-gap:10px;
-font-size:18px;
-}
-
-/* TITLE */
-.title{
-font-size:18px;
-margin:15px;
-font-weight:600;
-}
-
-/* ROW */
-.row{
-display:flex;
-gap:12px;
-padding:0 15px;
-margin-bottom:12px;
-}
-
-/* CARD */
-.summary-card{
-background:#fff;
-padding:18px;
-border-radius:15px;
-text-align:center;
-flex:1;
-box-shadow:0 4px 10px rgba(0,0,0,0.08);
-}
-
-/* NUMBER */
-.number{
-font-size:22px;
-font-weight:bold;
-}
-
-/* BUTTON */
-.action-btn{
-display:block;
-background:#0b8f3a;
-color:white;
-margin:10px 15px;
-padding:15px;
-text-align:center;
-border-radius:12px;
-text-decoration:none;
-}
-
-/* DEPT CARD */
-.card{
-display:flex;
-justify-content:space-between;
-background:#fff;
-padding:15px;
-margin:10px 15px;
-border-radius:12px;
-text-decoration:none;
-color:black;
-}
-
-/* BOTTOM NAV */
-.bottom{
-position:fixed;
-bottom:0;
-width:100%;
-display:flex;
-background:#fff;
-border-top:1px solid #ddd;
-}
-
-.nav-item{
-flex:1;
-text-align:center;
-padding:10px;
-color:#aaa;
-text-decoration:none;
-}
-
-.nav-item.active{
-color:#0b8f3a;
-}
-
-.icon{
-font-size:20px;
-display:block;
-}
-
+body{margin:0;font-family:'Segoe UI',sans-serif;background:#eef1f5;}
+.header{background:#0a8f3c;color:white;padding:20px 30px;}
+.header h2{margin:0;font-size:24px;}
+.container{padding:25px 40px;padding-bottom:80px;}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;margin-bottom:25px;}
+.card{background:white;border-radius:12px;padding:25px;text-align:center;box-shadow:0 4px 10px rgba(0,0,0,0.08);}
+.card i{font-size:30px;margin-bottom:10px;color:#0a8f3c;}
+.small-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:25px;}
+.orange{color:#ff9800;}
+.red{color:#f44336;}
+.section-title{font-size:18px;font-weight:600;margin-bottom:15px;}
+.btn{display:block;width:100%;background:#0a8f3c;color:white;padding:14px;margin-bottom:12px;border-radius:8px;text-align:center;text-decoration:none;}
+.bottom{position:fixed;bottom:0;width:100%;background:white;display:flex;justify-content:space-around;padding:12px;box-shadow:0 -2px 10px rgba(0,0,0,0.1);}
+.bottom a{text-decoration:none;color:#777;text-align:center;font-size:14px;}
+.bottom .material-icons{display:block;font-size:22px;}
+.bottom a.active{color:#009846;font-weight:bold;}
 </style>
 </head>
 
 <body>
 
 <div class="header">
-<i class="fa-solid fa-arrow-left" onclick="history.back()"></i>
-<?php echo $department ? $department." Department" : "Dashboard"; ?>
+<h2>
+<?php echo ucfirst($role); ?> Dashboard 
+</h2>
 </div>
+
+<div class="container">
+
+<?php if($role=="principal" && empty($department)){ ?>
+
+<div class="section-title">Select Department</div>
 
 <?php
+$q = mysqli_query($conn,"SELECT DISTINCT department FROM students ORDER BY department");
 
-/* SELECT DEPARTMENT */
-
-if(!$department && $currentRole=="principal"){
-
-echo "<div class='title'>Select Department</div>";
-
-$q=mysqli_query($conn,"SELECT DISTINCT department FROM students");
-
-while($r=mysqli_fetch_assoc($q)){
-$d=$r['department'];
-
-echo "<a class='card' href='?department=$d'>
-<div>$d Department</div>
-<i class='fa-solid fa-chevron-right'></i>
-</a>";
+while($row = mysqli_fetch_assoc($q)){
+    $d = $row['department'];
+    echo "<a href='?department=$d' class='btn'>$d Department</a>";
 }
-
-}
-
-/* SUMMARY */
-
-elseif($department){
-
-$setting=$conn->query("SELECT atkt_limit FROM settings LIMIT 1");
-$atktLimit=(int)$setting->fetch_assoc()['atkt_limit'];
-
-$stmt=$conn->prepare("SELECT user_id FROM students WHERE department=?");
-$stmt->bind_param("s",$department);
-$stmt->execute();
-$res=$stmt->get_result();
-
-$total=0; $prom=0; $atkt=0; $det=0;
-
-while($row=$res->fetch_assoc()){
-
-$total++;
-
-$p=calculatePromotion($conn,$row['user_id'],$atktLimit,$department);
-
-if($p['status']=="PROMOTED") $prom++;
-elseif($p['status']=="PROMOTED_WITH_ATKT") $atkt++;
-else $det++;
-
-}
-
-/* TEACHERS */
-
-$t=$conn->prepare("
-SELECT COUNT(DISTINCT ta.user_id) t
-FROM teacher_assignments ta
-WHERE ta.department=?
-");
-$t->bind_param("s",$department);
-$t->execute();
-$totalTeachers=$t->get_result()->fetch_assoc()['t'];
-
 ?>
 
-<div class="title">Department Summary</div>
+<?php } else { ?>
 
-<div class="row">
-<div class="summary-card"><div class="number"><?php echo $total; ?></div>Students</div>
-<div class="summary-card"><div class="number"><?php echo $totalTeachers; ?></div>Teachers</div>
+<div class="grid">
+<div class="card">
+<i class="material-icons">person</i>
+<div>Total Teachers</div>
+<h2><?php echo $totalTeachers; ?></h2>
 </div>
 
-<div class="row">
-<div class="summary-card"><div class="number"><?php echo $prom; ?></div>Promoted</div>
-<div class="summary-card"><div class="number"><?php echo $atkt; ?></div>ATKT</div>
-<div class="summary-card"><div class="number"><?php echo $det; ?></div>Detained</div>
+<div class="card">
+<i class="material-icons">school</i>
+<div>Total Students</div>
+<h2><?php echo $totalStudents; ?></h2>
+</div>
 </div>
 
-<div class="title">Actions</div>
+<div class="small-grid">
+<div class="card">
+<i class="material-icons">arrow_upward</i>
+<div>Promoted</div>
+<h2><?php echo $promoted; ?></h2>
+</div>
 
-<a class="action-btn" href="student_by_class.php?department=<?php echo $department;?>">View Students</a>
-<a class="action-btn" href="teacher.php?department=<?php echo $department;?>">View Teachers</a>
-<a class="action-btn" href="promoted_classes.php?department=<?php echo $department;?>">View Promoted List</a>
-<a class="action-btn" href="atkt_classes.php?department=<?php echo $department;?>">View ATKT List</a>
-<a class="action-btn" href="detained_classes.php?department=<?php echo $department;?>">View Detained List</a>
+<div class="card">
+<i class="material-icons orange">trending_up</i>
+<div>With ATKT</div>
+<h2><?php echo $atkt; ?></h2>
+</div>
+
+<div class="card">
+<i class="material-icons red">warning</i>
+<div>Detained</div>
+<h2><?php echo $detained; ?></h2>
+</div>
+</div>
+
+<div class="section-title">Academic Actions</div>
+<a href="student_by_class.php?department=<?php echo $department; ?>" class="btn">View Students</a>
+<a href="teacher.php?department=<?php echo $department; ?>" class="btn">View Teachers</a>
+<a href="promoted_classes.php?department=<?php echo $department; ?>" class="btn">View Promoted List</a>
+<a href="atkt_classes.php?department=<?php echo $department; ?>" class="btn">View ATKT List</a>
+<a href="detained_classes.php?department=<?php echo $department; ?>" class="btn">View Detained List</a>
 
 <?php } ?>
 
-<!-- BOTTOM NAV -->
-<div class="bottom">
+</div>
 
-<a href="dashboard.php" class="nav-item active">
-<i class="fa-solid fa-table-cells-large icon"></i>
+<div class="bottom">
+<a href="teacher_dashboard.php" class="active">
+<span class="material-icons">dashboard</span>
 Dashboard
 </a>
 
-<a href="settings.php" class="nav-item">
-<i class="fa-solid fa-gear icon"></i>
+<a href="settings.php">
+<span class="material-icons">settings</span>
 Settings
 </a>
-
 </div>
 
 </body>
