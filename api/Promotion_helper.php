@@ -98,11 +98,24 @@ $status="DETAINED";
 }
 
 /* percentage only when no backlog */
+/* ===== GET PERCENTAGE FROM semester_results ===== */
 
-if($failCount==0 && $totalMarks>0){
-$percentage = round(($obtainedMarks/$totalMarks)*100,2);
-}else{
-$percentage = null;
+$resultStmt = $conn->prepare("
+    SELECT percentage
+    FROM semester_results
+    WHERE student_id = ?
+    AND semester = ?
+");
+
+$resultStmt->bind_param("is", $studentId, $currentSemester);
+$resultStmt->execute();
+$resData = $resultStmt->get_result();
+
+if ($resData && $resData->num_rows > 0) {
+    $row = $resData->fetch_assoc();
+    $percentage = $row['percentage']; // ✅ correct %
+} else {
+    $percentage = null;
 }
 
 return[
