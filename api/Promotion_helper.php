@@ -25,25 +25,7 @@ if (!$semData || $semData->num_rows == 0) {
 
 $semResult = $semData->fetch_assoc();
 
-  $currentSemester = (int)$semResult['current_semester'];
-
-/* GET LATEST RESULT SEMESTER */
-$resultStmt = $conn->prepare("
-    SELECT semester
-    FROM semester_results
-    WHERE student_id = ?
-    ORDER BY semester DESC
-    LIMIT 1
-");
-
-$resultStmt->bind_param("i", $studentId);
-$resultStmt->execute();
-$resData = $resultStmt->get_result();
-
-if ($resData && $resData->num_rows > 0) {
-    $row = $resData->fetch_assoc();
-    $currentSemester = (int)$row['semester']; // ✅ correct semester
-}
+    $currentSemester = (string) ($semResult['current_semester'] - 1);
 
 /* calculate promotion only for that semester */
 

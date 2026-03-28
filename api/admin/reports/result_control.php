@@ -133,6 +133,13 @@ if (isset($data['action']) && $data['action'] == "update_settings") {
     $stmt->bind_param("ii", $allow, $publish);
 
     if ($stmt->execute()) {
+
+        // 🔥 ONLY TRIGGER (NO LOGIC CHANGE)
+        if ($publish == 1) {
+            require_once("../../helpers/promotion_helper.php");
+            runPromotion($conn);
+        }
+
         echo json_encode([
             "status" => true,
             "message" => "Updated successfully"

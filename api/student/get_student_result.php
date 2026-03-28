@@ -276,11 +276,12 @@ $checkUpload->bind_param("i", $student_id);
 $checkUpload->execute();
 $row = $checkUpload->get_result()->fetch_assoc();
 
-$uploadAllowed = 0;
+$marksUploaded = isset($row['marks_uploaded']) ? (int) $row['marks_uploaded'] : 1;
 
-if ($settings['allow_marksheet_upload'] == 1 && $row['marks_uploaded'] == 0) {
-    $uploadAllowed = 1;
-}
+$uploadAllowed = (
+    $settings['allow_marksheet_upload'] == 1 &&
+    $marksUploaded == 0
+) ? 1 : 0;
 /* =====================================================
    FINAL RESPONSE
 ===================================================== */

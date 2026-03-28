@@ -225,50 +225,56 @@ $stmt->bind_param("i", $semesterNumber);
 $stmt->execute();
 $res = $stmt->get_result();
 
-/* ================= EXTRACT MARKS ================= */
-
+/* ADD THIS HERE */
 $subjectList = [];
 
 while ($row = $res->fetch_assoc()) {
     $subjectList[] = $row['subject_name'];
 }
 
+/* ================= EXTRACT MARKS ================= */
+
+$subjects = [];
+
 $lines = preg_split("/\r\n|\n|\r/", $text);
 
-foreach ($lines as $line) {
+for ($i = 0; $i < count($lines); $i++) {
 
+    // merge current + next line (IMPORTANT for BEE)
+    $line = $lines[$i];
+
+    // ONLY merge if current line has NO numbers (subject line)
+    if (!preg_match('/\d+/', $line) && $i + 1 < count($lines)) {
+        $line .= " " . $lines[$i + 1];
+    }
+    $cleanLine = strtoupper(preg_replace('/\s+/', ' ', str_replace('&', 'AND', $line)));
     foreach ($subjectList as $subject) {
-        $cleanLine = strtoupper(preg_replace('/\s+/', ' ', str_replace('&', 'AND', $line)));
-        $cleanSubject = strtoupper(preg_replace('/\s+/', ' ', str_replace('&', 'AND', $subject)));
 
-        if (preg_match('/\b' . preg_quote($cleanSubject, '/') . '\b/', $cleanLine))  {
+        $cleanSubject = strtoupper(str_replace('&', 'AND', $subject));
+
+        $words = explode(" ", $cleanSubject);
+
+        $match = 0;
+
+        foreach ($words as $word) {
+            if (strlen($word) > 4 && strpos($cleanLine, $word) !== false) {
+                $match++;
+            }
+        }
+
+        if ($match >= 1) { // at least 2 words match
 
             preg_match_all('/\d+/', $line, $nums);
 
-            if (!empty($nums[0])) {
-
-                $numbers = $nums[0];
-
-                for ($i = 0; $i < count($numbers); $i++) {
-
-                    if ($numbers[$i] == 100 && isset($numbers[$i + 1])) {
-
-                        $marks = intval($numbers[$i + 1]);
-
-                        if ($marks <= 100) {
-                            $subjects[$subject] = $marks;
-                        }
-
-                        break;
-                    }
-
-                }
+            if (!empty($nums[0]) && count($nums[0]) >= 6) {
+                $marks = intval($nums[0][5]);
+                $subjects[$subject] = $marks;
             }
+
             break;
         }
     }
 }
-
 
 
 /* ================= SAVE MARKS ================= */

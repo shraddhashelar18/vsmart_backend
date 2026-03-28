@@ -41,17 +41,20 @@ if ($checkRes->num_rows == 0) {
     exit;
 }
 /* Fetch Notifications */
+$classQuery = $conn->prepare("SELECT class FROM students WHERE user_id = ?");
+$classQuery->bind_param("i", $userId);
+$classQuery->execute();
+$classRes = $classQuery->get_result();
+$classRow = $classRes->fetch_assoc();
 
+$studentClass = $classRow['class'] ?? '';
 $stmt = $conn->prepare("
     SELECT n.subject, n.message, n.created_at
     FROM notifications n
-    INNER JOIN notification_receivers nr 
-        ON n.id = nr.notification_id
-    WHERE nr.receiver_user_id = ?
+    WHERE n.class = ?
     ORDER BY n.created_at DESC
 ");
-
-$stmt->bind_param("i", $userId);
+$stmt->bind_param("s", $studentClass);
 $stmt->execute();
 $result = $stmt->get_result();
 if (!$result) {

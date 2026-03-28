@@ -93,12 +93,11 @@ $totalMax += $row['total_marks'];
 # ------------------------------------
 # STEP 4 : CALCULATE PERCENTAGE
 # ------------------------------------
-
-$percentage=0;
-
-if($totalMax>0){
-$percentage=round(($totalObtained/$totalMax)*100,2);
-}
+    $stmt = $conn->prepare("
+SELECT marksheet_pdf
+FROM semester_results
+WHERE student_id=? AND semester=?
+");
 
 # ------------------------------------
 # STEP 5 : RESULT STATUS
@@ -173,22 +172,25 @@ $trend->$month=round(($t['present']/$t['total'])*100,2);
 # BUILD SEMESTER DATA
 # ------------------------------------
 
-$stmt = $conn->prepare("
-SELECT marksheet_pdf
+    $stmt = $conn->prepare("
+SELECT percentage, marksheet_pdf
 FROM semester_results
 WHERE student_id=? AND semester=?
 ");
 
-$stmt->bind_param("ii",$student_id,$sem);
-$stmt->execute();
-$marksheetQuery = $stmt->get_result();
+    $stmt->bind_param("ii", $student_id, $sem);
+    $stmt->execute();
+    $marksheetQuery = $stmt->get_result();
 
-$marksheetPdf = null;
+    $percentage = 0;
+    $marksheetPdf = null;
 
-if($marksheetQuery && $marksheetQuery->num_rows > 0){
-    $marksheetRow = $marksheetQuery->fetch_assoc();
-    $marksheetPdf = $marksheetRow['marksheet_pdf'];
-}
+    if ($marksheetQuery && $marksheetQuery->num_rows > 0) {
+        $marksheetRow = $marksheetQuery->fetch_assoc();
+
+        $percentage = floatval($marksheetRow['percentage']); // ✅ FIX
+        $marksheetPdf = $marksheetRow['marksheet_pdf'];
+    }
 
 $semesterData->percentage=$percentage;
 $semesterData->attendance=$attendancePercent;
