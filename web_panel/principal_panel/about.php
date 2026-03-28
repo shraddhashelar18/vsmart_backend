@@ -115,7 +115,7 @@ About Application
 <div class="card">
 
 <div class="logo">
-<img src="../assets/vsmart_logo.png">
+<img src="../assets/logo.png">
 </div>
 
 <div class="title">VSmart</div>

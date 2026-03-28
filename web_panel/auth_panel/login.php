@@ -123,13 +123,14 @@ body{
     margin:auto;
 =======
 
-/* 🔥 LOGO FIXED */
+/* ✅ LOGO CONTAINER */
 .logo{
     margin-bottom:15px;
     text-align:center;
 >>>>>>> b623440530b43e32f79a9ee94002dd32e6d3fc78
 }
 
+/* ✅ LOGO IMAGE */
 .logo img{
     width:120px;
     height:auto;
@@ -138,12 +139,19 @@ body{
     object-fit:contain;
 }
 
-/* Title */
+/* OPTIONAL HOVER */
+.logo img:hover{
+    transform:scale(1.05);
+    transition:0.3s;
+}
+
+/* TITLE */
 .logo-title{
     color:#009846;
     font-size:22px;
     margin-bottom:15px;
     font-weight:600;
+    text-align:center;
 }
 
 .input-box{
@@ -204,13 +212,15 @@ body{
 <div class="login-container">
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 <img src="../assets/logo.png" class="login-logo">
 =======
 <!-- ✅ LOGO WITH FALLBACK -->
+=======
+<!-- ✅ YOUR LOGO -->
+>>>>>>> 592d939306ffe086b427ef26d6af153e9d367fac
 <div class="logo">
-    <img src="../web_panel/assets/logo.png"
-         onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/3/3b/Graduation_cap_icon.svg'"
-         alt="Vsmart Logo">
+   <img src="../assets/logo.png">
 </div>
 >>>>>>> b623440530b43e32f79a9ee94002dd32e6d3fc78
 

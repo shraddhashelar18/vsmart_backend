@@ -81,6 +81,28 @@ cursor:pointer;
 text-decoration:none; /* 🔥 remove underline */
 color:white; /* keep icon white */
 }
+.marksheet-btn{
+width:90%;
+margin:20px auto;
+display:block;
+padding:14px;
+border:none;
+border-radius:10px;
+font-size:16px;
+font-weight:bold;
+cursor:pointer;
+}
+
+.btn-active{
+background:#009846;
+color:white;
+}
+
+.btn-disabled{
+background:#ccc;
+color:#333;
+cursor:not-allowed;
+}
 /* HEADER */
 .header{
 background:#009846;

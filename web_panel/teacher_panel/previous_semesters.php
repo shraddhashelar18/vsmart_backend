@@ -90,7 +90,28 @@ if($res->num_rows > 0){
 }
 /* RESULT */
 $resultStatus = $percentage >= 40 ? "PASS" : "FAIL";
+/* =========================
+   FETCH MARKSHEET PDF
+========================= */
+$marksheetPdf = null;
 
+$pdfStmt = $conn->prepare("
+SELECT marksheet_pdf 
+FROM semester_results 
+WHERE student_id=? AND semester=?
+LIMIT 1
+");
+
+if($pdfStmt){
+    $pdfStmt->bind_param("ii", $student_id, $selected_sem);
+    $pdfStmt->execute();
+    $pdfRes = $pdfStmt->get_result();
+
+    if($pdfRes->num_rows > 0){
+        $pdfRow = $pdfRes->fetch_assoc();
+        $marksheetPdf = $pdfRow['marksheet_pdf'];
+    }
+}
 /* =========================
    ATTENDANCE %
 ========================= */
@@ -353,6 +374,42 @@ function goBack(){
     window.location.href = "student_report.php?user_id=<?= $_GET['user_id'] ?>&class=<?= $_GET['class'] ?>";
 }
 </script>
+<?php if(!empty($marksheetPdf)){ ?>
 
+<a href="/mycollege/vsmart/<?= $marksheetPdf ?>" target="_blank">
+    <button style="
+        width:90%;
+        margin:20px auto;
+        display:block;
+        padding:14px;
+        background:#009846;
+        color:white;
+        border:none;
+        border-radius:12px;
+        font-size:16px;
+        font-weight:bold;
+    ">
+        View Final Marksheet
+    </button>
+</a>
+
+<?php } else { ?>
+
+<button onclick="alert('Marksheet not uploaded yet')" style="
+    width:90%;
+    margin:20px auto;
+    display:block;
+    padding:14px;
+    background:#ccc;
+    color:#333;
+    border:none;
+    border-radius:12px;
+    font-size:16px;
+    font-weight:bold;
+">
+    View Final Marksheet
+</button>
+
+<?php } ?>
 </body>
 </html>
