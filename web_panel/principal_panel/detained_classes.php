@@ -1,6 +1,8 @@
 <?php
-require_once("../config.php");
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
+require_once("../config.php");
 session_start();
 
 /* ================= LOGIN CHECK ================= */
@@ -9,24 +11,42 @@ if(!isset($_SESSION['user_id'])){
 }
 
 $userId = $_SESSION['user_id'];
+$role = $_SESSION['role'];
 
-/* ================= GET HOD DEPARTMENT ================= */
+/* ================= ROLE BASED DEPARTMENT ================= */
 
-$hodQuery = $conn->prepare("
-SELECT department 
-FROM hods 
-WHERE user_id = ?
-");
+if($role == "hod"){
 
-$hodQuery->bind_param("i",$userId);
-$hodQuery->execute();
-$hodResult = $hodQuery->get_result();
+    // HOD → get their department
+    $hodQuery = $conn->prepare("
+    SELECT department 
+    FROM hods 
+    WHERE user_id = ?
+    ");
 
-if($hodResult->num_rows == 0){
-    die("HOD not found");
+    $hodQuery->bind_param("i",$userId);
+    $hodQuery->execute();
+    $hodResult = $hodQuery->get_result();
+
+    if($hodResult->num_rows == 0){
+        die("HOD not found");
+    }
+
+    $department = $hodResult->fetch_assoc()['department'];
+
+}else if($role == "principal"){
+
+    // Principal → get department from URL
+    if(isset($_GET['department'])){
+        $department = $_GET['department'];
+    }else{
+        die("Department not selected");
+    }
+
+}else{
+    die("Access denied");
 }
 
-$department = $hodResult->fetch_assoc()['department'];
 
 /* ================= GET ACTIVE SEMESTER ================= */
 
@@ -38,9 +58,8 @@ LIMIT 1
 
 $active = strtoupper(trim($setting->fetch_assoc()['active_semester']));
 
-/* ================= FETCH CLASSES ================= */
 
-/* 🔥 REVERSE LOGIC */
+/* ================= FETCH CLASSES ================= */
 
 if($active == "EVEN"){
 
@@ -130,9 +149,15 @@ Detained Students
 
 <div class="container">
 
-<?php while($row = $result->fetch_assoc()){ ?>
+<?php 
+if($result->num_rows == 0){
+    echo "<p>No classes found</p>";
+}
 
-<a href="detained_student.php?class=<?php echo $row['class_name']; ?>" class="class-link">
+while($row = $result->fetch_assoc()){ 
+?>
+
+<a href="detained_student.php?class=<?php echo $row['class_name']; ?>&department=<?php echo $department; ?>" class="class-link">
 
 <div class="class-card">
 
