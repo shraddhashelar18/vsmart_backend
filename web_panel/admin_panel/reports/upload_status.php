@@ -61,15 +61,10 @@ if($selectedClass){
 
 $stmt = $conn->prepare("
 SELECT 
-    s.full_name,
-    CASE 
-        WHEN fm.user_id IS NOT NULL THEN 1
-        ELSE 0
-    END as uploaded
-FROM students s
-LEFT JOIN final_marksheets fm
-ON s.user_id = fm.user_id
-WHERE s.`class`=?
+    full_name,
+    marks_uploaded as uploaded
+FROM students
+WHERE `class`=?
 ");
 
 if(!$stmt){
