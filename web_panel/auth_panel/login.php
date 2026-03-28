@@ -100,34 +100,17 @@ body{
     height:100vh;
 }
 
-.login-container{
-    width:100%;
-    max-width:350px;
+.input-box input{
+    width:75%;
+    margin: 0 auto;
+    display: block;
     text-align:center;
 }
-<<<<<<< HEAD
-.login-logo{
-    width:120px;
-    height:auto;          /* 🔥 IMPORTANT */
-    display:block;
-    margin:0 auto 15px;
-}
-.logo-circle{
-    width:70px;
-    height:70px;
-    background:#009846;
-    border-radius:50%;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    margin:auto;
-=======
 
 /* ✅ LOGO CONTAINER */
 .logo{
     margin-bottom:15px;
     text-align:center;
->>>>>>> b623440530b43e32f79a9ee94002dd32e6d3fc78
 }
 
 /* ✅ LOGO IMAGE */
@@ -161,7 +144,9 @@ body{
 
 .input-box input{
     width:75%;
-    padding:14px 40px;
+    margin: 0 auto;
+    display: block;
+    padding:14px 45px 14px 40px;
     border:none;
     background:#eee;
     border-radius:10px;
@@ -172,14 +157,16 @@ body{
 .input-box i{
     position:absolute;
     left:12px;
-    top:15px;
+    top:50%;
+    transform:translateY(-50%);
     color:#666;
 }
 
 .toggle{
     position:absolute;
-    right:45px;
-    top:15px;
+    right:15px;
+    top:50%;
+    transform:translateY(-50%);
     cursor:pointer;
     color:#666;
 }
@@ -211,18 +198,12 @@ body{
 
 <div class="login-container">
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<img src="../assets/logo.png" class="login-logo">
-=======
-<!-- ✅ LOGO WITH FALLBACK -->
-=======
-<!-- ✅ YOUR LOGO -->
->>>>>>> 592d939306ffe086b427ef26d6af153e9d367fac
+
+
 <div class="logo">
    <img src="../assets/logo.png">
 </div>
->>>>>>> b623440530b43e32f79a9ee94002dd32e6d3fc78
+
 
 <div class="logo-title">Vsmart</div>
 
@@ -237,7 +218,7 @@ body{
 <i class="fa fa-lock"></i>
 <input type="password" id="password" name="password" placeholder="Enter your password" required>
 <span class="toggle" onclick="togglePassword()">
-<i class="fa fa-eye-slash"></i>
+<i id="eyeIcon" class="fa fa-eye-slash"></i>
 </span>
 </div>
 
@@ -254,11 +235,16 @@ body{
 <script>
 function togglePassword(){
     let pass = document.getElementById("password");
+    let icon = document.getElementById("eyeIcon");
 
     if(pass.type === "password"){
         pass.type = "text";
+        icon.classList.remove("fa-eye-slash");
+        icon.classList.add("fa-eye");
     } else {
         pass.type = "password";
+        icon.classList.remove("fa-eye");
+        icon.classList.add("fa-eye-slash");
     }
 }
 </script>

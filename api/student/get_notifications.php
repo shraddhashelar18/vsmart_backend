@@ -51,10 +51,13 @@ $studentClass = $classRow['class'] ?? '';
 $stmt = $conn->prepare("
     SELECT n.subject, n.message, n.created_at
     FROM notifications n
-    WHERE n.class = ?
+    INNER JOIN notification_receivers nr
+        ON n.id = nr.notification_id
+    WHERE nr.receiver_user_id = ?
     ORDER BY n.created_at DESC
 ");
-$stmt->bind_param("s", $studentClass);
+
+$stmt->bind_param("i", $userId);
 $stmt->execute();
 $result = $stmt->get_result();
 if (!$result) {
