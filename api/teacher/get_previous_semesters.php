@@ -90,27 +90,9 @@ $totalMax += $row['total_marks'];
 
 }
 
-# ------------------------------------
-# STEP 4 : CALCULATE PERCENTAGE
-# ------------------------------------
-    $stmt = $conn->prepare("
-SELECT marksheet_pdf
-FROM semester_results
-WHERE student_id=? AND semester=?
-");
 
 # ------------------------------------
-# STEP 5 : RESULT STATUS
-# ------------------------------------
-
-$status="FAIL";
-
-if($percentage>=40){
-$status="PASS";
-}
-
-# ------------------------------------
-# STEP 6 : ATTENDANCE %
+# STEP 4 : ATTENDANCE %
 # ------------------------------------
 
 $stmt = $conn->prepare("
@@ -141,7 +123,7 @@ $attendancePercent=round(($presentDays/$totalDays)*100,2);
 }
 
 # ------------------------------------
-# STEP 7 : MONTHLY ATTENDANCE TREND
+# STEP 5 : MONTHLY ATTENDANCE TREND
 # ------------------------------------
 
 $stmt = $conn->prepare("
@@ -191,7 +173,7 @@ WHERE student_id=? AND semester=?
         $percentage = floatval($marksheetRow['percentage']); // ✅ FIX
         $marksheetPdf = $marksheetRow['marksheet_pdf'];
     }
-
+$status = ($percentage >= 40) ? "PASS" : "FAIL";
 $semesterData->percentage=$percentage;
 $semesterData->attendance=$attendancePercent;
 $semesterData->status=$status;
