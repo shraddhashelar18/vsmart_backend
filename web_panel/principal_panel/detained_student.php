@@ -1,7 +1,7 @@
 <?php
 require_once("../config.php");
 require_once("../promotion_helper.php");
-
+//student
 if(!isset($_GET['class'])){
     die("Class not selected");
 }

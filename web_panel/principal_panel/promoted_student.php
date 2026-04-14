@@ -8,7 +8,7 @@ if(!isset($_GET['class'])){
 }
 
 $class = $_GET['class'];
-
+//student
 /* ================= ATKT LIMIT ================= */
 
 $setting = $conn->query("SELECT atkt_limit FROM settings LIMIT 1");
