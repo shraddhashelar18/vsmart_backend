@@ -4,20 +4,24 @@ ini_set('display_errors', 1);
 require_once("../../config.php");
 
 /* CHECK DEPARTMENT */
-
 if(!isset($_GET['department'])){
-die("Department missing");
+    die("Department missing");
 }
 
-$department=$_GET['department'];
+$department = $_GET['department'];
+
+/* ✅ GET ACTIVE SEMESTER */
+$sem_res = $conn->query("SELECT active_semester FROM settings LIMIT 1");
+$sem_row = $sem_res->fetch_assoc();
+$active_sem = $sem_row['active_semester']; // EVEN or ODD
 
 /* GET CLASSES */
-
-$result=$conn->query("
+$result = $conn->query("
 SELECT c.*, t.full_name
 FROM classes c
 LEFT JOIN teachers t ON t.user_id=c.class_teacher
 WHERE c.department='$department'
+ORDER BY c.class_name
 ");
 ?>
 
@@ -39,7 +43,6 @@ background:#f5f7f9;
 }
 
 /* TOPBAR */
-
 .topbar{
 background:#009846;
 color:white;
@@ -56,16 +59,14 @@ text-decoration:none;
 font-size:24px;
 }
 
-/* CENTER WRAPPER */
-
+/* WRAPPER */
 .wrapper{
-width:95%;        /* same desktop width */
-margin-left:80px;   /* left spacing */
+width:95%;
+margin-left:80px;
 margin-top:40px;
 }
 
-/* CLASS CARD */
-
+/* CARD */
 .card{
 background:white;
 border-radius:16px;
@@ -77,8 +78,7 @@ justify-content:space-between;
 box-shadow:0 6px 15px rgba(0,0,0,0.08);
 }
 
-/* LEFT SIDE */
-
+/* LEFT */
 .left{
 display:flex;
 align-items:center;
@@ -86,7 +86,6 @@ gap:15px;
 }
 
 /* ICON */
-
 .avatar{
 width:45px;
 height:45px;
@@ -99,7 +98,6 @@ color:#009846;
 }
 
 /* INFO */
-
 .info b{
 font-size:17px;
 }
@@ -111,7 +109,6 @@ color:#666;
 }
 
 /* ACTIONS */
-
 .actions{
 display:flex;
 gap:12px;
@@ -128,8 +125,7 @@ color:red;
 text-decoration:none;
 }
 
-/* FLOAT BUTTON */
-
+/* FAB */
 .fab{
 position:fixed;
 bottom:30px;
@@ -166,7 +162,22 @@ Manage Classes - <?= $department ?>
 
 <div class="wrapper">
 
-<?php while($row=$result->fetch_assoc()): ?>
+<?php 
+while($row = $result->fetch_assoc()): 
+
+    // ✅ Extract semester number (IF2KA → 2)
+    preg_match('/\d+/', $row['class_name'], $match);
+    $sem_no = intval($match[0]);
+
+    // ✅ FILTER EVEN / ODD
+    if($active_sem == "EVEN" && $sem_no % 2 != 0){
+        continue;
+    }
+
+    if($active_sem == "ODD" && $sem_no % 2 == 0){
+        continue;
+    }
+?>
 
 <div class="card">
 
@@ -199,11 +210,9 @@ href="edit_class.php?id=<?= $row['class_id'] ?>&department=<?= $department ?>">
 </a>
 
 <a class="delete"
-href="delete_class.php?id=<?=$row['class_id']?>&department=<?=$department?>"
+href="delete_class.php?id=<?= $row['class_id'] ?>&department=<?= $department ?>"
 onclick="return confirm('Are you sure you want to delete this class?')">
-
 <span class="material-icons">delete</span>
-
 </a>
 
 </div>

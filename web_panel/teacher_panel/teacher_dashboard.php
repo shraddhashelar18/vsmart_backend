@@ -279,7 +279,7 @@ Settings
 
 </div>
 <script>
-function loadSubjects(){
+function loadSubjects(selectedSubject = null){
 
     let classVal = document.getElementById("class").value;
 
@@ -295,7 +295,8 @@ function loadSubjects(){
         let options = "<option value=''>Select Subject</option>";
 
         data.forEach(sub => {
-            options += `<option value="${sub}">${sub}</option>`;
+            let selected = (sub === selectedSubject) ? "selected" : "";
+            options += `<option value="${sub}" ${selected}>${sub}</option>`;
         });
 
         document.getElementById("subject").innerHTML = options;
@@ -303,11 +304,29 @@ function loadSubjects(){
     });
 }
 window.onload = function(){
-    loadSubjects();
+
+    let savedClass = localStorage.getItem("selected_class");
+    let savedSubject = localStorage.getItem("selected_subject");
+
+    if(savedClass){
+        document.getElementById("class").value = savedClass;
+    }
+
+    loadSubjects(savedSubject);
 };
+
 </script>
 
 <script>
+    // ✅ SAVE selection
+document.getElementById("class").addEventListener("change", function(){
+    localStorage.setItem("selected_class", this.value);
+});
+
+document.getElementById("subject").addEventListener("change", function(){
+    localStorage.setItem("selected_subject", this.value);
+});
+
 function goAttendance(){
 
     let classVal = document.querySelector("select[name='class']").value;

@@ -233,7 +233,9 @@ margin:20px;
 padding:20px;
 border-radius:12px;
 }
-
+a{
+    text-decoration: none;
+}
 .summary p{
 margin:6px 0;
 }
@@ -376,7 +378,7 @@ function goBack(){
 </script>
 <?php if(!empty($marksheetPdf)){ ?>
 
-<a href="/mycollege/vsmart/<?= $marksheetPdf ?>" target="_blank">
+<a href="/vsmart/<?= $marksheetPdf ?>" target="_blank" style="text-decoration:none;">
     <button style="
         width:90%;
         margin:20px auto;
@@ -388,6 +390,7 @@ function goBack(){
         border-radius:12px;
         font-size:16px;
         font-weight:bold;
+        cursor:pointer;
     ">
         View Final Marksheet
     </button>
@@ -395,7 +398,7 @@ function goBack(){
 
 <?php } else { ?>
 
-<button onclick="alert('Marksheet not uploaded yet')" style="
+<button onclick="alert('Marksheet not available')" style="
     width:90%;
     margin:20px auto;
     display:block;

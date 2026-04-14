@@ -10,6 +10,9 @@ $department = $_GET['department'] ?? '';
 $teacher = $conn->query("SELECT * FROM teachers WHERE user_id='$user_id'")->fetch_assoc();
 $name = $teacher['full_name'];
 
+$phone = $teacher['mobile_no'] ?? '';
+$emp_id = $teacher['employee_id'] ?? '';
+
 /* EMAIL */
 $user = $conn->query("SELECT email FROM users WHERE user_id='$user_id'")->fetch_assoc();
 $email = $user['email'] ?? "";
@@ -88,6 +91,23 @@ cursor:pointer;
 background:white;
 }
 
+/* GREY NON-EDITABLE INPUT */
+.readonly{
+background:#e0e0e0 !important;
+color:#888;
+cursor:not-allowed;
+}
+
+/* COUNT TEXT (10/10, 6/6) */
+.count{
+position:absolute;
+right:10px;
+top:50%;
+transform:translateY(-50%);
+font-size:12px;
+color:#888;
+}
+
 .chip.selected{
 background:#e6dcff;
 border-color:#c3b5ff;
@@ -143,7 +163,22 @@ Edit Teacher
 
 <!-- EMAIL (READONLY) -->
 <label>Email</label>
-<input class="input" value="<?= $email ?>" readonly>
+<input class="input readonly" value="<?= $email ?>" readonly>
+
+<!-- PHONE (READONLY) -->
+<label>Phone</label>
+<div style="position:relative;">
+<input class="input" id="phoneInput" name="mobile_no" value="<?= $phone ?>" maxlength="10" required>
+<span class="count" id="phoneCount"><?= strlen($phone) ?>/10</span>
+</div>
+
+<!-- EMPLOYEE ID (READONLY) -->
+
+<label>Employee ID</label>
+<div style="position:relative;">
+<input class="input readonly" id="empInput" value="<?= $emp_id ?>" readonly>
+<span class="count" id="empCount"><?= strlen($emp_id) ?>/6</span>
+</div>
 
 <!-- DEPARTMENTS -->
 <label>Departments</label><br>
@@ -159,6 +194,8 @@ Edit Teacher
 <?php
 foreach($allDepartments as $dept):
 
+echo "<div class='dept-section' id='dept_$dept'>";   // ✅ START WRAP
+
 echo "<h4>".$dept." Department</h4>";
 
 $cls=$conn->query("SELECT class_name FROM classes WHERE department='$dept'");
@@ -173,8 +210,12 @@ $isSelected=isset($assignedClasses[$class]);
 <?= $class ?>
 </div>
 
-<?php endwhile; endforeach; ?>
+<?php endwhile;
 
+echo "</div>";   // ✅ END WRAP
+
+endforeach;
+?>
 <h3>Subjects</h3>
 
 <?php
@@ -306,6 +347,16 @@ chip.classList.toggle("selected");
 /* PRELOAD */
 window.onload = function(){
 
+// INITIAL HIDE BASED ON SELECTED DEPT
+document.querySelectorAll(".dept-chip input").forEach(cb=>{
+    let dept = cb.value;
+    let section = document.getElementById("dept_" + dept);
+
+    if(!cb.checked){
+        section.style.display = "none";
+    }
+});
+
 document.querySelectorAll(".class-chip input:checked").forEach(cb=>{
 
 let section = document.getElementById("subjects_"+cb.value);
@@ -314,6 +365,38 @@ if(section) section.style.display = "block";
 });
 
 };
+
+// DEPARTMENT SHOW/HIDE CLASSES
+document.querySelectorAll(".dept-chip").forEach(chip=>{
+chip.onclick = function(){
+
+    let cb = chip.querySelector("input");
+    cb.checked = !cb.checked;
+
+    chip.classList.toggle("selected");
+
+    let dept = cb.value;
+    let section = document.getElementById("dept_" + dept);
+
+    if(cb.checked){
+        section.style.display = "block";
+    } else {
+        section.style.display = "none";
+
+        // UNCHECK classes
+        section.querySelectorAll(".class-chip input").forEach(c=>{
+            c.checked = false;
+            c.closest(".chip").classList.remove("selected");
+        });
+
+        // HIDE subjects
+        section.querySelectorAll(".subject-section").forEach(s=>{
+            s.style.display = "none";
+        });
+    }
+
+};
+});
 
 </script>
 <script>
@@ -353,6 +436,14 @@ document.querySelector("form").addEventListener("submit", function(e){
 
 });
 </script>
+<script>
+// PHONE LIVE COUNT
+const phoneInput = document.getElementById("phoneInput");
+const phoneCount = document.getElementById("phoneCount");
 
+phoneInput.addEventListener("input", function(){
+    phoneCount.innerText = this.value.length + "/10";
+});
+</script>
 </body>
 </html>

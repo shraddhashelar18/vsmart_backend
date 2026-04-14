@@ -3,6 +3,52 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 require_once("../config.php");
 
+/* =========================
+GET ADMIN NAME + EMAIL
+========================= */
+
+$adminQuery = $conn->query("
+SELECT a.full_name, u.email
+FROM admins a
+INNER JOIN users u ON a.user_id = u.user_id
+WHERE u.role='admin'
+LIMIT 1
+");
+
+$adminData = $adminQuery ? $adminQuery->fetch_assoc() : null;
+
+$adminName  = $adminData['full_name'] ?? '';
+$adminEmail = $adminData['email'] ?? '';
+/* =========================
+HANDLE BACKLOG UPDATE
+========================= */
+
+if(isset($_POST['type']) && $_POST['type'] == "backlog"){
+
+    $change = (int)$_POST['change'];
+
+    // Get current value
+    $res = $conn->query("SELECT atkt_limit FROM settings WHERE id=1");
+    $row = $res->fetch_assoc();
+
+    $current = (int)$row['atkt_limit'];
+
+    // New value
+    $new = $current + $change;
+
+    if($new < 0){
+        $new = 0;
+    }
+
+    // Update DB
+    $stmt = $conn->prepare("UPDATE settings SET atkt_limit=? WHERE id=1");
+    $stmt->bind_param("i", $new);
+    $stmt->execute();
+
+    echo "updated";
+    exit; // VERY IMPORTANT (prevents HTML load)
+}
+
 /* FETCH SETTINGS SAFELY */
 $res = $conn->query("SELECT * FROM settings WHERE id=1");
 
@@ -76,8 +122,8 @@ color:#009846;
 }
 
 .subtitle{
-font-size:13px;
-color:#777;
+    font-size:14px;
+    color:#999;
 }
 
 /* TOGGLE */
@@ -187,6 +233,33 @@ cursor:pointer;
 </div>
 
 <div class="container">
+<div class="section-title">Profile</div>
+
+<div class="card" style="flex-direction:column;align-items:stretch;">
+
+    <!-- NAME -->
+    <div style="display:flex;align-items:center;gap:12px;">
+        <div class="icon"><i class="fa fa-user"></i></div>
+
+        <div>
+            <div class="title">Name</div>
+            <div class="subtitle"><?=$adminName?></div>
+        </div>
+    </div>
+
+    <hr style="margin:12px 0;border:0;border-top:1px solid #eee;">
+
+    <!-- EMAIL -->
+    <div style="display:flex;align-items:center;gap:12px;">
+        <div class="icon"><i class="fa fa-envelope"></i></div>
+
+        <div>
+            <div class="title">Email</div>
+            <div class="subtitle"><?=$adminEmail?></div>
+        </div>
+    </div>
+
+</div>
 
 <!-- Academic -->
 <div class="section-title">Academic Control</div>
@@ -222,6 +295,25 @@ onclick="toggleSetting('registration')"></div>
 
 <div class="toggle <?=($data['attendance_locked'] ? 'active':'')?>"
 onclick="toggleSetting('attendance')"></div>
+</div>
+
+<div class="card">
+
+<div class="left">
+<div class="icon"><i class="fa fa-list-check"></i></div>
+
+<div>
+<div class="title">Max Backlogs Allowed</div>
+<div class="subtitle">Current Limit: <?=$data['atkt_limit']?></div>
+</div>
+
+</div>
+
+<div>
+<button onclick="updateBacklog(-1)" style="padding:5px 10px;">-</button>
+<button onclick="updateBacklog(1)" style="padding:5px 10px;">+</button>
+</div>
+
 </div>
 
 <!-- Account -->
@@ -278,6 +370,19 @@ function closeLogout(){
 document.getElementById("logoutModal").style.display="none";
 }
 
+</script>
+<script>
+function updateBacklog(change){
+
+fetch("", {  // SAME FILE
+method:"POST",
+headers:{"Content-Type":"application/x-www-form-urlencoded"},
+body:"type=backlog&change="+change
+})
+.then(()=>location.reload())
+.catch(()=>alert("Error updating backlog"));
+
+}
 </script>
 
 </body>

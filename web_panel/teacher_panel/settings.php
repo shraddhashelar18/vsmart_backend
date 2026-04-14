@@ -14,20 +14,29 @@ if(!isset($_SESSION['teacher_id'])){
 $teacher_id = $_SESSION['teacher_id'];
 
 /* FETCH TEACHER + DEPARTMENT */
+
 $res = $conn->query("
-SELECT t.full_name, t.mobile_no, 
-       GROUP_CONCAT(DISTINCT ta.department) as department
+SELECT 
+    t.full_name, 
+    u.email,
+    GROUP_CONCAT(DISTINCT ta.department) as department
 FROM teachers t
+LEFT JOIN users u 
+    ON t.user_id = u.user_id
 LEFT JOIN teacher_assignments ta 
-ON t.user_id = ta.user_id
+    ON t.user_id = ta.user_id
 WHERE t.user_id = '$teacher_id'
 ");
+if(!$res){
+    die("Query Error: " . $conn->error);
+}
+
 
 $data = $res->fetch_assoc();
 
 /* SAFE VALUES */
 $name = $data['full_name'] ?? 'N/A';
-$mobile = $data['mobile_no'] ?? 'N/A';
+$email = $data['email'] ?? 'N/A';
 $department = $data['department'] ?? 'N/A';
 
 /* FETCH SETTINGS */
@@ -156,10 +165,10 @@ Settings
 
 <div class="item">
 <div class="left">
-<span class="material-icons icon">phone</span>
+<span class="material-icons icon">email</span>
 <div>
-<div class="label">Mobile</div>
-<div class="value"><?= $mobile ?></div>
+<div class="label">Email</div>
+<div class="value"><?= $email ?></div>
 </div>
 </div>
 </div>

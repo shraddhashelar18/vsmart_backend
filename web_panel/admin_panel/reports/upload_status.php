@@ -47,7 +47,7 @@ if($selectedDept){
 
         if(
             ($activeSemester == 'EVEN' && $sem % 2 == 0) ||
-            ($activeSemester == 'ODD' && $sem % 2 == 1)
+            ($activeSemester == 'ODD' && $sem % 2 = = 1)
         ){
             $classes[] = $row;
         }

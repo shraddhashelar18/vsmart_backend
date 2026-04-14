@@ -65,9 +65,9 @@ font-size:22px;
 
 /* LEFT ALIGNED WRAPPER (IMPORTANT) */
 .wrapper{
-    width:2200px;      /* SAME as students */
-    margin-left:80px;  /* SAME spacing */
+    width:100%;
     margin-top:40px;
+    padding:0 40px;
 }
 
 /* SEARCH */

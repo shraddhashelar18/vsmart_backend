@@ -219,17 +219,7 @@ color:#555;
 
 <div class="container">
 
-<<<<<<< HEAD
 <img src="/vsmart/web_panel/assets/logo.png" class="register-logo">
-=======
-<!-- ✅ FINAL LOGO (WORKING) -->
-<div class="logo">
-   <img src="../web_panel/assets/logo.png"
-     onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/3/3b/Graduation_cap_icon.svg'"
-     alt="Vsmart Logo">
-      
-</div>
->>>>>>> b623440530b43e32f79a9ee94002dd32e6d3fc78
 
 <div class="title">Vsmart</div>
 <div class="subtitle">A Smart Academic Management Platform</div>

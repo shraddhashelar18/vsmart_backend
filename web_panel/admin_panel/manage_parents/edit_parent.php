@@ -38,6 +38,14 @@ margin:0;
 font-family:Segoe UI;
 background:#f4f6f9;
 }
+.field.readonly{
+background:#e0e0e0;
+border-color:#ddd;
+}
+
+.field.readonly input{
+color:#888;
+}
 
 /* HEADER */
 
@@ -144,7 +152,7 @@ title="Only letters and spaces allowed">
 
 <!-- EMAIL -->
 
-<div class="field">
+<div class="field readonly">
 
 <span class="material-icons">email</span>
 
@@ -171,7 +179,7 @@ title="Enter a valid 10 digit phone number">
 
 <!-- ENROLLMENT -->
 
-<div class="field">
+<div class="field readonly">
 
 <span class="material-icons">badge</span>
 

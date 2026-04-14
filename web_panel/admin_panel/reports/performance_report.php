@@ -69,7 +69,7 @@ $stmt->execute();
 $totalSubjects = $stmt->get_result()->fetch_assoc()['total_subjects'] ?? 0;
 
 
-/* PUBLISHED SUBJECTS (API LOGIC) */
+/* PUBLISHED SUBJECTS */
 
 $stmt = $conn->prepare("
 SELECT COUNT(DISTINCT m.subject) as published_count
@@ -96,7 +96,6 @@ $stmt = $conn->prepare("
 SELECT 
 s.user_id,
 s.full_name,
-SUM(m.total_marks) AS max_marks,
 SUM(m.obtained_marks) AS obtained
 FROM students s
 
@@ -104,6 +103,7 @@ LEFT JOIN marks m
 ON s.user_id = m.student_id
 AND m.class = ?
 AND m.exam_type = ?
+AND m.status='published'
 
 INNER JOIN semester_subjects ss
 ON TRIM(LOWER(ss.subject_name)) = TRIM(LOWER(m.subject))
@@ -121,18 +121,89 @@ $res = $stmt->get_result();
 
 while($row = $res->fetch_assoc()){
 
-$percent = 0;
+/* =========================
+CORRECT LOGIC (MATCH API)
+========================= */
 
-if($row['max_marks'] > 0){
-$percent = round(($row['obtained'] / $row['max_marks']) * 100);
+// CT = 30, FINAL = 100
+$maxPerSubject = ($selectedExam == "FINAL") ? 100 : 30;
+
+// TOTAL MAX MARKS
+$maxMarks = $totalSubjects * $maxPerSubject;
+
+// OBTAINED
+$obtained = $row['obtained'] ?? null;
+
+// HANDLE ABSENT
+if($obtained === null){
+    $obtainedValue = "ABSENT";
+    $percent = 0;
+}else{
+    $obtainedValue = (int)$obtained;
+
+    $percent = ($maxMarks > 0)
+        ? round(($obtainedValue / $maxMarks) * 100)
+        : 0;
 }
 
+// ASSIGN
+$row['max_marks'] = $maxMarks;
+$row['obtained'] = $obtainedValue;
 $row['percent'] = $percent;
 
 $students[] = $row;
 }
 
 }
+}
+/* =========================
+CHECK EXAM ENABLE STATUS
+========================= */
+
+$isCT1Enabled = false;
+$isCT2Enabled = false;
+
+/* CHECK CT1 */
+$stmt = $conn->prepare("
+SELECT COUNT(DISTINCT m.subject) as published
+FROM marks m
+INNER JOIN semester_subjects ss 
+ON TRIM(LOWER(m.subject)) = TRIM(LOWER(ss.subject_name))
+WHERE m.class = ?
+AND m.exam_type = 'CT1'
+AND m.status = 'published'
+AND ss.class = ?
+");
+
+$stmt->bind_param("ss", $selectedClass, $subjectClass);
+$stmt->execute();
+
+$ct1Published = $stmt->get_result()->fetch_assoc()['published'] ?? 0;
+
+if($ct1Published == $totalSubjects){
+    $isCT1Enabled = true;
+}
+
+
+/* CHECK CT2 */
+$stmt = $conn->prepare("
+SELECT COUNT(DISTINCT m.subject) as published
+FROM marks m
+INNER JOIN semester_subjects ss 
+ON TRIM(LOWER(m.subject)) = TRIM(LOWER(ss.subject_name))
+WHERE m.class = ?
+AND m.exam_type = 'CT2'
+AND m.status = 'published'
+AND ss.class = ?
+");
+
+$stmt->bind_param("ss", $selectedClass, $subjectClass);
+$stmt->execute();
+
+$ct2Published = $stmt->get_result()->fetch_assoc()['published'] ?? 0;
+
+if($ct2Published == $totalSubjects){
+    $isCT2Enabled = true;
 }
 ?>
 
@@ -144,123 +215,21 @@ $students[] = $row;
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
 <style>
-
-body{
-margin:0;
-font-family:Segoe UI;
-background:#eef2f5;
-}
-
-/* HEADER */
-
-.topbar{
-background:#009846;
-color:white;
-padding:18px 40px;
-font-size:22px;
-display:flex;
-align-items:center;
-gap:10px;
-}
-
-/* MAIN CONTAINER */
-
-.container{
-max-width:700px;
-margin:40px auto;
-padding:25px;
-}
-
-/* CARD STYLE (LIKE MOBILE UI) */
-
-.box{
-background:white;
-border-radius:16px;
-padding:18px;
-margin-bottom:15px;
-box-shadow:0 4px 12px rgba(0,0,0,0.08);
-}
-
-/* FIELD */
-
-.field label{
-font-size:14px;
-color:#666;
-margin-bottom:6px;
-display:block;
-}
-
-.select{
-width:100%;
-padding:14px;
-border-radius:12px;
-border:none;
-background:#f1f1f1;
-font-size:15px;
-}
-
-/* STUDENT CARD */
-
-.card{
-background:#f9f9f9;
-border-radius:16px;
-padding:16px;
-margin-bottom:12px;
-display:flex;
-justify-content:space-between;
-align-items:center;
-box-shadow:0 2px 6px rgba(0,0,0,0.08);
-}
-
-/* LEFT */
-
-.student{
-display:flex;
-align-items:center;
-gap:12px;
-}
-
-.avatar{
-width:45px;
-height:45px;
-border-radius:50%;
-background:#e6f5ee;
-display:flex;
-align-items:center;
-justify-content:center;
-color:#009846;
-}
-
-/* TEXT */
-
-.name{
-font-size:17px;
-font-weight:600;
-}
-
-.sub{
-font-size:14px;
-color:#777;
-}
-
-/* RIGHT */
-
-.percent{
-font-size:16px;
-font-weight:bold;
-}
-
+body{margin:0;font-family:Segoe UI;background:#eef2f5;}
+.topbar{background:#009846;color:white;padding:18px 40px;font-size:22px;display:flex;align-items:center;gap:10px;}
+.container{max-width:700px;margin:40px auto;padding:25px;}
+.box{background:white;border-radius:16px;padding:18px;margin-bottom:15px;box-shadow:0 4px 12px rgba(0,0,0,0.08);}
+.field label{font-size:14px;color:#666;margin-bottom:6px;display:block;}
+.select{width:100%;padding:14px;border-radius:12px;border:none;background:#f1f1f1;font-size:15px;}
+.card{background:#f9f9f9;border-radius:16px;padding:16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 6px rgba(0,0,0,0.08);}
+.student{display:flex;align-items:center;gap:12px;}
+.avatar{width:45px;height:45px;border-radius:50%;background:#e6f5ee;display:flex;align-items:center;justify-content:center;color:#009846;}
+.name{font-size:17px;font-weight:600;}
+.sub{font-size:14px;color:#777;}
+.percent{font-size:16px;font-weight:bold;}
 .green{ color:#009846; }
 .red{ color:#e53935; }
-
-/* EMPTY */
-
-.empty{
-color:#777;
-text-align:center;
-margin-top:20px;
-}
-
+.empty{color:#777;text-align:center;margin-top:20px;}
 </style>
 
 </head>
@@ -282,38 +251,44 @@ Performance Report
 <label>Department</label>
 <select class="select" name="department" onchange="this.form.submit()">
 <option value="">Select</option>
-
 <?php while($d=$departments->fetch_assoc()): ?>
 <option value="<?=$d['department']?>" <?=$selectedDept==$d['department']?'selected':''?>>
 <?=$d['department']?>
 </option>
 <?php endwhile; ?>
-
 </select>
 </div>
-
 
 <div class="box field">
 <label>Class</label>
 <select class="select" name="class" onchange="this.form.submit()">
 <option value="">Select</option>
-
 <?php if($classes) while($c=$classes->fetch_assoc()): ?>
 <option value="<?=$c['class_name']?>" <?=$selectedClass==$c['class_name']?'selected':''?>>
 <?=$c['class_name']?>
 </option>
 <?php endwhile; ?>
-
 </select>
 </div>
-
 
 <div class="box field">
 <label>Exam</label>
 <select class="select" name="exam" onchange="this.form.submit()">
+
 <option value="">Select</option>
-<option value="CT1" <?=$selectedExam=="CT1"?'selected':''?>>CT1</option>
-<option value="CT2" <?=$selectedExam=="CT2"?'selected':''?>>CT2</option>
+
+<option value="CT1"
+<?=$selectedExam=="CT1"?'selected':''?>
+<?=$isCT1Enabled ? '' : 'disabled style="color:gray;"'?>>
+CT1
+</option>
+
+<option value="CT2"
+<?=$selectedExam=="CT2"?'selected':''?>
+<?=$isCT2Enabled ? '' : 'disabled style="color:gray;"'?>>
+CT2
+</option>
+
 </select>
 </div>
 
@@ -339,9 +314,8 @@ Performance Report
 <div class="name"><?=$s['full_name']?></div>
 
 <div class="sub">
-<?=$s['obtained'] ?? 'ABSENT'?> / <?=$s['max_marks']?> marks
+<?=$s['obtained']?> / <?=$s['max_marks']?> marks
 </div>
-
 </div>
 
 </div>

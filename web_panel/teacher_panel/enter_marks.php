@@ -5,7 +5,6 @@ ini_set('display_errors', 1);
 require_once("../config.php");
 session_start();
 
-/* LOGIN CHECK */
 if(!isset($_SESSION['teacher_id'])){
     header("Location: ../auth_panel/login.php");
     exit();
@@ -13,7 +12,6 @@ if(!isset($_SESSION['teacher_id'])){
 
 $teacher_id = $_SESSION['teacher_id'];
 
-/* GET DATA */
 $class = $_GET['class'] ?? '';
 $subject = $_GET['subject'] ?? '';
 $examType = $_POST['exam_type'] ?? 'CT1';
@@ -25,13 +23,13 @@ SELECT user_id, full_name, roll_no
 FROM students 
 WHERE class = '$class'
 ");
-/* FETCH EXISTING MARKS (FOR PREFILL) */
-$existingMarks = [];
 
-$examType = $_POST['exam_type'] ?? 'CT1'; // default
+/* FETCH MARKS */
+$existingMarks = [];
+$isPublished = false;
 
 $marksRes = $conn->query("
-SELECT student_id, obtained_marks 
+SELECT student_id, obtained_marks, status 
 FROM marks 
 WHERE class = '$class'
 AND subject = '$subject'
@@ -40,125 +38,319 @@ AND exam_type = '$examType'
 
 while($m = $marksRes->fetch_assoc()){
     $existingMarks[$m['student_id']] = $m['obtained_marks'];
+
+    if($m['status'] == "published"){
+        $isPublished = true;
+    }
 }
+
+/* CALCULATE STATS */
+$completed = 0;
+$sum = 0;
+
+foreach($existingMarks as $m){
+   if($m !== NULL && $m > 0){
+    $completed++;
+    $sum += $m;
+}
+}
+
+$totalStudents = $students->num_rows;
+$avg = $completed ? round($sum/$completed,1) : 0;
 ?>
 
 <!DOCTYPE html>
 <html>
 <head>
-<title>Enter Marks</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<title>Enter Marks</title>
 
 <style>
-body{margin:0;font-family:Arial;background:#f3f3f3;}
-.header{background:#009846;color:white;padding:18px;display:flex;align-items:center;font-size:20px;}
-.back{margin-right:10px;cursor:pointer;}
-.container{padding:20px;padding-bottom:120px;}
-.box{background:#eee;padding:15px;border-radius:12px;margin-bottom:15px;}
-.stats{display:flex;gap:10px;margin:15px 0;}
-.stat{flex:1;padding:15px;border-radius:12px;text-align:center;font-weight:bold;background:white;}
-.student{background:white;padding:15px;border-radius:12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 6px rgba(0,0,0,0.1);}
-input{width:90px;padding:8px;border:none;border-bottom:2px solid #ccc;outline:none;text-align:center;}
-.btn{position:fixed;left:0;width:100%;padding:15px;border:none;font-size:16px;}
-.draft{bottom:60px;background:#eee;}
-.publish{bottom:0;background:#009846;color:white;}
+body{
+margin:0;
+font-family:Segoe UI;
+background:#f4f6f9;
+}
 
-.custom-select{
-    width:100%;
-    padding:12px;
-    border:none;
-    background:#f1f1f1;
-    border-radius:10px;
-    font-size:14px;
-    outline:none;
+.header{
+background:#009846;
+color:white;
+padding:16px;
+font-size:20px;
+}
 
-    appearance:none;
-    -webkit-appearance:none;
-    -moz-appearance:none;
+.container{
+padding:16px;
+padding-bottom:140px;
+}
 
-    background-image:url("data:image/svg+xml;utf8,<svg fill='gray' height='20' viewBox='0 0 24 24' width='20' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>");
-    background-repeat:no-repeat;
-    background-position:right 10px center;
+/* CARD */
+.card{
+background:white;
+border-radius:16px;
+padding:16px;
+margin-bottom:16px;
+box-shadow:0 3px 8px rgba(0,0,0,0.08);
+}
+
+.label{
+font-weight:600;
+margin-bottom:4px;
+}
+
+/* STATS */
+.stats{
+display:flex;
+gap:10px;
+margin-bottom:16px;
+}
+
+.stat{
+flex:1;
+background:white;
+border-radius:14px;
+padding:14px;
+text-align:center;
+box-shadow:0 3px 8px rgba(0,0,0,0.08);
+}
+
+.value{
+font-weight:bold;
+font-size:18px;
+}
+
+.title{
+color:#777;
+font-size:13px;
+}
+
+/* BUTTONS */
+.rowBtns{
+display:flex;
+gap:10px;
+margin-bottom:16px;
+}
+
+.btn{
+flex:1;
+padding:12px;
+border-radius:30px;
+font-size:14px;
+cursor:pointer;
+}
+
+.btn-outline{
+border:1px solid #009846;
+color:#009846;
+background:white;
+}
+
+.btn-filled{
+background:#009846;
+color:white;
+border:none;
+}
+
+.btn-disabled{
+background:#ccc !important;
+color:#666 !important;
+cursor:not-allowed;
+}
+
+/* STUDENTS */
+.student{
+background:white;
+border-radius:14px;
+padding:14px;
+margin-bottom:12px;
+display:flex;
+justify-content:space-between;
+align-items:center;
+box-shadow:0 2px 6px rgba(0,0,0,0.08);
+}
+
+.student-name{
+font-weight:600;
+}
+
+.student-roll{
+color:#777;
+font-size:13px;
+}
+
+input{
+width:85px;
+padding:8px;
+text-align:center;
+border:none;
+border-bottom:2px solid #ccc;
+outline:none;
+}
+
+/* FOOTER */
+.footer{
+position:fixed;
+bottom:0;
+left:0;
+width:100%;
+background:white;
+padding:16px;
+box-shadow:0 -2px 8px rgba(0,0,0,0.08);
+}
+
+.footer button{
+width:100%;
+padding:14px;
+border-radius:30px;
+margin-top:10px;
+font-size:15px;
+}
+
+.draft{
+background:white;
+border:1px solid #ccc;
+}
+
+.publish{
+background:#009846;
+color:white;
+}
+
+/* SNACKBAR */
+#snackbar {
+visibility:hidden;
+background:#333;
+color:white;
+padding:14px;
+position:fixed;
+bottom:20px;
+left:50%;
+transform:translateX(-50%);
+border-radius:8px;
+}
+
+#snackbar.show{
+visibility:visible;
 }
 </style>
 </head>
 
 <body>
 
-<div class="header">
-<span class="material-icons back" onclick="history.back()">arrow_back</span>
-Enter Marks
-</div>
+<div class="header">Enter Marks</div>
 
 <div class="container">
 
 <form method="POST">
 
-<div class="box">
-<b>Class</b><br><?= $class ?><br><br>
-<b>Subject</b><br><?= $subject ?><br><br>
+<div class="card">
+<div class="label">Class</div>
+<?= $class ?><br><br>
 
-<div class="select-box">
-<label>Exam Type</label>
-<select name="exam_type" class="custom-select" onchange="this.form.submit()">
-    <option value="CT1" <?= ($examType=='CT1')?'selected':'' ?>>CT-1</option>
-    <option value="CT2" <?= ($examType=='CT2')?'selected':'' ?>>CT-2</option>
+<div class="label">Subject</div>
+<?= $subject ?><br><br>
+
+<div class="label">Exam Type</div>
+<select name="exam_type" onchange="this.form.submit()">
+<option value="CT1" <?=($examType=='CT1')?'selected':''?>>CT1</option>
+<option value="CT2" <?=($examType=='CT2')?'selected':''?>>CT2</option>
 </select>
 </div>
 
 <div class="stats">
-<div class="stat"><?= $totalMarks ?><br>Max Marks</div>
 <div class="stat">
-<span id="completed">0</span>/<span id="total"><?= $students->num_rows ?></span><br>Completed
-</div>
-<div class="stat"><span id="avg">0</span><br>Average</div>
+<div class="value"><?= $totalMarks ?></div>
+<div class="title">Max Marks</div>
 </div>
 
-<?php while($row = $students->fetch_assoc()){ ?>
+<div class="stat">
+<div class="value"><?= $completed ?>/<?= $totalStudents ?></div>
+<div class="title">Completed</div>
+</div>
+
+<div class="stat">
+<div class="value"><?= $avg ?></div>
+<div class="title">Average</div>
+</div>
+</div>
+
+<div class="rowBtns">
+<button type="button" class="btn btn-outline" onclick="downloadTemplate()">
+Download Template
+</button>
+
+<button type="button" class="btn btn-filled <?= $isPublished?'btn-disabled':'' ?>">
+Upload Excel
+</button>
+</div>
+
+<b>Students (<?= $totalStudents ?>)</b><br><br>
+
+<?php 
+$students->data_seek(0);
+while($row = $students->fetch_assoc()){ 
+?>
 
 <div class="student">
 <div>
-<b><?= $row['full_name'] ?></b><br>
-<small>Roll No: <?= $row['roll_no'] ?></small>
+<div class="student-name"><?= $row['full_name'] ?></div>
+<div class="student-roll">Roll No: <?= $row['roll_no'] ?></div>
 </div>
 
 <input type="number"
 name="marks[<?= $row['user_id'] ?>]"
-value="<?= isset($existingMarks[$row['user_id']]) ? $existingMarks[$row['user_id']] : '' ?>"
-oninput="updateStats()"
-max="30" min="0">
+value="<?= $existingMarks[$row['user_id']] ?? '' ?>"
+<?= $isPublished ? 'disabled' : '' ?>
+max="30">
 
-<input type="hidden" name="semester[<?= $row['user_id'] ?>]" 
+<input type="hidden" name="semester[<?= $row['user_id'] ?>]"
 value="<?= preg_replace('/[^0-9]/','',$class) ?>">
 
 </div>
 
 <?php } ?>
 
-<button class="btn draft" name="save_draft">Save Draft</button>
-<button class="btn publish" name="publish">Publish Marks</button>
+<div class="footer">
+<button name="save_draft" class="draft" <?= $isPublished?'disabled':'' ?>>
+Save Draft
+</button>
+
+<button name="publish" class="publish <?= $isPublished?'btn-disabled':'' ?>">
+Publish Marks
+</button>
+</div>
 
 </form>
 
 </div>
 
+<div id="snackbar"></div>
+
 <script>
-function updateStats(){
-    let inputs = document.querySelectorAll("input[type='number']");
-    let completed = 0;
-    let sum = 0;
+function downloadTemplate(){
 
-    inputs.forEach(i=>{
-        if(i.value !== ""){
-            completed++;
-            sum += parseFloat(i.value);
-        }
-    });
+let data = "Roll No,Marks\n";
 
-    document.getElementById("completed").innerText = completed;
-    document.getElementById("avg").innerText = completed ? (sum/completed).toFixed(1) : 0;
+document.querySelectorAll(".student").forEach(row=>{
+let roll = row.querySelector(".student-roll").innerText.replace("Roll No: ","");
+data += roll + ",\n";
+});
+
+let blob = new Blob([data], {type:"text/csv"});
+let a = document.createElement("a");
+a.href = URL.createObjectURL(blob);
+a.download = "<?= $class ?>_<?= str_replace(' ','_',$subject) ?>_<?= $examType ?>.csv";
+a.click();
+
+showSnackbar("Template saved to Downloads");
+}
+
+function showSnackbar(msg){
+let x = document.getElementById("snackbar");
+x.innerText = msg;
+x.className = "show";
+
+setTimeout(()=>{ x.className=""; },3000);
 }
 </script>
 
@@ -167,103 +359,48 @@ function updateStats(){
 
 <?php
 
-/* =========================
-   FORM SUBMIT (API LOGIC)
-========================= */
+/* SAVE LOGIC */
 
 if(isset($_POST['publish']) || isset($_POST['save_draft'])){
 
-    $examType = $_POST['exam_type'];
-    $isDraft = isset($_POST['save_draft']);
+$isDraft = isset($_POST['save_draft']);
 
-    /* SUBJECT CHECK */
-    $prefix = substr($class, 0, 4);
+foreach($_POST['marks'] as $sid=>$marks){
 
-    $subjectCheck = $conn->prepare("
-    SELECT subject_name FROM semester_subjects
-    WHERE class=? AND subject_name=?
-    ");
-    $subjectCheck->bind_param("ss", $prefix, $subject);
-    $subjectCheck->execute();
+$semester = $_POST['semester'][$sid];
 
-    if($subjectCheck->get_result()->num_rows == 0){
-        echo "<script>alert('Subject not found');</script>";
-        exit;
-    }
+if($marks==="") $marks=NULL;
 
-    foreach($_POST['marks'] as $student_id => $marks){
+$status = $isDraft ? "draft":"published";
 
-        $semester = $_POST['semester'][$student_id];
+$check = $conn->query("
+SELECT id FROM marks
+WHERE student_id='$sid' AND subject='$subject' AND exam_type='$examType' AND class='$class'
+");
 
-        /* NULL MARKS */
-        if($marks === "" || $marks === null){
-            $marks = NULL;
-        } else {
-            if($marks > $totalMarks){
-                echo "<script>alert('Marks exceed limit');</script>";
-                exit;
-            }
-        }
+if($check->num_rows>0){
 
-        $status = $isDraft ? "draft" : "published";
+$conn->query("
+UPDATE marks SET
+obtained_marks=".($marks===NULL?'NULL':$marks).",
+total_marks=$totalMarks,
+semester='$semester',
+status='$status'
+WHERE student_id='$sid' AND subject='$subject' AND exam_type='$examType' AND class='$class'
+");
 
-        /* CHECK EXISTING */
-        $check = $conn->prepare("
-        SELECT id FROM marks
-        WHERE student_id=? AND subject=? AND exam_type=? AND class=?
-        ");
-        $check->bind_param("isss", $student_id, $subject, $examType, $class);
-        $check->execute();
+}else{
 
-        if($check->get_result()->num_rows > 0){
+$conn->query("
+INSERT INTO marks
+(student_id,teacher_user_id,class,semester,subject,exam_type,total_marks,obtained_marks,status)
+VALUES('$sid','$teacher_id','$class','$semester','$subject','$examType','$totalMarks',".($marks===NULL?'NULL':$marks).",'$status')
+");
 
-            /* UPDATE */
-            $update = $conn->prepare("
-            UPDATE marks
-            SET obtained_marks=?, total_marks=?, semester=?, status=?
-            WHERE student_id=? AND subject=? AND exam_type=? AND class=?
-            ");
+}
 
-            $update->bind_param(
-                "iiisisss",
-                $marks,
-                $totalMarks,
-                $semester,
-                $status,
-                $student_id,
-                $subject,
-                $examType,
-                $class
-            );
+}
 
-            $update->execute();
-
-        } else {
-
-            /* INSERT */
-            $insert = $conn->prepare("
-            INSERT INTO marks
-            (student_id, teacher_user_id, class, semester, subject, exam_type, total_marks, obtained_marks, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ");
-
-            $insert->bind_param(
-                "iissssiis",
-                $student_id,
-                $teacher_id,
-                $class,
-                $semester,
-                $subject,
-                $examType,
-                $totalMarks,
-                $marks,
-                $status
-            );
-
-            $insert->execute();
-        }
-    }
-
-    echo "<script>alert('".($isDraft ? "Draft saved" : "Marks published")."'); window.location='teacher_dashboard.php';</script>";
+echo "<script>alert('Saved');location.reload();</script>";
 }
 ?>

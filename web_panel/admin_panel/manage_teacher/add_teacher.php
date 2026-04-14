@@ -94,6 +94,14 @@ border-color:#c3b5ff;
 color:#5a4fcf;
 }
 
+.count{
+position:absolute;
+right:10px;
+top:50%;
+transform:translateY(-50%);
+font-size:12px;
+color:#888;
+}
 .chip.disabled{
 background:#e0e0e0;
 color:#888;
@@ -134,6 +142,20 @@ Add Teacher
 <!-- Email -->
 <label>Email</label>
 <input class="input" type="email" name="email" placeholder="teacher@vpt.edu.in" required>
+
+<!-- Phone -->
+<label>Phone</label>
+<div style="position:relative;">
+<input class="input" id="phoneInput" name="mobile_no" placeholder="Enter phone number" maxlength="10" required>
+<span class="count" id="phoneCount">0/10</span>
+</div>
+
+<!-- Employee ID -->
+<label>Employee ID</label>
+<div style="position:relative;">
+<input class="input" id="empInput" name="employee_id" placeholder="Enter employee ID (e.g. vp1009)" maxlength="6" required>
+<span class="count" id="empCount">0/6</span>
+</div>
 
 <!-- Password -->
 <label>Password</label>
@@ -271,6 +293,23 @@ return false;
 
 return true;
 }
+
+// PHONE COUNT
+const phoneInput = document.getElementById("phoneInput");
+const phoneCount = document.getElementById("phoneCount");
+
+phoneInput.addEventListener("input", function(){
+    this.value = this.value.replace(/[^0-9]/g,'');
+    phoneCount.innerText = this.value.length + "/10";
+});
+
+// EMPLOYEE ID COUNT
+const empInput = document.getElementById("empInput");
+const empCount = document.getElementById("empCount");
+
+empInput.addEventListener("input", function(){
+    empCount.innerText = this.value.length + "/6";
+});
 
 </script>
 

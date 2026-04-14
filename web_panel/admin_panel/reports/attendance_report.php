@@ -364,7 +364,7 @@ Attendance Report
 
 <label>Month</label>
 
-<select class="select" name="month" onchange="this.form.submit()">
+<select class="select" name="month">
 
 <option value="">Select</option>
 
@@ -381,7 +381,7 @@ Attendance Report
 ?>
 
 <option value="<?=$m?>"
-<?=$selectedMonth==$m?'selected':''?>
+<?= ($selectedMonth == $m) ? 'selected="selected"' : '' ?>
 data-enabled="<?=$enabled ? '1' : '0'?>"
 style="<?=$enabled ? '' : 'color:gray;'?>">
 

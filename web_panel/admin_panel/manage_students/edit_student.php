@@ -29,6 +29,11 @@ background:#f5f7f9;
 font-family:Segoe UI;
 }
 
+.readonly{
+background:#e0e0e0 !important;
+color:#888;
+}
+
 /* TOP BAR */
 
 .topbar{
@@ -131,7 +136,7 @@ Edit Student
 <input id="name" value="<?=$data['full_name']?>" required>
 </div>
 
-<div class="input-group">
+<div class="input-group readonly">
 <span class="material-icons">mail</span>
 <input value="<?=$data['email']?>" readonly>
 </div>
@@ -151,12 +156,14 @@ Edit Student
 <input id="roll" value="<?=$data['roll_no']?>">
 </div>
 
-<div class="input-group">
+
+<div class="input-group readonly">
 <span class="material-icons">tag</span>
-<input id="enrollment" value="<?=$data['enrollment_no']?>">
+<input id="enrollment" value="<?=$data['enrollment_no']?>" readonly>
 </div>
 
-<div class="input-group">
+
+<div class="input-group readonly">
 <span class="material-icons">school</span>
 <input value="<?=$data['class']?>" readonly>
 </div>
