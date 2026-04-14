@@ -5,24 +5,49 @@ require_once("../../config.php");
 
 $id = $_GET['id'];
 
+/* FETCH DATA */
 $data = $conn->query("
 SELECT s.*,u.email
 FROM students s
 JOIN users u ON u.user_id=s.user_id
 WHERE s.user_id='$id'
 ")->fetch_assoc();
+
+/* =========================
+   UPDATE LOGIC (DIRECT DB)
+========================= */
+if(isset($_POST['user_id'])){
+
+    $user_id = $_POST['user_id'];
+    $name = $_POST['name'];
+    $phone = $_POST['phone'];
+    $parentPhone = $_POST['parentPhone'];
+    $roll = $_POST['roll'];
+
+    /* UPDATE STUDENT TABLE */
+    $stmt = $conn->prepare("
+    UPDATE students
+    SET full_name=?, mobile_no=?, parent_mobile_no=?, roll_no=?
+    WHERE user_id=?
+    ");
+
+    $stmt->bind_param("ssssi", $name, $phone, $parentPhone, $roll, $user_id);
+    $stmt->execute();
+
+    /* REDIRECT */
+    header("Location: manage_students.php?class=".$data['class']."&updated=1");
+    exit;
+}
 ?>
 
 <!DOCTYPE html>
 <html>
 <head>
-
 <title>Edit Student</title>
 
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
 <style>
-
 body{
 margin:0;
 background:#f5f7f9;
@@ -33,8 +58,6 @@ font-family:Segoe UI;
 background:#e0e0e0 !important;
 color:#888;
 }
-
-/* TOP BAR */
 
 .topbar{
 background:#009846;
@@ -51,8 +74,6 @@ color:white;
 text-decoration:none;
 font-size:26px;
 }
-
-/* CENTER FORM */
 
 .container{
 display:flex;
@@ -102,14 +123,7 @@ font-size:18px;
 border-radius:35px;
 cursor:pointer;
 }
-
-.msg{
-margin-bottom:15px;
-font-weight:500;
-}
-
 </style>
-
 </head>
 
 <body>
@@ -122,18 +136,16 @@ Edit Student
 </div>
 
 <div class="container">
-
 <div class="form-box">
 
-<div id="msg" class="msg"></div>
+<!-- ✅ FORM NOW DIRECT -->
+<form method="POST">
 
-<form id="editForm">
-
-<input type="hidden" id="user_id" value="<?=$data['user_id']?>">
+<input type="hidden" name="user_id" value="<?=$data['user_id']?>">
 
 <div class="input-group">
 <span class="material-icons">person</span>
-<input id="name" value="<?=$data['full_name']?>" required>
+<input name="name" value="<?=$data['full_name']?>" required>
 </div>
 
 <div class="input-group readonly">
@@ -143,25 +155,23 @@ Edit Student
 
 <div class="input-group">
 <span class="material-icons">call</span>
-<input id="phone" value="<?=$data['mobile_no']?>" maxlength="10">
+<input name="phone" value="<?=$data['mobile_no']?>" maxlength="10">
 </div>
 
 <div class="input-group">
 <span class="material-icons">call</span>
-<input id="parentPhone" value="<?=$data['parent_mobile_no']?>" maxlength="10">
+<input name="parentPhone" value="<?=$data['parent_mobile_no']?>" maxlength="10">
 </div>
 
 <div class="input-group">
 <span class="material-icons">badge</span>
-<input id="roll" value="<?=$data['roll_no']?>">
+<input name="roll" value="<?=$data['roll_no']?>">
 </div>
-
 
 <div class="input-group readonly">
 <span class="material-icons">tag</span>
-<input id="enrollment" value="<?=$data['enrollment_no']?>" readonly>
+<input value="<?=$data['enrollment_no']?>" readonly>
 </div>
-
 
 <div class="input-group readonly">
 <span class="material-icons">school</span>
@@ -174,53 +184,6 @@ Edit Student
 
 </div>
 </div>
-
-<script>
-
-document.getElementById("editForm").addEventListener("submit",async function(e){
-
-e.preventDefault();
-
-let data = {
-user_id: document.getElementById("user_id").value,
-name: document.getElementById("name").value,
-phone: document.getElementById("phone").value,
-parentPhone: document.getElementById("parentPhone").value,
-roll: document.getElementById("roll").value,
-enrollment: document.getElementById("enrollment").value
-};
-
-let res = await fetch("../../api/admin/edit_student.php",{
-method:"POST",
-headers:{
-"Content-Type":"application/json"
-},
-body: JSON.stringify(data)
-});
-
-let result = await res.json();
-
-let msg = document.getElementById("msg");
-
-if(result.status){
-
-msg.style.color="green";
-msg.innerHTML=result.message;
-
-setTimeout(()=>{
-window.location.href="manage_students.php?class=<?=$data['class']?>";
-},1500);
-
-}else{
-
-msg.style.color="red";
-msg.innerHTML=result.message;
-
-}
-
-});
-
-</script>
 
 </body>
 </html>
